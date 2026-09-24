@@ -1,61 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
-        <title>Alert</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="theme-color" content="#010102">
+        <title>Alert — Price-Alert</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="./../../css/alert.css">
     </head>
     <body>
-        <botton class="back">Back</botton>
+
+        <header class="page-head">
+            <button class="back" type="button">
+                <span aria-hidden="true">←</span> Back
+            </button>
+            <div class="page-title">
+                <h1>Price Alerts</h1>
+                <span>Set a target and get notified when it's hit</span>
+            </div>
+        </header>
+
         <div class="main">
-            <div class="first">
-                <div>
-                    <p>Select The Target:</p>
-                    <textarea class="future-select input" placeholder="Gold/Eur"></textarea>
+            <section class="first">
+                <div class="field">
+                    <label for="future-select">Select The Target</label>
+                    <textarea id="future-select" class="input" placeholder="Gold / Eur"></textarea>
                 </div>
-                <div>
-                    <p>Target Price:</p>
-                    <textarea class="target-price input" placeholder="1.2334"></textarea>
+                <div class="field">
+                    <label for="target-price">Target Price</label>
+                    <textarea id="target-price" class="input" placeholder="1.2334"></textarea>
                 </div>
-                <div>
-                    <p>Custom Note:</p>
-                    <textarea class="custom-note input" placeholder="good for sell"></textarea>
+                <div class="field">
+                    <label for="custom-note">Custom Note</label>
+                    <textarea id="custom-note" class="input" placeholder="good for sell"></textarea>
                 </div>
-                <div class="chanels">
-                    <button>Bale</button>
-                    <button>Telgram</button>
-                    <button>Both</button>
-                </div>
-                
-                </div>
-                <div class="second">
-                    <p>History:</p>
-                    <div class="history-box">
-                        <button>X</button>
-                        <p>Gold/Usd</p>
-                        <p>Target Price:<span>1.234</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
-                        </div>
-                        
-                    </div>
-                    <div class="history-box">
-                        <button>X</button>
-                        <p>EUR/Usd</p>
-                        <p>Target Price:<span>4.24</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
-                        </div>
+                <div class="field channels">
+                    <label>Channels</label>
+                    <div class="channel-group">
+                        <button type="button">Bale</button>
+                        <button type="button">Telegram</button>
+                        <button type="button">Both</button>
                     </div>
                 </div>
+            </section>
+
+            <section class="second">
+                <h2 class="section-title">History</h2>
+
+                <div class="history-box">
+                    <button class="close-x" type="button" aria-label="Remove">×</button>
+                    <span class="asset">Gold / USD</span>
+                    <span class="meta">Target: <b>1.234</b></span>
+                    <span class="meta">Note: <b>hi</b></span>
+                    <div class="actions">
+                        <button type="button">Modify</button>
+                        <button type="button" class="is-danger">Delete</button>
+                    </div>
+                </div>
+
+                <div class="history-box">
+                    <button class="close-x" type="button" aria-label="Remove">×</button>
+                    <span class="asset">EUR / USD</span>
+                    <span class="meta">Target: <b>4.24</b></span>
+                    <span class="meta">Note: <b>hi</b></span>
+                    <div class="actions">
+                        <button type="button">Modify</button>
+                        <button type="button" class="is-danger">Delete</button>
+                    </div>
+                </div>
+            </section>
         </div>
+
         <script>
-            document.querySelector(".back").addEventListener("click",function () {
-                window.location = "./../../main.html"
-            })
+            document.querySelector(".back").addEventListener("click", function () {
+                window.location = "./../../main.html";
+            });
         </script>
     </body>
 </html>

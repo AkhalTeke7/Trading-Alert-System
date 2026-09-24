@@ -1,52 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="theme-color" content="#010102">
         <title>Price-Alert</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="./css/style.css">
     </head>
-<body>
+    <body>
 
-    <header class="header">
-        <div class="left-header">
-            <img src='x'>
-            <p>Welcome to Alerting System</p>
-        </div>
-        <div class="right-header">
-            <p class="paragraph">Get in Touch</p>
-            <p class="paragraph">About</p>
-            
-        </div>
-    </header>
-
-    <div class="main">
-
-        <aside class="sidebar">
-            <div class="sid-botton alert">Alert</div>
-            <div class="sid-botton">Jornal</div>
-            <div class="sid-botton">News</div>
-            <div class="sid-botton">AI</div>
-        </aside>
-
-        <div class="content">
-
-            <div class="chart-part">
-                <div class="gold">
-                    gold
+        <header class="header">
+            <div class="left-header">
+                <span class="logo" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 17l5-6 4 3 6-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <rect x="15.5" y="3.5" width="5" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </span>
+                <div class="brand">
+                    <p class="brand-title">Price&nbsp;Alert</p>
+                    <p class="brand-sub">Trading Alert System</p>
                 </div>
-                <div class="eur">eur</div>
             </div>
+            <nav class="right-header">
+                <button class="nav-link" type="button">About</button>
+                <button class="nav-link nav-cta" type="button">Get in Touch</button>
+            </nav>
+        </header>
 
-            <div class="bottom">bottom</div>
+        <div class="main">
+            <aside class="sidebar" aria-label="Navigation">
+                <div class="sid-button alert is-active">
+                    <span class="sid-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2l8 4v5c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V6l8-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="M12 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="sid-label">Alert</span>
+                </div>
+                <div class="sid-button">
+                    <span class="sid-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 4h14v16l-7-4-7 4V4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="sid-label">Journal</span>
+                </div>
+                <div class="sid-button">
+                    <span class="sid-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 5h14v14H5V5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="M8 9h8M8 13h8M8 16h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="sid-label">News</span>
+                </div>
+                <div class="sid-button">
+                    <span class="sid-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 3a7 7 0 016.9 8.2c-.3 1.7.5 3.2 1.6 4.8H3.5c1.1-1.6 1.9-3.1 1.6-4.8A7 7 0 0112 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="M9 16a3 3 0 006 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="sid-label">AI</span>
+                </div>
+            </aside>
 
+            <main class="content">
+                <section class="chart-part">
+                    <article class="panel-card panel-gold">
+                        <div class="panel-head">
+                            <div class="panel-title">
+                                <span class="panel-dot is-gold" aria-hidden="true"></span>
+                                <h2>Gold</h2>
+                            </div>
+                            <span class="badge">XAU/USD</span>
+                        </div>
+                        <div class="panel-chart" aria-hidden="true">
+                            <div class="grid-lines"></div>
+                            <svg class="sparkline" viewBox="0 0 200 70" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0" stop-color="#ffcf5c" stop-opacity="0.25"/>
+                                        <stop offset="1" stop-color="#ffcf5c" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                                <path class="spark-area" fill="url(#goldFill)" d="M0 48 L20 40 L40 45 L60 33 L80 28 L100 34 L120 22 L140 27 L160 16 L180 20 L200 9 L200 70 L0 70 Z"/>
+                                <path class="spark-line is-gold" d="M0 48 L20 40 L40 45 L60 33 L80 28 L100 34 L120 22 L140 27 L160 16 L180 20 L200 9"/>
+                            </svg>
+                            <span class="chart-chip">+1.82%</span>
+                        </div>
+                        <div class="panel-foot">
+                            <span class="price"><b>2,658.</b>44</span>
+                            <span class="tick is-up">▲ 14.20</span>
+                        </div>
+                    </article>
+
+                    <article class="panel-card panel-eur">
+                        <div class="panel-head">
+                            <div class="panel-title">
+                                <span class="panel-dot" aria-hidden="true"></span>
+                                <h2>EUR</h2>
+                            </div>
+                            <span class="badge">EUR/USD</span>
+                        </div>
+                        <div class="panel-chart" aria-hidden="true">
+                            <div class="grid-lines"></div>
+                            <svg class="sparkline" viewBox="0 0 200 70" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="eurFill" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0" stop-color="#33c791" stop-opacity="0.25"/>
+                                        <stop offset="1" stop-color="#33c791" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                                <path class="spark-area" fill="url(#eurFill)" d="M0 20 L20 26 L40 22 L60 30 L80 42 L100 36 L120 46 L140 52 L160 47 L180 55 L200 60 L200 70 L0 70 Z"/>
+                                <path class="spark-line" d="M0 20 L20 26 L40 22 L60 30 L80 42 L100 36 L120 46 L140 52 L160 47 L180 55 L200 60"/>
+                            </svg>
+                            <span class="chart-chip is-down">−0.64%</span>
+                        </div>
+                        <div class="panel-foot">
+                            <span class="price"><b>1.08</b>37</span>
+                            <span class="tick is-down">▼ 0.0070</span>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="bottom">
+                    <div class="bottom-head">
+                        <h2>Watchlist</h2>
+                        <span class="badge is-ghost">Live</span>
+                    </div>
+                    <div class="watch-row watch-head-row">
+                        <span>Instrument</span>
+                        <span>Last</span>
+                        <span>Change</span>
+                        <span>Status</span>
+                    </div>
+                    <div class="watch-row">
+                        <span class="watch-name"><span class="watch-bullet is-gold" aria-hidden="true"></span>XAU/USD</span>
+                        <span>2,658.44</span>
+                        <span class="tick is-up">▲ +1.82%</span>
+                        <span><span class="status-pill is-ok">Active</span></span>
+                    </div>
+                    <div class="watch-row">
+                        <span class="watch-name"><span class="watch-bullet" aria-hidden="true"></span>EUR/USD</span>
+                        <span>1.0837</span>
+                        <span class="tick is-down">▼ −0.64%</span>
+                        <span><span class="status-pill is-warn">Watching</span></span>
+                    </div>
+                    <div class="watch-row">
+                        <span class="watch-name"><span class="watch-bullet is-muted" aria-hidden="true"></span>BTC/USD</span>
+                        <span>63,410.00</span>
+                        <span class="tick is-up">▲ +0.21%</span>
+                        <span><span class="status-pill is-ok">Active</span></span>
+                    </div>
+                </section>
+            </main>
         </div>
-        
-    </div>
-    <footer class="footer">footer</footer>
-<script>
-    document.querySelector(".alert").addEventListener("click",function () {
-        window.location="./Public/Alert/alert.html"
-    });
-</script>
 
-</body>
+        <footer class="footer">
+            <span>© 2026 Price-Alert &mdash; Trading Alert System</span>
+            <span class="footer-status"><span class="pulse" aria-hidden="true"></span>All systems operational</span>
+        </footer>
+
+        <script>
+            document.querySelector(".alert").addEventListener("click", function () {
+                window.location = "./Public/Alert/alert.html";
+            });
+        </script>
+    </body>
 </html>
