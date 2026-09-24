@@ -2,22 +2,49 @@
 <html>
     <head>
         <title>Alert</title>
-        <link rel="stylesheet" href="/css/alert.css">
+        <link rel="stylesheet" href="./../../css/alert.css">
     </head>
     <body>
         <div class="main">
             <div class="first">
-                <p>Select The Target:</p>
-                <textarea class="future-select input" placeholder="Gold/Eur"></textarea>
-                <p>Target Price:</p>
-                <textarea class="target-price input" placeholder="1.2334"></textarea>
-                <p>Custom Note:</p>
-                <textarea class="custom-note input" placeholder="good for sell"></textarea>
-            </div>
-            <div class="second">
-                <div class="history-box"></div>
-                <div class="history-box"></div>
-            </div>
+                <div>
+                    <p>Select The Target:</p>
+                    <textarea class="future-select input" placeholder="Gold/Eur"></textarea>
+                </div>
+                <div>
+                    <p>Target Price:</p>
+                    <textarea class="target-price input" placeholder="1.2334"></textarea>
+                </div>
+                <div>
+                    <p>Custom Note:</p>
+                    <textarea class="custom-note input" placeholder="good for sell"></textarea>
+                </div>
+                
+                </div>
+                <div class="second">
+                    <p>History:</p>
+                    <div class="history-box">
+                        <button>X</button>
+                        <p>Gold/Usd</p>
+                        <p>Target Price:<span>1.234</span></p>
+                        <p>Custom note:<span>hi</span></p>
+                        <div>
+                            <button>Modify</button>
+                            <button>Delete</button>
+                        </div>
+                        
+                    </div>
+                    <div class="history-box">
+                        <button>X</button>
+                        <p>EUR/Usd</p>
+                        <p>Target Price:<span>4.24</span></p>
+                        <p>Custom note:<span>hi</span></p>
+                        <div>
+                            <button>Modify</button>
+                            <button>Delete</button>
+                        </div>
+                    </div>
+                </div>
         </div>
     </body>
 </html>
