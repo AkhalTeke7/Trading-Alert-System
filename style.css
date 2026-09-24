@@ -42,6 +42,7 @@ body {
     font-family: var(--font-mono);
     color: #dddbdb;
     background-color: rgb(16, 14, 14);
+    
 }
 
 .main {
@@ -56,10 +57,9 @@ body {
     color: #dddbdb;
     background-color: rgb(16, 14, 14);
     display: flex;
-    
     flex-direction: column;
     row-gap: 30px;
-    
+   
 }
 
 .content {
@@ -79,9 +79,17 @@ body {
 .eur {
     background-color: #111;
     color: #dddbdb;
+    border-style: dashed;
+    border-width: 2px;
+    border-color:  #33c7918e;
+    transition: all, 0.7s;
+    
+    
     
 }
-
+.gold:hover, .eur:hover {
+    transform: translateY(-3px);
+}
 .footer {
     width: 100%;
     font-family: var(--font-mono);
@@ -97,6 +105,14 @@ body {
     margin-right:20px;
     color: #fbfafa;
     background-color: #111;
+    border-style: dashed;
+    border-width: 2px;
+    border-color:  #33c7918e;
+    transition: all, 0.7s;
+}
+.bottom:hover {
+    transform: translateY(-3px);
+    
 }
 .sid-botton {
     height: 60px;
