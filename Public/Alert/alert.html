@@ -5,6 +5,7 @@
         <link rel="stylesheet" href="./../../css/alert.css">
     </head>
     <body>
+        <botton class="back">Back</botton>
         <div class="main">
             <div class="first">
                 <div>
@@ -18,6 +19,11 @@
                 <div>
                     <p>Custom Note:</p>
                     <textarea class="custom-note input" placeholder="good for sell"></textarea>
+                </div>
+                <div class="chanels">
+                    <button>Bale</button>
+                    <button>Telgram</button>
+                    <button>Both</button>
                 </div>
                 
                 </div>
@@ -46,5 +52,10 @@
                     </div>
                 </div>
         </div>
+        <script>
+            document.querySelector(".back").addEventListener("click",function () {
+                window.location = "./../../main.html"
+            })
+        </script>
     </body>
 </html>
