@@ -97,17 +97,3 @@ p{
 
 
 }
-.back {
-    width: 60px;
-    height: 30px;
-    align-items: center;
-    color:white;
-    font-family: var(--font-sans);
-    
-    cursor: pointer;
-    transition: all, 0.5s;
-}
-.back:hover {
-    background-color:var(--green);
-    border-radius: 10px;
-}
