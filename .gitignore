@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Environment variables (never commit secrets!)
+.env
+.env.local
+.env.production
+
+# Build outputs
+dist/
+build/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor settings
+.vscode/
+.idea/
+
+# Temp files
+*.tmp
+*.swp
