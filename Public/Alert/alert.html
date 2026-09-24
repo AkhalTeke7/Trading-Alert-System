@@ -1,50 +1,469 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>Alert</title>
-        <link rel="stylesheet" href="./../../css/alert.css">
-    </head>
-    <body>
-        <div class="main">
-            <div class="first">
-                <div>
-                    <p>Select The Target:</p>
-                    <textarea class="future-select input" placeholder="Gold/Eur"></textarea>
-                </div>
-                <div>
-                    <p>Target Price:</p>
-                    <textarea class="target-price input" placeholder="1.2334"></textarea>
-                </div>
-                <div>
-                    <p>Custom Note:</p>
-                    <textarea class="custom-note input" placeholder="good for sell"></textarea>
-                </div>
-                
-                </div>
-                <div class="second">
-                    <p>History:</p>
-                    <div class="history-box">
-                        <button>X</button>
-                        <p>Gold/Usd</p>
-                        <p>Target Price:<span>1.234</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
-                        </div>
-                        
-                    </div>
-                    <div class="history-box">
-                        <button>X</button>
-                        <p>EUR/Usd</p>
-                        <p>Target Price:<span>4.24</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
-                        </div>
-                    </div>
-                </div>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#010102">
+    <title>Alerts — Price-Alert</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #010102;
+            --surface: #111413;
+            --surface-raised: #171b19;
+            --line: #2b3430;
+            --text: #f0f5f1;
+            --muted: #9aa9a1;
+            --green: #33c791;
+            --gold: #ffcf5c;
+            --font-mono: "JetBrains Mono", ui-monospace, monospace;
+            --font-sans: "Inter", system-ui, sans-serif;
+            --font-display: "Space Grotesk", sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            min-width: 320px;
+            margin: 0;
+            background: radial-gradient(circle at 90% 0%, rgba(51, 199, 145, .065), transparent 36%), var(--bg);
+            color: var(--text);
+            font: 14px/1.5 var(--font-sans);
+        }
+        button, input, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        [hidden] { display: none !important; }
+        a { color: inherit; text-decoration: none; }
+        :focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+        .skip-link { position: absolute; top: -60px; left: 16px; z-index: 5; padding: 10px; background: var(--green); color: var(--bg); }
+        .skip-link:focus { top: 10px; }
+
+        /* The dark header, compact navigation and green accent echo the main dashboard. */
+        .site-header { height: 72px; background: #100e0e; border-bottom: 1px solid #292f2c; }
+        .header-inner { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 clamp(20px, 3vw, 42px); }
+        .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+        .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; flex: none; border: 1px solid rgba(51, 199, 145, .35); border-radius: 10px; color: var(--green); background: rgba(51, 199, 145, .09); }
+        .brand-mark svg { width: 23px; height: 23px; }
+        .brand-name { display: block; font: 700 17px/1.1 var(--font-display); letter-spacing: -.025em; }
+        .brand-caption { display: block; margin-top: 4px; color: var(--muted); font: 500 10px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+        .back-link { display: inline-flex; align-items: center; gap: 9px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 8px; color: #d4ded8; font: 500 12px var(--font-mono); transition: border-color .2s, color .2s, background .2s; }
+        .back-link svg { width: 15px; height: 15px; }
+        .back-link:hover { color: var(--green); border-color: var(--green); background: rgba(51, 199, 145, .06); }
+
+        .app-shell { display: grid; grid-template-columns: 82px minmax(0, 1fr); min-height: calc(100vh - 72px); }
+        .sidebar { background: #0d0e0e; border-right: 1px solid #252a27; padding: 24px 9px; }
+        .side-nav { position: sticky; top: 24px; display: grid; gap: 12px; }
+        .side-link { min-height: 69px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 10px; color: #88968d; font: 500 10px var(--font-mono); transition: background .2s, color .2s; }
+        .side-link svg { width: 21px; height: 21px; }
+        .side-link:hover { background: #1a211e; color: var(--text); }
+        .side-link.is-current { color: var(--green); border-color: rgba(51, 199, 145, .24); background: rgba(51, 199, 145, .10); }
+
+        .content { width: min(100%, 1390px); min-width: 0; margin: 0 auto; padding: clamp(26px, 4vw, 56px) clamp(20px, 4vw, 60px) 24px; display: flex; flex-direction: column; }
+        .intro { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 32px; }
+        .eyebrow { color: var(--green); font: 600 11px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; }
+        .eyebrow::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 9px 2px 0; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(51, 199, 145, .65); }
+        h1, h2, h3, p { margin: 0; }
+        h1 { margin: 9px 0 8px; font: 700 clamp(31px, 3.7vw, 47px)/1.12 var(--font-display); letter-spacing: -.045em; }
+        .intro p { color: var(--muted); font-size: 14px; }
+        .intro-stat { display: flex; align-items: center; gap: 13px; flex: none; padding: 10px 16px; border: 1px solid var(--line); border-radius: 10px; background: #111513; }
+        .intro-stat strong { color: var(--green); font: 700 26px/1 var(--font-display); }
+        .intro-stat span { max-width: 65px; color: var(--muted); font: 500 10px/1.4 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; }
+
+        .workspace { display: grid; grid-template-columns: minmax(310px, 420px) minmax(0, 1fr); align-items: start; gap: 20px; }
+        .panel { min-width: 0; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(145deg, #151917, #101211); overflow: hidden; box-shadow: 0 14px 35px rgba(0, 0, 0, .2); }
+        .create-panel { border: 1px dashed rgba(51, 199, 145, .43); }
+        .panel-heading { min-height: 89px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+        .panel-title { display: flex; align-items: center; gap: 12px; }
+        .panel-dot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(51, 199, 145, .12); }
+        .panel-dot.is-gold { background: var(--gold); box-shadow: 0 0 0 4px rgba(255, 207, 92, .1); }
+        .panel-heading h2 { font: 600 19px/1.2 var(--font-display); letter-spacing: -.03em; }
+        .panel-tag { white-space: nowrap; padding: 6px 9px; border: 1px solid #35423a; border-radius: 6px; color: var(--green); font: 600 10px/1 var(--font-mono); letter-spacing: .04em; }
+        .panel-tag.is-gold { color: var(--gold); border-color: rgba(255, 207, 92, .3); }
+        .panel-body { padding: 23px 24px 25px; }
+        .panel-description { margin-bottom: 24px; color: var(--muted); font-size: 13px; }
+
+        .field { margin-bottom: 20px; }
+        .field label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; color: #dfe8e0; font: 600 11px var(--font-mono); }
+        .field label span { color: #7d8d82; font-size: 10px; font-weight: 400; text-transform: uppercase; }
+        .control-wrap { position: relative; }
+        .form-control { display: block; width: 100%; min-height: 46px; padding: 12px 14px; border: 1px solid #39413c; border-radius: 8px; background: #0a0d0c; color: var(--text); outline: none; transition: border-color .2s, box-shadow .2s; }
+        .form-control:hover { border-color: #637369; }
+        .form-control:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(51, 199, 145, .13); }
+        .form-control::placeholder { color: #78877e; opacity: 1; }
+        select.form-control { appearance: none; padding-right: 38px; cursor: pointer; }
+        .select-chevron { position: absolute; right: 15px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+        .price-input { padding-left: 33px; padding-right: 53px; font-family: var(--font-mono); }
+        .price-prefix, .price-suffix { position: absolute; top: 50%; transform: translateY(-50%); pointer-events: none; font: 500 12px var(--font-mono); }
+        .price-prefix { left: 14px; color: var(--green); }
+        .price-suffix { right: 14px; color: #829188; }
+        .note-input { min-height: 94px; resize: vertical; }
+        .submit-button { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border: 0; border-radius: 8px; background: linear-gradient(135deg, #33c791, #3edfa4); color: #07180f; font: 700 12px var(--font-mono); transition: transform .2s, filter .2s; }
+        .submit-button:hover { transform: translateY(-2px); filter: brightness(1.07); }
+        .submit-button svg { width: 17px; height: 17px; }
+        .cancel-edit { display: block; margin: 13px auto 0; padding: 5px 10px; border: 0; background: transparent; color: #c3d0c5; font: 500 11px var(--font-mono); text-decoration: underline; text-underline-offset: 3px; }
+        .cancel-edit:hover { color: var(--green); }
+        .form-caption { margin-top: 17px; color: #8d9c92; font-size: 11px; line-height: 1.55; }
+        .feedback { margin: 0 0 16px; padding: 10px 12px; border: 1px solid rgba(51, 199, 145, .4); border-radius: 7px; background: rgba(51, 199, 145, .1); color: #b3f0d4; font-size: 12px; }
+
+        .history-panel { border-color: #2b3530; }
+        .history-heading { border-bottom: 1px solid var(--line); }
+        .history-subtitle { margin: 16px 24px 0; color: var(--muted); font-size: 12px; }
+        .history-columns, .history-row { display: grid; grid-template-columns: minmax(130px, 1.25fr) minmax(92px, .8fr) minmax(90px, 1fr) auto; align-items: center; gap: 14px; }
+        .history-columns { margin: 22px 24px 0; padding: 0 12px 12px; border-bottom: 1px solid var(--line); color: #829187; font: 500 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+        .history-row { margin: 0 24px; padding: 20px 12px; border-bottom: 1px solid var(--line); transition: background .2s; }
+        .history-row:last-child { border-bottom: 0; }
+        .history-row:hover { background: rgba(51, 199, 145, .035); }
+        .instrument-cell { min-width: 0; display: flex; align-items: center; gap: 11px; }
+        .instrument-icon { width: 37px; height: 37px; flex: none; display: grid; place-items: center; border: 1px solid rgba(255, 207, 92, .27); border-radius: 9px; background: rgba(255, 207, 92, .09); color: var(--gold); font: 700 13px var(--font-display); }
+        .instrument-icon.is-eur { border-color: rgba(51, 199, 145, .27); background: rgba(51, 199, 145, .09); color: var(--green); }
+        .instrument-icon.is-btc { border-color: rgba(245, 160, 70, .3); background: rgba(245, 160, 70, .09); color: #f5a046; }
+        .instrument-name { display: block; font: 600 13px/1.4 var(--font-display); white-space: nowrap; }
+        .instrument-symbol { display: block; margin-top: 3px; color: var(--muted); font: 500 10px var(--font-mono); }
+        .target-value { color: var(--text); font: 600 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+        .note-value { display: block; overflow-wrap: anywhere; color: #aab9af; font-size: 12px; }
+        .mobile-label { display: none; }
+        .row-actions { display: flex; align-items: center; gap: 6px; }
+        .row-action { padding: 7px 9px; border: 1px solid #37443c; border-radius: 6px; background: transparent; color: var(--green); font: 500 10px var(--font-mono); transition: background .2s, border-color .2s; }
+        .row-action:hover { border-color: var(--green); background: rgba(51, 199, 145, .1); }
+        .row-action.is-delete { color: #dc9b9b; border-color: #453737; }
+        .row-action.is-delete:hover { border-color: #da7777; background: rgba(218, 119, 119, .09); }
+        .history-footer { padding: 13px 24px; border-top: 1px solid var(--line); color: #86958b; font: 500 10px var(--font-mono); }
+        .empty-state { padding: 50px 22px; text-align: center; }
+        .empty-state svg { width: 35px; height: 35px; margin-bottom: 12px; color: var(--green); }
+        .empty-state h3 { font: 600 17px var(--font-display); }
+        .empty-state p { margin-top: 5px; color: var(--muted); font-size: 12px; }
+        .empty-state button { margin-top: 20px; padding: 9px 14px; border: 1px solid var(--green); border-radius: 7px; background: rgba(51, 199, 145, .1); color: var(--green); font: 600 11px var(--font-mono); }
+
+        .page-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: auto; padding-top: 38px; color: #8d9d93; font: 500 10px var(--font-mono); }
+        .footer-status { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+        .footer-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+        @media (max-width: 1100px) {
+            .workspace { grid-template-columns: minmax(290px, 350px) minmax(0, 1fr); }
+            .history-columns { display: none; }
+            .history-row { grid-template-columns: minmax(0, 1fr) auto; gap: 15px; }
+            .instrument-cell { grid-column: 1; grid-row: 1; }
+            .row-actions { grid-column: 2; grid-row: 1; }
+            .target-cell { grid-column: 1; grid-row: 2; }
+            .note-cell { grid-column: 2; grid-row: 2; min-width: 100px; }
+            .mobile-label { display: block; margin-bottom: 4px; color: #829187; font: 500 10px var(--font-mono); text-transform: uppercase; }
+        }
+        @media (max-width: 800px) {
+            .workspace { grid-template-columns: minmax(0, 1fr); }
+            .create-panel, .history-panel { width: 100%; }
+        }
+        @media (max-width: 560px) {
+            .site-header { height: 64px; }
+            .brand-caption { display: none; }
+            .brand-name { font-size: 16px; }
+            .back-link { padding: 9px; }
+            .back-link span { display: none; }
+            .app-shell { display: block; }
+            .sidebar { padding: 7px 16px; border-right: 0; border-bottom: 1px solid #252a27; }
+            .side-nav { display: flex; gap: 8px; }
+            .side-link { min-height: 40px; padding: 0 12px; flex-direction: row; font-size: 11px; }
+            .side-link svg { width: 17px; height: 17px; }
+            .content { padding: 28px 16px 20px; }
+            .intro { align-items: start; margin-bottom: 24px; }
+            .intro-stat { padding: 8px 10px; }
+            .intro-stat strong { font-size: 20px; }
+            .intro-stat span { display: none; }
+            .panel-heading { padding: 18px; min-height: 76px; }
+            .panel-body { padding: 20px 18px; }
+            .history-subtitle { margin: 14px 18px 0; }
+            .history-row { margin: 0 18px; padding: 19px 2px; }
+            .history-footer { padding: 13px 18px; }
+            .page-footer { flex-wrap: wrap; padding-top: 30px; }
+        }
+        @media (max-width: 400px) {
+            .history-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .instrument-cell { grid-column: 1 / -1; grid-row: 1; }
+            .target-cell { grid-column: 1; grid-row: 2; }
+            .note-cell { grid-column: 2; grid-row: 2; }
+            .row-actions { grid-column: 1 / -1; grid-row: 3; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="../../main.html" aria-label="Price-Alert dashboard">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M3 17l5-6 4 3 6-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <rect x="15.5" y="3.5" width="5" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </span>
+                <span><span class="brand-name">Price-Alert</span><span class="brand-caption">Trading Alert System</span></span>
+            </a>
+            <a class="back-link" href="../../main.html">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                <span>Back to dashboard</span>
+            </a>
         </div>
-    </body>
+    </header>
+
+    <div class="app-shell">
+        <aside class="sidebar">
+            <nav class="side-nav" aria-label="Page navigation">
+                <a class="side-link" href="../../main.html">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3V10Z"/><path d="M9 20v-7h6v7"/></svg>
+                    <span>Home</span>
+                </a>
+                <a class="side-link is-current" href="alert.html" aria-current="page">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v5c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V6l8-4z"/><path d="M12 8v4"/></svg>
+                    <span>Alerts</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="content" id="main-content">
+            <div class="intro">
+                <div>
+                    <span class="eyebrow">Alert workspace</span>
+                    <h1>Price alerts<span style="color: var(--green)">.</span></h1>
+                    <p>Keep the market levels that matter to you in one place.</p>
+                </div>
+                <div class="intro-stat" aria-label="Saved alerts">
+                    <strong id="alert-count">02</strong><span>Saved alerts</span>
+                </div>
+            </div>
+
+            <div class="workspace">
+                <section class="panel create-panel" id="create-panel" aria-labelledby="create-title">
+                    <div class="panel-heading">
+                        <div class="panel-title"><span class="panel-dot is-gold" aria-hidden="true"></span><h2 id="create-title">Create an alert</h2></div>
+                        <span class="panel-tag is-gold">NEW LEVEL</span>
+                    </div>
+                    <div class="panel-body">
+                        <p class="panel-description">Choose a market and set a price to keep on your radar.</p>
+                        <p class="feedback" id="feedback" role="status" hidden></p>
+                        <form id="alert-form">
+                            <div class="field">
+                                <label for="instrument">Select the target <span>01 / Market</span></label>
+                                <div class="control-wrap">
+                                    <select class="form-control" id="instrument" required>
+                                        <option value="">Choose an instrument</option>
+                                        <option value="XAU/USD">Gold / USD (XAU/USD)</option>
+                                        <option value="EUR/USD">EUR / USD (EUR/USD)</option>
+                                        <option value="BTC/USD">Bitcoin / USD (BTC/USD)</option>
+                                    </select>
+                                    <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="target-price">Target price <span>02 / Level</span></label>
+                                <div class="control-wrap">
+                                    <span class="price-prefix" aria-hidden="true">$</span>
+                                    <input class="form-control price-input" id="target-price" type="number" min="0.000001" step="any" inputmode="decimal" placeholder="e.g. 2658.44" required>
+                                    <span class="price-suffix" aria-hidden="true">USD</span>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="custom-note">Custom note <span>Optional</span></label>
+                                <textarea class="form-control note-input" id="custom-note" rows="3" maxlength="160" placeholder="e.g. Good for sell, watch the breakout…"></textarea>
+                            </div>
+                            <button class="submit-button" type="submit"><span id="submit-label">Create alert</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+                            <button class="cancel-edit" id="cancel-edit" type="button" hidden>Cancel editing</button>
+                            <p class="form-caption">Saved in this browser only. Live price monitoring and notifications are not connected.</p>
+                        </form>
+                    </div>
+                </section>
+
+                <section class="panel history-panel" aria-labelledby="history-title">
+                    <div class="panel-heading history-heading">
+                        <div class="panel-title"><span class="panel-dot" aria-hidden="true"></span><h2 id="history-title">Alert history</h2></div>
+                        <span class="panel-tag" id="history-count">02 ITEMS</span>
+                    </div>
+                    <p class="history-subtitle">Your saved price levels at a glance.</p>
+                    <div class="history-columns" aria-hidden="true"><span>Instrument</span><span>Target</span><span>Note</span><span>Actions</span></div>
+                    <div id="history-list" role="list"></div>
+                    <div class="empty-state" id="empty-state" hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v5c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V6l8-4z"/><path d="M12 8v4"/></svg>
+                        <h3>No alerts saved</h3>
+                        <p>Add a price level to start your list.</p>
+                        <button id="add-first" type="button">Create an alert</button>
+                    </div>
+                    <div class="history-footer">SAVED LEVELS / THIS DEVICE</div>
+                    <noscript><p class="history-subtitle">Enable JavaScript to view and manage saved alerts.</p></noscript>
+                </section>
+            </div>
+
+            <footer class="page-footer">
+                <span>© 2026 Price-Alert — Trading Alert System</span>
+                <span class="footer-status">Local alert workspace</span>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            const storageKey = 'price-alert-levels';
+            const samples = [
+                { id: 'sample-gold', symbol: 'XAU/USD', price: '1.234', note: 'hi' },
+                { id: 'sample-eur', symbol: 'EUR/USD', price: '4.24', note: 'hi' }
+            ];
+            const instruments = {
+                'XAU/USD': { name: 'Gold / USD', icon: 'Au', iconClass: '' },
+                'EUR/USD': { name: 'EUR / USD', icon: '€', iconClass: 'is-eur' },
+                'BTC/USD': { name: 'Bitcoin / USD', icon: '₿', iconClass: 'is-btc' }
+            };
+            const form = document.getElementById('alert-form');
+            const market = document.getElementById('instrument');
+            const price = document.getElementById('target-price');
+            const note = document.getElementById('custom-note');
+            const list = document.getElementById('history-list');
+            const feedback = document.getElementById('feedback');
+            let editingId = null;
+            let feedbackTimer;
+            let alerts = samples.slice();
+
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved !== null) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed)) {
+                        alerts = parsed.filter(item => item && typeof item.id === 'string' && instruments[item.symbol] && Number(item.price) > 0 && typeof item.note === 'string');
+                    }
+                }
+            } catch (_) { /* Allow the page to work even when storage is unavailable. */ }
+
+            function persist() {
+                try { localStorage.setItem(storageKey, JSON.stringify(alerts)); } catch (_) { /* Session-only fallback. */ }
+            }
+
+            function showFeedback(message) {
+                clearTimeout(feedbackTimer);
+                feedback.textContent = message;
+                feedback.hidden = false;
+                feedbackTimer = setTimeout(() => { feedback.hidden = true; }, 4500);
+            }
+
+            function makeCell(label, value, className) {
+                const cell = document.createElement('div');
+                cell.className = className;
+                const mobileLabel = document.createElement('span');
+                mobileLabel.className = 'mobile-label';
+                mobileLabel.textContent = label;
+                const content = document.createElement('span');
+                content.className = className === 'target-cell' ? 'target-value' : 'note-value';
+                content.textContent = value;
+                cell.append(mobileLabel, content);
+                return cell;
+            }
+
+            function render() {
+                list.replaceChildren();
+                document.getElementById('alert-count').textContent = String(alerts.length).padStart(2, '0');
+                document.getElementById('history-count').textContent = `${String(alerts.length).padStart(2, '0')} ${alerts.length === 1 ? 'ITEM' : 'ITEMS'}`;
+                document.getElementById('empty-state').hidden = alerts.length !== 0;
+
+                alerts.forEach(item => {
+                    const details = instruments[item.symbol];
+                    const row = document.createElement('article');
+                    row.className = 'history-row';
+                    row.setAttribute('role', 'listitem');
+
+                    const instrument = document.createElement('div');
+                    instrument.className = 'instrument-cell';
+                    const icon = document.createElement('span');
+                    icon.className = `instrument-icon ${details.iconClass}`;
+                    icon.setAttribute('aria-hidden', 'true');
+                    icon.textContent = details.icon;
+                    const label = document.createElement('div');
+                    const name = document.createElement('span');
+                    name.className = 'instrument-name';
+                    name.textContent = details.name;
+                    const symbol = document.createElement('span');
+                    symbol.className = 'instrument-symbol';
+                    symbol.textContent = item.symbol;
+                    label.append(name, symbol);
+                    instrument.append(icon, label);
+
+                    const target = makeCell('Target', `$${Number(item.price).toLocaleString('en-US', { maximumFractionDigits: 8 })}`, 'target-cell');
+                    const noteCell = makeCell('Note', item.note || '—', 'note-cell');
+                    const actions = document.createElement('div');
+                    actions.className = 'row-actions';
+                    for (const [action, text] of [['edit', 'Modify'], ['delete', 'Delete']]) {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = `row-action ${action === 'delete' ? 'is-delete' : ''}`;
+                        button.textContent = text;
+                        button.dataset.action = action;
+                        button.dataset.id = item.id;
+                        button.setAttribute('aria-label', `${text} ${details.name} alert`);
+                        actions.append(button);
+                    }
+                    row.append(instrument, target, noteCell, actions);
+                    list.append(row);
+                });
+            }
+
+            function stopEditing() {
+                editingId = null;
+                form.reset();
+                document.getElementById('create-title').textContent = 'Create an alert';
+                document.getElementById('submit-label').textContent = 'Create alert';
+                document.getElementById('cancel-edit').hidden = true;
+            }
+
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                const value = Number(price.value);
+                if (!instruments[market.value] || !Number.isFinite(value) || value <= 0) return;
+                const entry = { id: editingId || `${Date.now()}-${Math.random()}`, symbol: market.value, price: price.value, note: note.value.trim() };
+                if (editingId) {
+                    const index = alerts.findIndex(item => item.id === editingId);
+                    if (index !== -1) alerts[index] = entry;
+                    showFeedback('Alert updated in your saved list.');
+                } else {
+                    alerts.unshift(entry);
+                    showFeedback('Alert added to your saved list.');
+                }
+                persist();
+                stopEditing();
+                render();
+            });
+
+            list.addEventListener('click', event => {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+                const item = alerts.find(entry => entry.id === button.dataset.id);
+                if (!item) return;
+                if (button.dataset.action === 'edit') {
+                    editingId = item.id;
+                    market.value = item.symbol;
+                    price.value = item.price;
+                    note.value = item.note;
+                    document.getElementById('create-title').textContent = 'Modify alert';
+                    document.getElementById('submit-label').textContent = 'Save changes';
+                    document.getElementById('cancel-edit').hidden = false;
+                    document.getElementById('create-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    price.focus({ preventScroll: true });
+                } else if (window.confirm(`Delete the ${instruments[item.symbol].name} alert?`)) {
+                    alerts = alerts.filter(entry => entry.id !== item.id);
+                    if (editingId === item.id) stopEditing();
+                    persist();
+                    render();
+                    showFeedback('Alert removed from your saved list.');
+                }
+            });
+
+            document.getElementById('cancel-edit').addEventListener('click', stopEditing);
+            document.getElementById('add-first').addEventListener('click', () => {
+                document.getElementById('create-panel').scrollIntoView({ behavior: 'smooth' });
+                market.focus({ preventScroll: true });
+            });
+            render();
+        })();
+    </script>
+</body>
 </html>
