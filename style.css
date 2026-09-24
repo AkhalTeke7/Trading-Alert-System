@@ -5,6 +5,7 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --font-sans: "Inter", system-ui, sans-serif;
   --font-display: "Space Grotesk", sans-serif;
+  --green : #33c791;
 }
 
 * {
@@ -57,7 +58,7 @@ body {
     display: flex;
     
     flex-direction: column;
-    row-gap: 100px;
+    row-gap: 30px;
     
 }
 
@@ -99,6 +100,37 @@ body {
 }
 .sid-botton {
     height: 60px;
-    color: #0b0b0b;
-    background-color: #61d0a7;
+    color: #f9f7f7;
+    
+}
+.left-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    column-gap: 15px;
+}
+.header {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+}
+.right-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    column-gap: 20px;
+    margin-left: 800px;
+}
+.paragraph {
+    transition: all, 0.3s;
+}
+.sid-botton {
+    transition: all ,0.3s;
+}
+.paragraph:hover, .sid-botton:hover{
+    background-color: var(--green);
+    color: #010102;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 10px;
 }
