@@ -6,45 +6,72 @@
     </head>
     <body>
         <div class="main">
-            <div class="first">
-                <div>
-                    <p>Select The Target:</p>
-                    <textarea class="future-select input" placeholder="Gold/Eur"></textarea>
+            <div class="left">
+                <p class="make-a-alert">1. Make A Alert</p>
+                <div class="alert-config">
+                    <div class="block-one">
+                        <label>Select The Currency:</label>
+                        <select>
+                            <option>XAU/USD</option>
+                            <option>EUR/USD</option>
+                            <option>JPY/USD</option>
+                            <option>Bitcoin</option>
+                        </select>
+                    </div>
+
+                    <div class="block-two">
+                        <label>Select The Messenger:</label>
+                        <select>
+                            <option>Telegram</option>
+                            <option>WhatsApp</option>
+                            <option>Both</option>
+                        </select>
+                    </div>
+
+                    <div class="block-three">
+                        <p>Target Price:</p>
+                        <textarea class="input" placeholder="1.2334"></textarea>
+                    </div>
+
+                    <div class="block-three">
+                        <p>Custom Note:</p>
+                        <textarea class="input" placeholder="good for sell"></textarea>
+                    </div>
+
+                    <button class="save-button">Save</button>
                 </div>
-                <div>
-                    <p>Target Price:</p>
-                    <textarea class="target-price input" placeholder="1.2334"></textarea>
+            </div>
+
+            <div class="right">
+                <div class="top-right">
+                    <p class="alert-history">2. See the alert history</p>
+                    <button class="back">Back</button>
                 </div>
-                <div>
-                    <p>Custom Note:</p>
-                    <textarea class="custom-note input" placeholder="good for sell"></textarea>
-                </div>
-                
-                </div>
-                <div class="second">
-                    <p>History:</p>
+
+                <div class="history-config">
                     <div class="history-box">
-                        <button>X</button>
-                        <p>Gold/Usd</p>
-                        <p>Target Price:<span>1.234</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
-                        </div>
-                        
+                        <p>Target:</p>
+                        <p>Gold / EUR</p>
                     </div>
                     <div class="history-box">
-                        <button>X</button>
-                        <p>EUR/Usd</p>
-                        <p>Target Price:<span>4.24</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
-                        </div>
+                        <p>Price:</p>
+                        <p>1.2334</p>
+                    </div>
+                    <div class="history-box">
+                        <p>Channel:</p>
+                        <p>Telegram</p>
                     </div>
                 </div>
+            </div>
         </div>
+
+        <script>
+            const backButton = document.querySelector(".back");
+            if (backButton) {
+                backButton.addEventListener("click", function () {
+                    window.location = "./../../main.html";
+                });
+            }
+        </script>
     </body>
 </html>
