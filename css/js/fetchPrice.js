@@ -1,3 +1,4 @@
+'use strict'
 fetch('https://www.tradingview.com/symbols/COMEX-GC1!/')
   .then(response => {
     console.log(response.status);
