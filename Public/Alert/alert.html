@@ -5,57 +5,83 @@
         <link rel="stylesheet" href="./../../css/alert.css">
     </head>
     <body>
-        <botton class="back">Back</botton>
-        <div class="main">
-            <div class="first">
-                <div>
-                    <p>Select The Target:</p>
-                    <textarea class="future-select input" placeholder="Gold/Eur"></textarea>
+        <div class="page-shell">
+            <button class="back">Back</button>
+
+            <div class="main">
+                <div class="first">
+                    <div class="form-header">
+                        <span class="badge">New Alert</span>
+                        <h2>Create Alert</h2>
+                    </div>
+
+                    <div class="field-group">
+                        <p>Select The Target:</p>
+                        <select class="input select-input">
+                            <option>Gold / EUR</option>
+                            <option>Gold / USD</option>
+                            <option>EUR / USD</option>
+                            <option>BTC / USD</option>
+                            <option>GBP / USD</option>
+                        </select>
+                    </div>
+
+                    <div class="field-group">
+                        <p>Target Price:</p>
+                        <textarea class="target-price input" placeholder="1.2334"></textarea>
+                    </div>
+
+                    <div class="field-group">
+                        <p>Custom Note:</p>
+                        <textarea class="custom-note input" placeholder="good for sell"></textarea>
+                    </div>
+
+                    <div class="field-group">
+                        <p>Select Channel:</p>
+                        <select class="input select-input channel-select">
+                            <option>Bale</option>
+                            <option selected>Telegram</option>
+                            <option>Both</option>
+                        </select>
+                    </div>
+
+                    <button class="save-btn">Save</button>
                 </div>
-                <div>
-                    <p>Target Price:</p>
-                    <textarea class="target-price input" placeholder="1.2334"></textarea>
-                </div>
-                <div>
-                    <p>Custom Note:</p>
-                    <textarea class="custom-note input" placeholder="good for sell"></textarea>
-                </div>
-                <div class="chanels">
-                    <button>Bale</button>
-                    <button>Telgram</button>
-                    <button>Both</button>
-                </div>
-                
-                </div>
+
                 <div class="second">
-                    <p>History:</p>
-                    <div class="history-box">
-                        <button>X</button>
-                        <p>Gold/Usd</p>
-                        <p>Target Price:<span>1.234</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
-                        </div>
-                        
+                    <div class="history-head">
+                        <p>History</p>
+                        <span>2 alerts</span>
                     </div>
+
                     <div class="history-box">
-                        <button>X</button>
-                        <p>EUR/Usd</p>
-                        <p>Target Price:<span>4.24</span></p>
-                        <p>Custom note:<span>hi</span></p>
-                        <div>
-                            <button>Modify</button>
-                            <button>Delete</button>
+                        <button class="close-btn">X</button>
+                        <p class="pair">Gold/Usd</p>
+                        <p>Target: <span>1.234</span></p>
+                        <p>Note: <span>hi</span></p>
+                        <div class="row-actions">
+                            <button class="mini-btn">Modify</button>
+                            <button class="mini-btn danger">Delete</button>
+                        </div>
+                    </div>
+
+                    <div class="history-box">
+                        <button class="close-btn">X</button>
+                        <p class="pair">EUR/Usd</p>
+                        <p>Target: <span>4.24</span></p>
+                        <p>Note: <span>hi</span></p>
+                        <div class="row-actions">
+                            <button class="mini-btn">Modify</button>
+                            <button class="mini-btn danger">Delete</button>
                         </div>
                     </div>
                 </div>
+            </div>
         </div>
         <script>
-            document.querySelector(".back").addEventListener("click",function () {
-                window.location = "./../../main.html"
-            })
+            document.querySelector(".back").addEventListener("click", function () {
+                window.location = "./../../main.html";
+            });
         </script>
     </body>
 </html>

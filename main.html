@@ -2,14 +2,17 @@
 <html>
     <head>
         <title>Price-Alert</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
         <link rel="stylesheet" href="./css/style.css">
     </head>
 <body>
 
     <header class="header">
         <div class="left-header">
-            <img src='x'>
-            <p>Welcome to Alerting System</p>
+            <div class="brand-icon">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <p class="welcome-text">Welcome to Alerting System</p>
         </div>
         <div class="right-header">
             <p class="paragraph">Get in Touch</p>
@@ -21,7 +24,7 @@
     <div class="main">
 
         <aside class="sidebar">
-            <div class="sid-botton alert">Alert</div>
+            <div class="alert sid-botton">Alert</div>
             <div class="sid-botton">Jornal</div>
             <div class="sid-botton">News</div>
             <div class="sid-botton">AI</div>
@@ -41,7 +44,13 @@
         </div>
         
     </div>
-    <footer class="footer">footer</footer>
+    <footer class="footer">
+        <div class="footer-content">
+            <span>Market Pulse</span>
+            <span>Alerts</span>
+            <span>Live Data</span>
+        </div>
+    </footer>
 <script>
     document.querySelector(".alert").addEventListener("click",function () {
         window.location="./Public/Alert/alert.html"
