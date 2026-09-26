@@ -1,4 +1,12 @@
 ﻿const STORAGE_KEY = 'price-alerts';
+import getPrices from './fetchPrice.js';
+
+const pairToSymbol = {
+    'Gold / USD': 'OANDA:XAUUSD',
+    'EUR / USD': 'FX_IDC:EURUSD',
+    'BTC / USD': 'BITSTAMP:BTCUSD',
+    'GBP / USD': 'FX_IDC:GBPUSD'
+};
 
 let alerts = [];
 let editingAlertIndex = -1;
@@ -41,12 +49,27 @@ function clearEditMode() {
 }
 
 function getAlertValues() {
+    const pair = pairInput?.value ?? '';
+    const target = Number(targetInput?.value ?? 0);
+    const symbol = pairToSymbol[pair] || pair;
+
     return {
-        pair: pairInput?.value ?? '',
-        target: targetInput?.value ?? '',
+        pair,
+        symbol,
+        target: String(targetInput?.value ?? ''),
         note: noteInput?.value ?? '',
-        channel: messanger?.value ?? ''
+        channel: messanger?.value ?? '',
+        state: 'up'
     };
+}
+
+async function syncAlertState(alert) {
+    const prices = await getPrices();
+    const current = Number(prices?.[alert.symbol]?.price ?? 0);
+    const target = Number(alert.target ?? 0);
+    alert.currentPrice = current;
+    alert.state = current < target ? 'up' : 'down';
+    return alert;
 }
 
 function fillFormFromAlert(alert) {
@@ -72,6 +95,7 @@ function renderAlerts() {
             <p>Target: <span class="target-value">${alert.target}</span></p>
             <p>Note: <span class="note-value">${alert.note}</span></p>
             <p>Channel: <span class="channel-value">${alert.channel}</span></p>
+            <p>State: <span class="state-value">${alert.state || 'up'}</span></p>
             <div class="row-actions">
                 <button class="mini-btn modify" data-index="${index}">Modify</button>
                 <button class="mini-btn danger" data-index="${index}">Delete</button>
@@ -117,14 +141,15 @@ function renderAlerts() {
 if (addBtn && historyContainer) {
     alerts = loadAlerts();
 
-    addBtn.addEventListener('click', () => {
-        targetFetch(pairInput?.value ?? '', targetInput?.value ?? '');
+    addBtn.addEventListener('click', async () => {
+        const newAlert = getAlertValues();
+        const alertWithState = await syncAlertState(newAlert);
 
         if (editingAlertIndex >= 0) {
-            alerts[editingAlertIndex] = getAlertValues();
+            alerts[editingAlertIndex] = alertWithState;
             clearEditMode();
         } else {
-            alerts.push(getAlertValues());
+            alerts.push(alertWithState);
         }
 
         saveAlerts();
@@ -137,6 +162,5 @@ if (addBtn && historyContainer) {
 function targetFetch(alertPairName, alertMessages) {
     return [alertPairName, alertMessages];
 }
-
 
 

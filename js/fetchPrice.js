@@ -1,7 +1,7 @@
 'use strict';
 const num = v => Number(String(v).replace(/,/g, ''));      // "2,346,150" -> 2346150
 
-async function getPrices() {
+export default async function getPrices() {
   const [tv, { current }] = await Promise.all([
     fetch('https://scanner.tradingview.com/global/scan', {
       method: 'POST',
