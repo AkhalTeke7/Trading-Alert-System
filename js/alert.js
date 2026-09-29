@@ -48,19 +48,37 @@ function clearEditMode() {
     editingAlertIndex = -1;
 }
 
-function getAlertValues() {
-    const pair = pairInput?.value ?? '';
+export function getAlertValues() {
+    const pair = pairInput?.value?.trim() || '';
     const target = Number(targetInput?.value ?? 0);
-    const symbol = pairToSymbol[pair] || pair;
+    const note = noteInput?.value?.trim() || '';
+    const channel = messanger?.value || 'Telegram';
+    const symbol = pairToSymbol[pair] || '';
 
     return {
         pair,
+        target,
+        note,
+        channel,
         symbol,
-        target: String(targetInput?.value ?? ''),
-        note: noteInput?.value ?? '',
-        channel: messanger?.value ?? '',
-        state: 'up'
     };
+}
+
+export function buildAlertPairs(alertList = alerts) {
+    return (Array.isArray(alertList) ? alertList : [])
+        .map(alert => alert?.pair)
+        .filter(Boolean);
+}
+//return alerts in array that corrently exist
+export function buildAlertArray(alertList = alerts) {
+    return (Array.isArray(alertList) ? alertList : []).map(alert => ({
+        pair: alert?.pair || '',
+        target: Number(alert?.target ?? 0),
+        note: alert?.note || '',
+        channel: alert?.channel || 'Telegram',
+        symbol: alert?.symbol || '',
+        state: alert?.state || 'up',
+    }));
 }
 
 async function syncAlertState(alert) {
@@ -160,7 +178,14 @@ if (addBtn && historyContainer) {
 }
 
 function targetFetch(alertPairName, alertMessages) {
-    return [alertPairName, alertMessages];
+    const values = [];
+
+    if (alertPairName) values.push(alertPairName);
+    if (Array.isArray(alertMessages)) {
+        values.push(...alertMessages.filter(Boolean));
+    }
+
+    return values;
 }
 
-
+// alert it in telegram

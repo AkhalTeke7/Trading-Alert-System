@@ -22,3 +22,10 @@ Thumbs.db
 # Temp files
 *.tmp
 *.swp
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
