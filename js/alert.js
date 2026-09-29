@@ -1,13 +1,6 @@
 ﻿const STORAGE_KEY = 'price-alerts';
 import getPrices from './fetchPrice.js';
 
-const pairToSymbol = {
-    'Gold / USD': 'OANDA:XAUUSD',
-    'EUR / USD': 'FX_IDC:EURUSD',
-    'BTC / USD': 'BITSTAMP:BTCUSD',
-    'GBP / USD': 'FX_IDC:GBPUSD'
-};
-
 let alerts = [];
 let editingAlertIndex = -1;
 
@@ -187,5 +180,36 @@ function targetFetch(alertPairName, alertMessages) {
 
     return values;
 }
+const pairToSymbol = {
+    'Gold / USD': 'OANDA:XAUUSD',
+    'EUR / USD': 'FX_IDC:EURUSD',
+    'BTC / USD': 'BITSTAMP:BTCUSD',
+    'GBP / USD': 'FX_IDC:GBPUSD'
+};
+async function checkAlerts() {
+    try {
+        const prices = await getPrices();
 
-// alert it in telegram
+        for (const alert of buildAlertArray()) {
+            const priceKey = pairToSymbol[alert.pair];
+            const current = prices[priceKey]?.price;
+
+            if (Number.isFinite(current) && compare(alert.target, current, alert.state)) {
+                sendalert(alert, current);
+            }
+        }
+    } catch (error) {
+        console.error('Could not check price alerts:', error);
+    }
+}
+
+function compare(target, current, state) {
+    if (state === 'up') return current >= target;
+    if (state === 'down') return current <= target;
+    return false;
+}
+
+void checkAlerts();
+setInterval(() => {
+    void checkAlerts();
+}, 5 * 60 * 1000);

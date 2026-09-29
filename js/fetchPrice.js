@@ -22,5 +22,4 @@ export default async function getPrices() {
   };
 }
 
-getPrices().then(console.log);
 
