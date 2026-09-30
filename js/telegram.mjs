@@ -1,50 +1,545 @@
 import { Bot, InputFile } from "grammy";
 import { chromium } from "playwright";
-import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { writeFile } from 'node:fs/promises';
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const htmlPath = path.join(projectRoot, "asset", "trading-alert.html");
-const screenshotPath = path.join(projectRoot, "output.png");
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    })[character]);
+}
 
-async function createScreenshot() {
+export async function alertSender(pair, targetPrice, note, channel = 'Bale', previewPath) {
+    const destinations = {
+        Bale: {
+            token: process.env.BALE_BOT_TOKEN,
+            chatId: process.env.BALE_CHAT_ID,
+            apiRoot: 'https://tapi.bale.ai',
+        },
+        Telegram: {
+            token: process.env.TELEGRAM_BOT_TOKEN,
+            chatId: process.env.TELEGRAM_CHAT_ID,
+        },
+    };
+    const selectedChannels = channel === 'Both' ? ['Bale', 'Telegram'] : [channel];
+    const selectedDestinations = selectedChannels.map(name => {
+        const destination = destinations[name];
+        if (!destination) throw new Error(`Unsupported alert channel: ${name}`);
+        if (!destination.token || !destination.chatId) {
+            throw new Error(`Missing bot token or chat ID for ${name}`);
+        }
+        return destination;
+    });
+
+    pair = escapeHtml(pair);
+    targetPrice = escapeHtml(targetPrice);
+    note = escapeHtml(note);
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Alert</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&family=Vazirmatn:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+    /*
+      Designed for a 1200 x 675 viewport (16:9), same proportions as the reference.
+      Screenshot at that size (device_scale_factor 2 for a sharp result).
+    */
+
+    :root {
+        --ink: #1c2029;
+        --ink-soft: #6f7683;
+        --green: #159d78;
+        --line: rgba(70, 80, 100, .28);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    html, body {
+        width: 100%;
+        height: 100%;
+    }
+
+    body {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+
+        font-family: "Inter", "Vazirmatn", "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+
+        /* lavender-blue on the left -> mint on the right -> soft lime bottom-right */
+        background:
+            radial-gradient(ellipse 45% 60% at 0% 55%, #a9b0cb 0%, transparent 70%),
+            radial-gradient(ellipse 40% 55% at 100% 20%, #b4cdca 0%, transparent 70%),
+            radial-gradient(ellipse 35% 45% at 100% 100%, #d7dfc2 0%, transparent 70%),
+            radial-gradient(ellipse 50% 50% at 50% 45%, #e8eaf1 0%, transparent 80%),
+            #cfd5e0;
+    }
+
+    /* thin horizontal rules at the top and bottom of the page */
+    .rule {
+        position: absolute;
+        left: 4%;
+        right: 4%;
+        height: 1px;
+        background: var(--line);
+    }
+    .rule.top    { top: 9.2%; }
+    .rule.bottom { top: 92%; }
+
+    /* ------------------------------------------------------------------ */
+    /* Floating objects                                                    */
+    /* ------------------------------------------------------------------ */
+
+    /* transparent glass blob */
+    .bubble {
+        position: absolute;
+        z-index: 3;
+        border-radius: 46% 54% 50% 50% / 52% 46% 54% 48%;
+
+        background:
+            radial-gradient(circle at 30% 24%, rgba(255,255,255,.95) 0, rgba(255,255,255,.35) 14%, rgba(255,255,255,0) 40%),
+            radial-gradient(circle at 70% 78%, rgba(255,255,255,.55) 0, rgba(255,255,255,0) 35%),
+            radial-gradient(circle at 50% 50%, rgba(255,255,255,.08) 0, rgba(190,202,225,.42) 100%);
+
+        border: 1px solid rgba(255,255,255,.75);
+
+        box-shadow:
+            inset 9px 9px 20px rgba(255,255,255,.9),
+            inset -12px -16px 28px rgba(105,120,155,.38),
+            0 22px 34px rgba(70,80,110,.2);
+
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+    }
+
+    /* small glossy highlight on the blob */
+    .bubble::after {
+        content: "";
+        position: absolute;
+        left: 16%;
+        top: 12%;
+        width: 42%;
+        height: 20%;
+        border-radius: 50%;
+        background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.1));
+        transform: rotate(-24deg);
+        filter: blur(1px);
+    }
+
+    .bubble.left {
+        width: 156px;
+        height: 160px;
+        left: 5.6%;
+        top: 26.8%;
+        transform: rotate(-8deg);
+    }
+
+    .bubble.right {
+        width: 152px;
+        height: 148px;
+        right: 3.2%;
+        top: 50.6%;
+        transform: rotate(12deg);
+        border-radius: 52% 48% 46% 54% / 50% 54% 46% 50%;
+    }
+
+    /* blurred black orbs with a white halo (core + halo in one element) */
+    .orb {
+        position: absolute;
+        border-radius: 50%;
+
+        background:
+            radial-gradient(circle closest-side,
+                #04050a 0%,
+                #0a0c12 26%,
+                rgba(18, 20, 30, .9) 36%,
+                rgba(18, 20, 30, 0) 50%),
+            radial-gradient(circle closest-side,
+                rgba(255,255,255,.95) 0%,
+                rgba(255,255,255,.9) 45%,
+                rgba(255,255,255,0) 100%);
+
+        filter: blur(8px);
+    }
+
+    .orb.right-big {
+        width: 320px;
+        height: 320px;
+        left: 77.1%;
+        top: 7.4%;
+        z-index: 1;               /* behind the card -> frosted by it */
+    }
+
+    .orb.bottom-left {
+        width: 300px;
+        height: 300px;
+        left: 0.6%;
+        top: 58.2%;
+        z-index: 1;
+    }
+
+    .orb.small {
+        width: 62px;
+        height: 62px;
+        left: 68%;
+        top: 17.5%;
+        z-index: 3;               /* in front of the card */
+        background: radial-gradient(circle closest-side, #05060a 0%, #0c0e14 55%, rgba(18,20,30,0) 100%);
+        filter: blur(6px);
+        opacity: .85;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Glass card                                                          */
+    /* ------------------------------------------------------------------ */
+
+    .alert-card {
+        position: relative;
+        z-index: 2;
+
+        width: 775px;
+        height: 528px;
+        padding: 56px 48px 34px;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        border-radius: 44px;
+
+        background:
+            radial-gradient(ellipse at 30% 0%, rgba(255,255,255,.85) 0%, rgba(255,255,255,0) 60%),
+            linear-gradient(145deg, rgba(255,255,255,.62), rgba(255,255,255,.34));
+
+        border: 1px solid rgba(255,255,255,.85);
+
+        backdrop-filter: blur(30px) saturate(1.2);
+        -webkit-backdrop-filter: blur(30px) saturate(1.2);
+
+        box-shadow:
+            0 40px 80px rgba(70, 82, 110, .18),
+            0 0 0 6px rgba(255,255,255,.14),
+            inset 2px 2px 3px rgba(255,255,255,.95),
+            inset -2px -2px 6px rgba(170,182,205,.28),
+            inset 0 0 40px rgba(255,255,255,.35);
+    }
+
+    /* pagination dots */
+    .dots {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+    }
+
+    .dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        border: 1px solid rgba(60, 70, 90, .22);
+        background: rgba(255,255,255,.35);
+        box-shadow: inset 1px 1px 2px rgba(255,255,255,.9);
+    }
+
+    .dot.active {
+        position: relative;
+        background: var(--ink);
+        border-color: rgba(60, 70, 90, .35);
+    }
+
+    .dot.active::after {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        border-radius: 50%;
+        background: var(--ink);
+        box-shadow: 0 0 0 2px rgba(255,255,255,.85);
+    }
+
+    .dots svg {
+        width: 15px;
+        height: 15px;
+        stroke: var(--ink);
+        fill: none;
+        stroke-width: 1.3;
+    }
+
+    /* big thin title */
+    .pair {
+        margin-top: 30px;
+
+        font-size: 124px;
+        font-weight: 200;
+        line-height: 1;
+        letter-spacing: -6px;
+        color: var(--ink);
+
+        /* tiny emboss so the thin letters feel pressed into the glass */
+        text-shadow:
+            1px 1px 0 rgba(255,255,255,.7),
+            0 0 1px rgba(28,32,41,.35);
+    }
+
+    /* divider with the round button in the middle */
+    .divider {
+        position: relative;
+        width: 100%;
+        margin-top: 34px;
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .divider::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(70,80,100,0), rgba(70,80,100,.3) 12%, rgba(70,80,100,.3) 88%, rgba(70,80,100,0));
+    }
+
+    .badge {
+        position: relative;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        background: linear-gradient(145deg, rgba(255,255,255,.9), rgba(235,239,246,.6));
+        border: 1px solid rgba(255,255,255,.95);
+
+        box-shadow:
+            0 0 0 6px rgba(255,255,255,.35),
+            6px 8px 18px rgba(90,100,125,.16),
+            -4px -4px 10px rgba(255,255,255,.9),
+            inset 1px 1px 2px rgba(255,255,255,1),
+            inset -2px -2px 5px rgba(170,182,205,.25);
+    }
+
+    .badge svg {
+        width: 26px;
+        height: 26px;
+        stroke: var(--ink);
+        fill: none;
+        stroke-width: 1.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    /* two columns split by a vertical line */
+    .cols {
+        position: relative;
+        width: 100%;
+        flex: 1;
+
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        text-align: center;
+    }
+
+    .cols::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: -3px;
+        bottom: 4px;
+        width: 1px;
+        background: linear-gradient(180deg, rgba(70,80,100,.28), rgba(70,80,100,.05));
+    }
+
+    .col-label {
+        font-size: 11px;
+        font-weight: 400;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+    }
+
+    .col-value {
+        margin-top: 8px;
+
+        font-size: 26px;
+        font-weight: 300;
+        letter-spacing: -.5px;
+        text-transform: uppercase;
+        color: var(--ink);
+    }
+
+    /* Persian text: use Vazirmatn, right-to-left, and no letter-spacing (it breaks joined letters) */
+    :lang(fa) {
+        font-family: "Vazirmatn", "Inter", Tahoma, sans-serif;
+        direction: rtl;
+        letter-spacing: 0;
+        text-transform: none;
+    }
+
+    .col-value:lang(fa) {
+        font-size: 24px;
+        font-weight: 300;
+        line-height: 1.5;
+    }
+
+    /* status footer */
+    .footer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        padding: 8px 16px;
+        margin-bottom: 4px;
+
+        border-radius: 20px;
+        background: rgba(255,255,255,.5);
+        border: 1px solid rgba(255,255,255,.8);
+
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--green);
+
+        box-shadow:
+            3px 3px 8px rgba(100,110,125,.08),
+            inset 1px 1px 2px rgba(255,255,255,.9);
+    }
+
+    .footer .pulse {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 3px rgba(21,157,120,.18);
+    }
+
+    .footer .time {
+        padding-left: 10px;
+        border-left: 1px solid rgba(100,110,120,.25);
+        color: var(--ink-soft);
+        font-weight: 400;
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <div class="rule top"></div>
+    <div class="rule bottom"></div>
+
+    <!-- floating objects -->
+    <div class="orb right-big"></div>
+    <div class="orb bottom-left"></div>
+    <div class="bubble left"></div>
+    <div class="bubble right"></div>
+
+    <!-- card -->
+    <div class="alert-card">
+
+        <div class="dots">
+            <span class="dot active"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="1.5" y="1.5" width="13" height="13" rx="3.5"></rect>
+                <path d="M8 1.5v13M1.5 8h13"></path>
+            </svg>
+        </div>
+        <!--+++++PAIR NAME++++++-->
+        <div class="pair">${pair}</div>
+
+        <div class="divider">
+            <div class="badge">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12.5l4.5 4.5L19 7.5"></path>
+                </svg>
+            </div>
+        </div>
+
+        <div class="cols">
+            <div>
+                <div class="col-label">Target</div>
+                <!--++++++++TARGET++++++++++++-->
+                <div class="col-value">${targetPrice}</div>
+            </div>
+            <div>
+                <div class="col-label">Note</div>
+                <!-- ++++NOTE++++ -->
+                <div class="col-value">${note}</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span class="pulse"></span>
+            <span>Target reached</span>
+            <span class="time">Just now</span>
+        </div>
+
+    </div>
+
+    <!-- orb in front of the card -->
+    <div class="orb small"></div>
+
+    </body>
+    </html>`
+
     const browser = await chromium.launch();
+    let screenshot;
 
     try {
         const page = await browser.newPage({
             viewport: { width: 1200, height: 675 },
-            deviceScaleFactor: 2
+            deviceScaleFactor: 2,
         });
-
-        await page.goto(pathToFileURL(htmlPath).href, {
-            waitUntil: "networkidle"
-        });
-        await page.screenshot({ path: screenshotPath, fullPage: false });
+        await page.setContent(html);
+        await page.waitForTimeout(800);
+        screenshot = await page.screenshot({ fullPage: true });
+        if (previewPath) await writeFile(previewPath, screenshot);
     } finally {
         await browser.close();
     }
-}
 
-async function main() {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const channelId = process.env.TELEGRAM_CHANNEL_ID;
+    const caption = `${pair} crossed the target ${targetPrice}. ${note}`;
+    for (const destination of selectedDestinations) {
+        if (destination.apiRoot) {
+            const form = new FormData();
+            form.append('chat_id', destination.chatId);
+            form.append('photo', new Blob([screenshot], { type: 'image/png' }), 'price-alert.png');
+            form.append('caption', caption);
 
-    if (!botToken || !channelId) {
-        throw new Error("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHANNEL_ID before running this script.");
+            const response = await fetch(
+                `${destination.apiRoot}/bot${destination.token}/sendPhoto`,
+                { method: 'POST', body: form },
+            );
+            const result = await response.json();
+            if (!response.ok || !result.ok) {
+                throw new Error(result.description || 'Bale photo upload failed');
+            }
+            continue;
+        }
+
+        const bot = new Bot(destination.token);
+        await bot.api.sendPhoto(destination.chatId, new InputFile(screenshot, 'price-alert.png'), { caption });
     }
-
-    await createScreenshot();
-
-    const bot = new Bot(botToken);
-    await bot.api.sendPhoto(channelId, new InputFile(screenshotPath), {
-        caption: "Target reached"
-    });
-
-    console.log(`Screenshot sent to ${channelId}`);
-}
-
-main().catch((error) => {
-    console.error("Telegram alert failed:", error);
-    process.exitCode = 1;
-});
-
+};
+    

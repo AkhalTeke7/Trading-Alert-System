@@ -1,8 +1,8 @@
 ﻿const STORAGE_KEY = 'price-alerts';
-import getPrices from './fetchPrice.js';
 
 let alerts = [];
 let editingAlertIndex = -1;
+let isCheckingAlerts = false;
 
 const pairInput = document.querySelector('.select-input');
 const targetInput = document.querySelector('.target-price');
@@ -75,12 +75,36 @@ export function buildAlertArray(alertList = alerts) {
 }
 
 async function syncAlertState(alert) {
-    const prices = await getPrices();
+    const prices = await fetchPrices();
     const current = Number(prices?.[alert.symbol]?.price ?? 0);
     const target = Number(alert.target ?? 0);
     alert.currentPrice = current;
     alert.state = current < target ? 'up' : 'down';
     return alert;
+}
+
+async function fetchPrices() {
+    const response = await fetch('/api/prices');
+    if (!response.ok) throw new Error('Could not load current prices');
+    return response.json();
+}
+
+async function sendAlert(alert) {
+    const response = await fetch('/api/alerts/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            pair: alert.pair,
+            target: alert.target,
+            note: alert.note,
+            channel: alert.channel,
+        }),
+    });
+
+    if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Could not send alert');
+    }
 }
 
 function fillFormFromAlert(alert) {
@@ -187,19 +211,28 @@ const pairToSymbol = {
     'GBP / USD': 'FX_IDC:GBPUSD'
 };
 async function checkAlerts() {
-    try {
-        const prices = await getPrices();
+    if (isCheckingAlerts) return;
+    isCheckingAlerts = true;
 
-        for (const alert of buildAlertArray()) {
+    try {
+        const prices = await fetchPrices();
+
+        for (const alert of alerts) {
+            if (alert.triggered) continue;
+
             const priceKey = pairToSymbol[alert.pair];
-            const current = prices[priceKey]?.price;
+            const current = Number(prices[priceKey]?.price);
 
             if (Number.isFinite(current) && compare(alert.target, current, alert.state)) {
-                sendalert(alert, current);
+                await sendAlert(alert);
+                alert.triggered = true;
+                saveAlerts();
             }
         }
     } catch (error) {
         console.error('Could not check price alerts:', error);
+    } finally {
+        isCheckingAlerts = false;
     }
 }
 

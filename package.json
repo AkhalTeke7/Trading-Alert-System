@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "start": "node --env-file-if-exists=.env ./js/server.js",
     "prices": "node ./js/fetchPrice.cli.js",
     "telegram": "node --env-file=.env ./js/telegram.mjs"
   },
