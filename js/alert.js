@@ -1,5 +1,10 @@
 ﻿const STORAGE_KEY = 'price-alerts';
-
+const pairToSymbol = {
+    'Gold / USD': 'OANDA:XAUUSD',
+    'EUR / USD': 'FX_IDC:EURUSD',
+    'BTC / USD': 'BITSTAMP:BTCUSD',
+    'GBP / USD': 'FX_IDC:GBPUSD'
+};
 let alerts = [];
 let editingAlertIndex = -1;
 let isCheckingAlerts = false;
@@ -32,6 +37,7 @@ function alertCounter() {
     const count = document.querySelector('.history');
     if (!count) return;
     count.textContent = `${alerts.length} alerts`;
+    return alerts.length;
 }
 
 function clearEditMode() {
@@ -43,7 +49,8 @@ function clearEditMode() {
 
 export function getAlertValues() {
     const pair = pairInput?.value?.trim() || '';
-    const target = Number(targetInput?.value ?? 0);
+    const targetInputValue = targetInput?.value?.trim() || '';
+    const target = Number(targetInputValue || 0);
     const note = noteInput?.value?.trim() || '';
     const channel = messanger?.value || 'Telegram';
     const symbol = pairToSymbol[pair] || '';
@@ -51,6 +58,8 @@ export function getAlertValues() {
     return {
         pair,
         target,
+        targetInputValue,
+        targetPrecision: getDecimalPlaces(targetInputValue),
         note,
         channel,
         symbol,
@@ -67,6 +76,10 @@ export function buildAlertArray(alertList = alerts) {
     return (Array.isArray(alertList) ? alertList : []).map(alert => ({
         pair: alert?.pair || '',
         target: Number(alert?.target ?? 0),
+        targetInputValue: alert?.targetInputValue ?? String(alert?.target ?? 0),
+        targetPrecision: Number.isInteger(alert?.targetPrecision)
+            ? alert.targetPrecision
+            : getDecimalPlaces(alert?.targetInputValue ?? String(alert?.target ?? 0)),
         note: alert?.note || '',
         channel: alert?.channel || 'Telegram',
         symbol: alert?.symbol || '',
@@ -78,8 +91,9 @@ async function syncAlertState(alert) {
     const prices = await fetchPrices();
     const current = Number(prices?.[alert.symbol]?.price ?? 0);
     const target = Number(alert.target ?? 0);
+    const comparedCurrent = truncateToPrecision(current, alert.targetPrecision);
     alert.currentPrice = current;
-    alert.state = current < target ? 'up' : 'down';
+    alert.state = comparedCurrent < target ? 'up' : 'down';
     return alert;
 }
 
@@ -110,7 +124,7 @@ async function sendAlert(alert) {
 function fillFormFromAlert(alert) {
     if (!alert) return;
     pairInput.value = alert.pair || '';
-    targetInput.value = alert.target || '';
+    targetInput.value = alert.targetInputValue ?? String(alert.target ?? '');
     noteInput.value = alert.note || '';
     messanger.value = alert.channel || '';
 }
@@ -119,15 +133,16 @@ function renderAlerts() {
     if (!historyContainer) return;
 
     historyContainer.innerHTML = '';
-
+    alerts = alerts.filter(Boolean);
     alerts.forEach((alert, index) => {
+        if (!alert) return;
         const historyBox = document.createElement('div');
         historyBox.classList.add('history-box');
 
         historyBox.innerHTML = `
             <button class="close-btn" aria-label="Remove alert">X</button>
             <p class="pair">${alert.pair}</p>
-            <p>Target: <span class="target-value">${alert.target}</span></p>
+            <p>Target: <span class="target-value">${alert.targetInputValue ?? alert.target}</span></p>
             <p>Note: <span class="note-value">${alert.note}</span></p>
             <p>Channel: <span class="channel-value">${alert.channel}</span></p>
             <p>State: <span class="state-value">${alert.state || 'up'}</span></p>
@@ -204,12 +219,7 @@ function targetFetch(alertPairName, alertMessages) {
 
     return values;
 }
-const pairToSymbol = {
-    'Gold / USD': 'OANDA:XAUUSD',
-    'EUR / USD': 'FX_IDC:EURUSD',
-    'BTC / USD': 'BITSTAMP:BTCUSD',
-    'GBP / USD': 'FX_IDC:GBPUSD'
-};
+
 async function checkAlerts() {
     if (isCheckingAlerts) return;
     isCheckingAlerts = true;
@@ -217,16 +227,26 @@ async function checkAlerts() {
     try {
         const prices = await fetchPrices();
 
-        for (const alert of alerts) {
+        for (const alert of [...alerts]) {
             if (alert.triggered) continue;
 
             const priceKey = pairToSymbol[alert.pair];
             const current = Number(prices[priceKey]?.price);
+            const targetPrecision = Number.isInteger(alert.targetPrecision)
+                ? alert.targetPrecision
+                : getDecimalPlaces(alert.targetInputValue ?? String(alert.target));
+            const comparedCurrent = truncateToPrecision(current, targetPrecision);
 
-            if (Number.isFinite(current) && compare(alert.target, current, alert.state)) {
+            if (Number.isFinite(comparedCurrent) && compare(alert.target, comparedCurrent, alert.state)) {
                 await sendAlert(alert);
-                alert.triggered = true;
-                saveAlerts();
+
+                const alertIndex = alerts.indexOf(alert);
+                if (alertIndex !== -1) {
+                    if (alerts[editingAlertIndex] === alert) clearEditMode();
+                    alerts.splice(alertIndex, 1);
+                    saveAlerts();
+                    renderAlerts();
+                }
             }
         }
     } catch (error) {
@@ -242,7 +262,34 @@ function compare(target, current, state) {
     return false;
 }
 
-void checkAlerts();
-setInterval(() => {
-    void checkAlerts();
-}, 5 * 60 * 1000);
+function getDecimalPlaces(value) {
+    const match = String(value).match(/\.(\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function truncateToPrecision(value, precision) {
+    if (!Number.isFinite(value)) return Number.NaN;
+    const valueText = String(value);
+    const decimalIndex = valueText.indexOf('.');
+    if (decimalIndex === -1) return value;
+    return Number(valueText.slice(0, decimalIndex + precision + 1));
+}
+//if alert exist try checking price
+if (alerts.length > 0) {
+    setInterval(() => {
+        void checkAlerts();
+    }, 60 * 1000);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+

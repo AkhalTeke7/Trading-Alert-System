@@ -18,18 +18,21 @@ export async function alertSender(pair, targetPrice, note, channel = 'Bale', pre
             token: process.env.BALE_BOT_TOKEN,
             chatId: process.env.BALE_CHAT_ID,
             apiRoot: 'https://tapi.bale.ai',
+            requiredVariables: ['BALE_BOT_TOKEN', 'BALE_CHAT_ID'],
         },
         Telegram: {
             token: process.env.TELEGRAM_BOT_TOKEN,
             chatId: process.env.TELEGRAM_CHAT_ID,
+            requiredVariables: ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'],
         },
     };
     const selectedChannels = channel === 'Both' ? ['Bale', 'Telegram'] : [channel];
     const selectedDestinations = selectedChannels.map(name => {
         const destination = destinations[name];
         if (!destination) throw new Error(`Unsupported alert channel: ${name}`);
-        if (!destination.token || !destination.chatId) {
-            throw new Error(`Missing bot token or chat ID for ${name}`);
+        const missingVariables = destination.requiredVariables.filter(variable => !process.env[variable]);
+        if (missingVariables.length) {
+            throw new Error(`Missing ${missingVariables.join(' and ')}; configure them in .env and restart the server`);
         }
         return destination;
     });
@@ -503,12 +506,14 @@ export async function alertSender(pair, targetPrice, note, channel = 'Bale', pre
     </body>
     </html>`
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({
+        channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome',
+    });
     let screenshot;
 
     try {
         const page = await browser.newPage({
-            viewport: { width: 1200, height: 675 },
+            viewport: { width: 1200, height: 800 },
             deviceScaleFactor: 2,
         });
         await page.setContent(html);

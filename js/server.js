@@ -1,12 +1,16 @@
-import { createReadStream } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
+import { loadEnvFile } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import getPrices from './fetchPrice.js';
 import { alertSender } from './telegram.mjs';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const envFile = resolve(projectRoot, '.env');
+if (existsSync(envFile)) loadEnvFile(envFile);
+
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
 const allowedPairs = new Set([
