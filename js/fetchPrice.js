@@ -5,9 +5,11 @@ export default async function getPrices() {
   const [tv, { current }] = await Promise.all([
     fetch('https://scanner.tradingview.com/global/scan', {
       method: 'POST',
+      signal: AbortSignal.timeout(15_000),
+      headers: { 'Content-Type': 'application/json' },
       body: '{"symbols":{"tickers":["OANDA:XAUUSD","FX_IDC:EURUSD","FX_IDC:GBPUSD","BITSTAMP:BTCUSD"]},"columns":["close","change"]}',
-    }).then(r => r.json()),
-    fetch('https://call3.tgju.org/ajax.json').then(r => r.json()),
+    }).then(r => { if (!r.ok) throw new Error('Price provider unavailable'); return r.json(); }),
+    fetch('https://call3.tgju.org/ajax.json', { signal: AbortSignal.timeout(15_000) }).then(r => { if (!r.ok) throw new Error('Price provider unavailable'); return r.json(); }),
   ]);
 
   const tgju = k => {
