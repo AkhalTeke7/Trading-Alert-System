@@ -1,56 +1,101 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>Price-Alert</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-        <link rel="stylesheet" href="./css/style.css">
-    </head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Price-Alert</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+</head>
 <body>
 
     <header class="header">
         <div class="left-header">
             <div class="brand-icon">
-                <i class="fa-solid fa-bell"></i>
+                <i class="fa-solid fa-bolt"></i>
             </div>
+            <span class="brand-name">Price-Alert</span>
+            <span class="divider"></span>
             <p class="welcome-text">Welcome to Alerting System</p>
         </div>
-        <div class="right-header">
-            <p class="paragraph">Get in Touch</p>
-            <p class="aboutme paragraph">About</p>
+        <nav class="right-header">
+            <button type="button" class="paragraph">Settings</button>
+            <button type="button" class="aboutme paragraph">About</button>
             
-        </div>
+        </nav>
     </header>
 
     <div class="main">
 
         <aside class="sidebar">
-            <div class="alert sid-botton">Alert</div>
-            <div class="sid-botton">Jornal</div>
-            <div class="sid-botton">News</div>
-            <div class="sid-botton">AI</div>
+            <button type="button" class="alert sid-botton"><i class="ico ti ti-bell-ringing"></i><span class="lb">Alert</span></button>
+            <button type="button" class="sid-botton"><i class="ico ti ti-notebook"></i><span class="lb">Journal</span></button>
+            <button type="button" class="sid-botton"><i class="ico ti ti-news"></i><span class="lb">News</span></button>
+            <button type="button" class="sid-botton"><i class="ico ti ti-cpu"></i><span class="lb">AI</span></button>
         </aside>
 
         <div class="content">
 
-            <div class="chart-part">
-                <div class="gold">
-                    gold
-                </div>
-                <div class="eur">eur</div>
+            <div class="section-label">
+                <span class="tag"><span class="orkhon">𐱅</span> · Markets</span>
+                <span class="rule"></span>
             </div>
 
-            <div class="bottom">bottom</div>
+            <div class="chart-part">
+                <section class="card gold">
+                    <div class="card-head">
+                        <span class="tag">01 // GOLD</span>
+                        <span class="kanji">𐰀</span>
+                    </div>
+                    <div class="card-body">
+                        <h2>Gold</h2>
+                        <p class="hint">chart area</p>
+                    </div>
+                </section>
+
+                <section class="card eur">
+                    <div class="card-head">
+                        <span class="tag">02 // EUR</span>
+                        <span class="kanji">𐰇</span>
+                    </div>
+                    <div class="card-body">
+                        <h2>EUR</h2>
+                        <p class="hint">chart area</p>
+                    </div>
+                </section>
+            </div>
+
+            <section class="card bottom">
+                <div class="card-head">
+                    <span class="tag">03 // BOTTOM</span>
+                    <span class="kanji">𐰉</span>
+                </div>
+                <div class="card-body">
+                    <h2>Bottom</h2>
+                    <p class="hint">no data yet</p>
+                </div>
+            </section>
 
         </div>
-        
+
     </div>
+
     <footer class="footer">
         <div class="footer-content">
             <span>Market Pulse</span>
+            <span class="sep">/</span>
             <span>Alerts</span>
+            <span class="sep">/</span>
             <span>Live Data</span>
         </div>
+        <span class="footer-jp">𐰀 𐰴 𐰚 𐰀 𐰠 . 𐱅 𐰀 𐰚 𐰀</span>
     </footer>
+
 <script>
     document.querySelector(".alert").addEventListener("click",function () {
         window.location="./Public/Alert/alert.html"

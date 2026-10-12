@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = 'price-alerts';
+﻿const ALERTS_API = '/api/alerts';
 const pairToSymbol = {
     'Gold / USD': 'OANDA:XAUUSD',
     'EUR / USD': 'FX_IDC:EURUSD',
@@ -7,7 +7,6 @@ const pairToSymbol = {
 };
 let alerts = [];
 let editingAlertIndex = -1;
-let isCheckingAlerts = false;
 
 const pairInput = document.querySelector('.select-input');
 const targetInput = document.querySelector('.target-price');
@@ -16,22 +15,7 @@ const messanger = document.querySelector('.channel-select');
 const addBtn = document.querySelector('.save-btn');
 const historyContainer = document.querySelector('.realBox');
 
-function loadAlerts() {
-    try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        return Array.isArray(saved) ? saved : [];
-    } catch {
-        return [];
-    }
-}
 
-function saveAlerts() {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
-    } catch {
-        // ignore storage errors
-    }
-}
 
 function alertCounter() {
     const count = document.querySelector('.history');
@@ -88,37 +72,44 @@ export function buildAlertArray(alertList = alerts) {
 }
 
 async function syncAlertState(alert) {
-    const prices = await fetchPrices();
-    const current = Number(prices?.[alert.symbol]?.price ?? 0);
-    const target = Number(alert.target ?? 0);
-    const comparedCurrent = truncateToPrecision(current, alert.targetPrecision);
-    alert.currentPrice = current;
-    alert.state = comparedCurrent < target ? 'up' : 'down';
-    return alert;
-}
-
-async function fetchPrices() {
-    const response = await fetch('/api/prices');
-    if (!response.ok) throw new Error('Could not load current prices');
+    const response = await fetch(alert.id ? `${ALERTS_API}/${encodeURIComponent(alert.id)}` : ALERTS_API, {
+        method: alert.id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(alert),
+    });
+    if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Could not save alert');
+    }
     return response.json();
 }
 
-async function sendAlert(alert) {
-    const response = await fetch('/api/alerts/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            pair: alert.pair,
-            target: alert.target,
-            note: alert.note,
-            channel: alert.channel,
-        }),
-    });
+async function removeAlert(alert) {
+    const response = await fetch(`${ALERTS_API}/${encodeURIComponent(alert.id)}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Could not delete alert');
+    alerts = alerts.filter(item => item.id !== alert.id);
+    renderAlerts();
+}
 
-    if (!response.ok) {
-        const result = await response.json().catch(() => ({}));
-        throw new Error(result.error || 'Could not send alert');
+async function loadAlerts() {
+    const response = await fetch(ALERTS_API);
+    if (!response.ok) throw new Error('Could not load alerts');
+    alerts = await response.json();
+
+    if (alerts.length === 0) {
+        try {
+            const legacyAlerts = JSON.parse(localStorage.getItem('price-alerts') || '[]');
+            if (Array.isArray(legacyAlerts) && legacyAlerts.length) {
+                for (const legacyAlert of legacyAlerts) {
+                    alerts.push(await syncAlertState(legacyAlert));
+                }
+                localStorage.removeItem('price-alerts');
+            }
+        } catch (error) {
+            console.error('Could not migrate browser alerts:', error);
+        }
     }
+    renderAlerts();
 }
 
 function fillFormFromAlert(alert) {
@@ -155,20 +146,16 @@ function renderAlerts() {
         const closeBtn = historyBox.querySelector('.close-btn');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
-                alerts.splice(index, 1);
-                if (editingAlertIndex === index) clearEditMode();
-                saveAlerts();
-                renderAlerts();
+                void removeAlert(alert).catch(error => console.error(error));
+                if (alerts[editingAlertIndex] === alert) clearEditMode();
             });
         }
 
         const deleteBtn = historyBox.querySelector('.danger');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
-                alerts.splice(index, 1);
-                if (editingAlertIndex === index) clearEditMode();
-                saveAlerts();
-                renderAlerts();
+                void removeAlert(alert).catch(error => console.error(error));
+                if (alerts[editingAlertIndex] === alert) clearEditMode();
             });
         }
 
@@ -189,97 +176,27 @@ function renderAlerts() {
 }
 
 if (addBtn && historyContainer) {
-    alerts = loadAlerts();
+    void loadAlerts().catch(error => console.error(error));
 
     addBtn.addEventListener('click', async () => {
-        const newAlert = getAlertValues();
-        const alertWithState = await syncAlertState(newAlert);
-
-        if (editingAlertIndex >= 0) {
-            alerts[editingAlertIndex] = alertWithState;
-            clearEditMode();
-        } else {
-            alerts.push(alertWithState);
-        }
-
-        saveAlerts();
-        renderAlerts();
-    });
-
-    renderAlerts();
-}
-
-function targetFetch(alertPairName, alertMessages) {
-    const values = [];
-
-    if (alertPairName) values.push(alertPairName);
-    if (Array.isArray(alertMessages)) {
-        values.push(...alertMessages.filter(Boolean));
-    }
-
-    return values;
-}
-
-async function checkAlerts() {
-    if (isCheckingAlerts) return;
-    isCheckingAlerts = true;
-
-    try {
-        const prices = await fetchPrices();
-
-        for (const alert of [...alerts]) {
-            if (alert.triggered) continue;
-
-            const priceKey = pairToSymbol[alert.pair];
-            const current = Number(prices[priceKey]?.price);
-            const targetPrecision = Number.isInteger(alert.targetPrecision)
-                ? alert.targetPrecision
-                : getDecimalPlaces(alert.targetInputValue ?? String(alert.target));
-            const comparedCurrent = truncateToPrecision(current, targetPrecision);
-
-            if (Number.isFinite(comparedCurrent) && compare(alert.target, comparedCurrent, alert.state)) {
-                await sendAlert(alert);
-
-                const alertIndex = alerts.indexOf(alert);
-                if (alertIndex !== -1) {
-                    if (alerts[editingAlertIndex] === alert) clearEditMode();
-                    alerts.splice(alertIndex, 1);
-                    saveAlerts();
-                    renderAlerts();
-                }
+        try {
+            const wasEditing = editingAlertIndex >= 0;
+            const currentAlert = wasEditing ? alerts[editingAlertIndex] : {};
+            const savedAlert = await syncAlertState({ ...currentAlert, ...getAlertValues() });
+            if (wasEditing) {
+                alerts[editingAlertIndex] = savedAlert;
+                clearEditMode();
+            } else {
+                alerts.push(savedAlert);
             }
+            renderAlerts();
+        } catch (error) {
+            console.error('Could not save alert:', error);
         }
-    } catch (error) {
-        console.error('Could not check price alerts:', error);
-    } finally {
-        isCheckingAlerts = false;
-    }
+    });
 }
 
-function compare(target, current, state) {
-    if (state === 'up') return current >= target;
-    if (state === 'down') return current <= target;
-    return false;
-}
 
-function getDecimalPlaces(value) {
-    const match = String(value).match(/\.(\d+)/);
-    return match ? match[1].length : 0;
-}
-
-function truncateToPrecision(value, precision) {
-    if (!Number.isFinite(value)) return Number.NaN;
-    const valueText = String(value);
-    const decimalIndex = valueText.indexOf('.');
-    if (decimalIndex === -1) return value;
-    return Number(valueText.slice(0, decimalIndex + precision + 1));
-}
-//if alert exist try checking price
-if (alerts.length > 0) {
-    setInterval(() => {
-        void checkAlerts();
-    }, 60 * 1000);
-}
 
 
 
