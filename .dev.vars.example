@@ -1,0 +1,15 @@
+# Local Wrangler development only. Copy to .dev.vars and fill in your own values.
+# An empty dashboard password deliberately disables access.
+DASHBOARD_USER=owner
+DASHBOARD_PASSWORD=
+
+# Set the destinations you use; Both requires both sets.
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+BALE_BOT_TOKEN=
+BALE_CHAT_ID=
+
+# Optional interactive Telegram bot (not needed just to receive notifications).
+TELEGRAM_WEBHOOK_SECRET=
+# Your numeric Telegram user ID, or a comma-separated allowlist of trusted users.
+TELEGRAM_ALLOWED_USER_IDS=

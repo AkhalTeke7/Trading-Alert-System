@@ -31,6 +31,11 @@ function clearEditMode() {
     editingAlertIndex = -1;
 }
 
+function getDecimalPlaces(value) {
+    // Count from the original input so trailing zeros retain their precision.
+    return (String(value).split('.')[1] || '').length;
+}
+
 export function getAlertValues() {
     const pair = pairInput?.value?.trim() || '';
     const targetInputValue = targetInput?.value?.trim() || '';
@@ -120,6 +125,12 @@ function fillFormFromAlert(alert) {
     messanger.value = alert.channel || '';
 }
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[character]);
+}
+
 function renderAlerts() {
     if (!historyContainer) return;
 
@@ -132,11 +143,11 @@ function renderAlerts() {
 
         historyBox.innerHTML = `
             <button class="close-btn" aria-label="Remove alert">X</button>
-            <p class="pair">${alert.pair}</p>
-            <p>Target: <span class="target-value">${alert.targetInputValue ?? alert.target}</span></p>
-            <p>Note: <span class="note-value">${alert.note}</span></p>
-            <p>Channel: <span class="channel-value">${alert.channel}</span></p>
-            <p>State: <span class="state-value">${alert.state || 'up'}</span></p>
+            <p class="pair">${escapeHtml(alert.pair)}</p>
+            <p>Target: <span class="target-value">${escapeHtml(alert.targetInputValue ?? alert.target)}</span></p>
+            <p>Note: <span class="note-value">${escapeHtml(alert.note)}</span></p>
+            <p>Channel: <span class="channel-value">${escapeHtml(alert.channel)}</span></p>
+            <p>State: <span class="state-value">${escapeHtml(alert.state || 'up')}</span></p>
             <div class="row-actions">
                 <button class="mini-btn modify" data-index="${index}">Modify</button>
                 <button class="mini-btn danger" data-index="${index}">Delete</button>

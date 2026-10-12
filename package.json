@@ -7,7 +7,13 @@
   "scripts": {
     "start": "node --watch --env-file-if-exists=.env ./js/server.js",
     "prices": "node ./js/fetchPrice.cli.js",
-    "telegram": "node --env-file=.env ./js/telegram.mjs"
+    "telegram": "node --env-file=.env ./js/telegram.mjs",
+    "test": "node --test tests/*.node.js",
+    "build:cloudflare": "node scripts/build-cloudflare.mjs",
+    "dev:cloudflare": "wrangler dev --ip 0.0.0.0",
+    "deploy:cloudflare": "wrangler deploy",
+    "check:cloudflare": "wrangler deploy --dry-run",
+    "telegram:webhook": "node --env-file-if-exists=.env scripts/telegram-webhook.mjs"
   },
   "repository": {
     "type": "git",
@@ -21,11 +27,13 @@
   },
   "homepage": "https://github.com/AkhalTeke7/Trading-Alert-System#readme",
   "dependencies": {
+    "@cloudflare/playwright": "^1.3.6",
     "grammy": "^1.46.0",
     "playwright": "^1.63.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@types/node": "^26.6.3"
+    "@types/node": "^26.6.3",
+    "wrangler": "^4.149.0"
   }
 }

@@ -3,10 +3,10 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { loadEnvFile } from 'node:process';
-import { randomUUID } from 'node:crypto';
+import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from './alertModel.js';
 import { fileURLToPath } from 'node:url';
 import getPrices from './fetchPrice.js';
-import { alertSender } from './telegram.mjs';
+import { alertSender, startTelegramBot } from './telegram.mjs';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const envFile = resolve(projectRoot, '.env');
@@ -14,18 +14,6 @@ if (existsSync(envFile)) loadEnvFile(envFile);
 
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
-const allowedPairs = new Set([
-    'Gold / USD',
-    'EUR / USD',
-    'BTC / USD',
-    'GBP / USD',
-]);
-const pairToSymbol = {
-    'Gold / USD': 'OANDA:XAUUSD',
-    'EUR / USD': 'FX_IDC:EURUSD',
-    'BTC / USD': 'BITSTAMP:BTCUSD',
-    'GBP / USD': 'FX_IDC:GBPUSD',
-};
 const alertsFile = resolve(projectRoot, 'data', 'alerts.json');
 const contentTypes = {
     '.css': 'text/css; charset=utf-8',
@@ -56,40 +44,6 @@ function persistAlerts() {
         await writeFile(alertsFile, contents);
     });
     return alertWriteQueue;
-}
-
-function getAlertInput(body) {
-    const pair = String(body?.pair || '');
-    const targetInputValue = String(body?.targetInputValue ?? body?.target ?? '').trim();
-    const target = Number(body?.target ?? targetInputValue);
-    const note = String(body?.note || '');
-    const channel = String(body?.channel || 'Telegram');
-    if (!allowedPairs.has(pair) || !Number.isFinite(target) || target <= 0 || note.length > 500) {
-        throw new Error('Invalid alert details');
-    }
-    if (!['Bale', 'Telegram', 'Both'].includes(channel)) {
-        throw new Error('Invalid alert channel');
-    }
-    return { pair, target, targetInputValue, targetPrecision: (targetInputValue.split('.')[1] || '').length, note, channel };
-}
-
-function makeAlert(input, currentPrice, metadata = {}) {
-    return {
-        id: metadata.id || randomUUID(),
-        ...input,
-        symbol: pairToSymbol[input.pair],
-        currentPrice,
-        state: currentPrice < input.target ? 'up' : 'down',
-        source: metadata.source || 'website',
-        ...(metadata.ownerId ? { ownerId: String(metadata.ownerId) } : {}),
-        createdAt: metadata.createdAt || new Date().toISOString(),
-    };
-}
-
-function truncateToPrecision(value, precision) {
-    if (!Number.isFinite(value)) return Number.NaN;
-    const decimalIndex = String(value).indexOf('.');
-    return decimalIndex === -1 ? value : Number(String(value).slice(0, decimalIndex + precision + 1));
 }
 
 let isCheckingStoredAlerts = false;
@@ -274,6 +228,8 @@ const server = createServer(async (request, response) => {
 server.listen(port, host, () => {
     console.log(`Price Alert is available at http://${host}:${port}`);
 });
+
+void startTelegramBot().catch(error => console.error('Could not start Telegram bot:', error));
 
 setInterval(() => void checkStoredAlerts(), 60_000);
 void checkStoredAlerts();
