@@ -32,7 +32,7 @@ async function setup(t, { saving = false } = {}) {
         if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
         else delete globalThis.document;
     });
-    const module = await import(`../js/alert.js?test=${importId++}`);
+    const module = await import(`../Public/js/alert.js?test=${importId++}`);
     return { ...module, fields, listeners };
 }
 

@@ -9,6 +9,8 @@ import getPrices from './fetchPrice.js';
 import { alertSender, startTelegramBot } from './telegram.mjs';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
+// Only the Public/ folder is served — everything else (js/, data/, .env) stays private.
+const publicRoot = resolve(projectRoot, 'Public');
 const envFile = resolve(projectRoot, '.env');
 if (existsSync(envFile)) loadEnvFile(envFile);
 
@@ -98,8 +100,8 @@ async function readJson(request) {
 
 async function serveStatic(pathname, response) {
     const relativePath = pathname === '/' ? 'main.html' : pathname.replace(/^\/+/, '');
-    const filePath = resolve(projectRoot, relativePath);
-    if (!filePath.startsWith(`${projectRoot}${sep}`)) {
+    const filePath = resolve(publicRoot, relativePath);
+    if (!filePath.startsWith(`${publicRoot}${sep}`)) {
         sendJson(response, 403, { error: 'Forbidden' });
         return;
     }
