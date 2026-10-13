@@ -17,9 +17,11 @@ test('Cloudflare asset build copies existing pages without publishing private fi
     assert.ok(output.includes('dist/cloudflare/main.html'));
     assert.ok(output.includes('dist/cloudflare/Public/Alert/alert.html'));
     assert.ok(output.includes('dist/cloudflare/js/alert.js'));
+    assert.ok(output.includes('dist/cloudflare/Public/news.html'));
+    assert.ok(output.includes('dist/cloudflare/js/news.js'));
     for (const file of output) {
         const relative = file.replace('dist/cloudflare/', '');
-        assert.ok(['main.html', 'Public/Alert/alert.html', 'js/alert.js'].includes(relative)
+        assert.ok(['main.html', 'Public/news.html', 'Public/Alert/alert.html', 'js/alert.js', 'js/news.js'].includes(relative)
             || relative.startsWith('css/') || relative.startsWith('asset/'), relative);
         assert.deepEqual(await readFile(`${root}/${file}`), await readFile(`${root}/${relative}`));
     }
