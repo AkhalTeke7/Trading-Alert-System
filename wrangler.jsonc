@@ -4,11 +4,8 @@
   "main": "cloudflare/worker.js",
   "compatibility_date": "2026-10-12",
   "compatibility_flags": ["nodejs_compat"],
-  "build": {
-    "command": "npm run build:cloudflare"
-  },
   "assets": {
-    "directory": "./dist/cloudflare",
+    "directory": "./Public",
     "binding": "ASSETS",
     "run_worker_first": true,
     "html_handling": "none",

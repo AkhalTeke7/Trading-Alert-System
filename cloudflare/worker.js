@@ -44,7 +44,7 @@ export default {
             return json({ error: 'Not found' }, 404);
         }
         if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
-        // A dedicated allowlisted asset build excludes .env, data, and backend code.
+        // Only the Public/ folder is uploaded as assets, so .env, data, and backend code stay private.
         if (url.pathname === '/') url.pathname = '/main.html';
         const response = await env.ASSETS.fetch(new Request(url, request));
         const headers = new Headers(response.headers);

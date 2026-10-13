@@ -11,7 +11,7 @@ This deploys the **whole app** on Cloudflare, not just a static Pages site. No V
 | Background checks | A cron trigger checks alerts approximately every minute instead of `setInterval`. |
 | Notification images | Cloudflare Browser Rendering / Browser Run replaces locally installed Chrome. The original card HTML was moved, unchanged, to `js/alertCard.js` and is shared with the Node sender. |
 | Telegram conversations | A secret-protected webhook replaces long polling. The existing menu/conversation logic is shared in `js/telegramBot.js`. Only explicitly allowed Telegram user IDs can use the hosted bot. |
-| Security | Browser-native username/password prompt, HTTPS-compatible same-origin write checks, escaped alert-history text, and a public-file allowlist. `.env`, saved alerts, backend source, dependencies, and repository files are **not** public assets. |
+| Security | Browser-native username/password prompt, HTTPS-compatible same-origin write checks, escaped alert-history text, and a simple rule: only the `Public/` folder is uploaded. `.env`, saved alerts, backend source, dependencies, and repository files are **not** public assets. |
 | Reliability | Serialized alert operations, durable per-channel delivery progress, bounded upstream timeouts, and duplicate Telegram update/save protection. |
 | Local use | `npm start`, `npm run prices`, and `npm run telegram` still exist. The Node server still uses `data/alerts.json`. Importing the notification sender no longer starts a bot before environment variables load. |
 
@@ -36,9 +36,9 @@ npx wrangler login
 npm run deploy:cloudflare
 ```
 
-Wrangler builds only the allowlisted public files, uploads the Worker and assets, creates the Durable Object namespace, and configures the every-minute cron. The first deployment intentionally returns **503 until dashboard secrets are set**; it does not expose your dashboard without authentication.
+Wrangler uploads the Worker and everything in the `Public/` folder (no build step — to publish a new file, just put it in `Public/`), creates the Durable Object namespace, and configures the every-minute cron. The first deployment intentionally returns **503 until dashboard secrets are set**; it does not expose your dashboard without authentication.
 
-Use the HTTPS `workers.dev` URL printed by Wrangler. You may add a custom domain later in the Worker settings. This is a **Worker**, not a Pages project; do not deploy only `dist/cloudflare` or use `npm start` as a Cloudflare build command.
+Use the HTTPS `workers.dev` URL printed by Wrangler. You may add a custom domain later in the Worker settings. This is a **Worker**, not a Pages project; do not use `npm start` as a Cloudflare build command.
 
 Keep the Worker name, `AlertStore` class, migration history, and the `personal-dashboard` object name stable. Renaming them can point the app at different storage. Never delete the Durable Object namespace to perform a routine update.
 

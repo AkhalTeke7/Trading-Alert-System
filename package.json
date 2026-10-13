@@ -9,7 +9,6 @@
     "prices": "node ./js/fetchPrice.cli.js",
     "telegram": "node --env-file=.env ./js/telegram.mjs",
     "test": "node --test tests/*.node.js",
-    "build:cloudflare": "node scripts/build-cloudflare.mjs",
     "dev:cloudflare": "wrangler dev --ip 0.0.0.0",
     "deploy:cloudflare": "wrangler deploy",
     "check:cloudflare": "wrangler deploy --dry-run",
