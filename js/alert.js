@@ -1,4 +1,5 @@
-﻿const ALERTS_API = '/api/alerts';
+﻿import { showError } from "./error.js";
+const ALERTS_API = '/api/alerts';
 const pairToSymbol = {
     'Gold / USD': 'OANDA:XAUUSD',
     'EUR / USD': 'FX_IDC:EURUSD',
@@ -142,7 +143,6 @@ function renderAlerts() {
         historyBox.classList.add('history-box');
 
         historyBox.innerHTML = `
-            <button class="close-btn" aria-label="Remove alert">X</button>
             <p class="pair">${escapeHtml(alert.pair)}</p>
             <p>Target: <span class="target-value">${escapeHtml(alert.targetInputValue ?? alert.target)}</span></p>
             <p>Note: <span class="note-value">${escapeHtml(alert.note)}</span></p>
@@ -203,6 +203,7 @@ if (addBtn && historyContainer) {
             renderAlerts();
         } catch (error) {
             console.error('Could not save alert:', error);
+            showError("please enter a valid alert with a target price and pair")
         }
     });
 }
