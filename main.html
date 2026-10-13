@@ -35,7 +35,7 @@
         <aside class="sidebar">
             <button type="button" class="alert sid-botton"><i class="ico ti ti-bell-ringing"></i><span class="lb">Alert</span></button>
             <button type="button" class="sid-botton"><i class="ico ti ti-notebook"></i><span class="lb">Journal</span></button>
-            <button type="button" class="sid-botton"><i class="ico ti ti-news"></i><span class="lb">News</span></button>
+            <button type="button" class="news sid-botton"><i class="ico ti ti-news"></i><span class="lb">News</span></button>
             <button type="button" class="sid-botton"><i class="ico ti ti-cpu"></i><span class="lb">AI</span></button>
         </aside>
 
@@ -102,6 +102,9 @@
     });
     document.querySelector('.aboutme').addEventListener("click",() => {
         window.open("https://illustrious-malabi-899336.netlify.app/", "_blank");
+    });
+    document.querySelector(".news").addEventListener("click", function () {
+        window.location = "./Public/news.html";
     });
 </script>
 

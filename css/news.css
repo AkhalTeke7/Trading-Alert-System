@@ -1,0 +1,116 @@
+/* news.css — extras for the weekly news page, built on the Price-Alert
+   theme tokens in ../../css/style.css (--bone, --red, --line, --panel ...). */
+
+/* back button (header) */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  transition: color .2s ease, background .2s ease, border-color .2s ease;
+}
+.back-btn:hover { color: var(--bg); background: var(--bone); border-color: var(--bone); }
+
+/* active sidebar item */
+.sid-botton.active { border-color: var(--line-strong); }
+.sid-botton.active::after {
+  content: "";
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 6px; height: 6px;
+  background: var(--red);
+}
+
+/* cards: these hold lists, so no big lift / smaller headings */
+.news-toolbar, .day { justify-content: flex-start; gap: 14px; }
+.news-toolbar:hover, .day:hover { transform: none; }
+.news-toolbar .card-body h2,
+.day .card-body h2 { font-size: clamp(24px, 2.6vw, 34px); }
+
+.toolbar-body {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 16px;
+}
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chip-group { display: inline-flex; gap: 6px; }
+
+.chip, .select {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  transition: color .2s, background .2s, border-color .2s;
+}
+.chip:hover, .select:hover { color: var(--bg); background: var(--bone); border-color: var(--bone); }
+.chip.active { color: var(--bone); border-color: var(--line-strong); box-shadow: inset 0 -2px 0 var(--red); }
+.chip.active:hover { color: var(--bg); }
+.select option { background: var(--panel); color: var(--bone); }
+
+/* status */
+.status {
+  margin-bottom: 16px; padding: 12px 14px;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em;
+  color: var(--muted); border: 1px dashed var(--line-strong);
+}
+.status.error { color: var(--red); border-color: var(--red); }
+
+/* days */
+#days { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
+.day.today { border-color: var(--line-strong); }
+.day.today .kanji { color: var(--red); }
+.badge {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; padding: 3px 8px; margin-left: 10px;
+  color: var(--red); border: 1px solid var(--red); vertical-align: middle;
+}
+
+/* event rows */
+.ev-list { display: flex; flex-direction: column; margin-top: 14px; }
+.ev {
+  display: grid;
+  grid-template-columns: 56px 10px 64px minmax(0, 1fr) repeat(3, 84px);
+  align-items: center; gap: 12px; padding: 10px 4px;
+  border-top: 1px solid var(--line);
+  font-size: 14px; line-height: 1.35;
+}
+.ev:first-child { border-top: 0; }
+.ev-time { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.ev-country { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+.ev-title { font-weight: 500; }
+.ev-title em { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.ev-num { display: flex; flex-direction: column; align-items: flex-end; font-family: var(--font-mono); font-size: 13px; }
+.ev-num small { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-bottom: 2px; }
+
+.ev-dot { width: 8px; height: 8px; background: var(--dim); }
+.imp-mid .ev-dot { background: var(--muted); }
+.imp-high .ev-dot { background: var(--red); box-shadow: 0 0 0 3px rgba(209, 59, 47, .25); }
+
+/* paste */
+.paste-box {
+  width: 100%; margin: 12px 0; padding: 10px 12px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+  color: var(--bone); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 0; resize: vertical;
+}
+.paste-box:focus { outline: 1px solid var(--line-strong); }
+code { font-family: var(--font-mono); color: var(--bone); }
+
+@media (max-width: 760px) {
+  .ev { grid-template-columns: repeat(3, 1fr); row-gap: 6px; }
+  .ev-time    { grid-column: 1; grid-row: 1; }
+  .ev-dot     { display: none; }
+  .ev-country { grid-column: 3; grid-row: 1; justify-self: end; }
+  .ev-title   { grid-column: 1 / -1; grid-row: 2; }
+  .ev-num     { align-items: flex-start; grid-row: 3; }
+}
