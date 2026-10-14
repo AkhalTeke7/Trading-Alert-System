@@ -1,5 +1,6 @@
 import getPrices from '../js/fetchPrice.js';
 import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from '../js/alertModel.js';
+import { renderAlertCard } from '../js/alertCard.js';
 import { createTelegramBot } from '../js/telegramBot.js';
 import { sendAlert } from './notifications.js';
 import { json, readJson } from './http.js';
@@ -40,6 +41,29 @@ export class AlertStore {
         return result;
     }
 
+    async getTriggered() {
+        return await this.storage.get('triggeredEvents') || [];
+    }
+
+    async appendTriggered(event) {
+        const events = [...(await this.getTriggered()), event].slice(-100);
+        await this.storage.put({ triggeredEvents: events });
+        return event;
+    }
+
+    makeTriggered({ alertId, pair, target, note, channel, source }) {
+        return {
+            id: crypto.randomUUID(),
+            alertId: alertId || null,
+            pair: pair || '',
+            target: target ?? null,
+            note: note || '',
+            channel: channel || '',
+            source: source || 'crossing',
+            triggeredAt: new Date().toISOString(),
+        };
+    }
+
     async handle(request) {
         const pathname = new URL(request.url).pathname;
         try {
@@ -49,6 +73,79 @@ export class AlertStore {
             }
             if (pathname === '/internal/telegram' && request.method === 'POST') {
                 return await this.telegram(await readJson(request, 64_000));
+            }
+            if (pathname === '/api/triggered' && request.method === 'GET') {
+                const since = new URL(request.url).searchParams.get('since');
+                const sinceTime = since ? Date.parse(since) : Number.NaN;
+                const events = await this.getTriggered();
+                return json((Number.isFinite(sinceTime)
+                    ? events.filter(event => Date.parse(event.triggeredAt) > sinceTime)
+                    : events).slice(-100));
+            }
+            if (pathname === '/api/devices' && request.method === 'POST') {
+                let body;
+                try {
+                    body = await readJson(request);
+                } catch {
+                    return json({ error: 'Invalid JSON' }, 400);
+                }
+                const pushToken = String(body?.pushToken || '').trim();
+                if (!pushToken || pushToken.length > 4096) return json({ error: 'Invalid push token' }, 400);
+                const devices = (await this.storage.get('pushDevices') || [])
+                    .filter(device => device.pushToken !== pushToken);
+                devices.push({ pushToken, platform: String(body?.platform || 'android').slice(0, 32), updatedAt: new Date().toISOString() });
+                await this.storage.put({ pushDevices: devices.slice(-500) });
+                return json({ registered: true }, 201);
+            }
+            if (pathname === '/api/test-alert' && request.method === 'POST') {
+                const body = await readJson(request).catch(() => ({}));
+                const event = await this.appendTriggered(this.makeTriggered({
+                    pair: String(body?.pair || 'Gold / USD'),
+                    target: Number(body?.target || 0) || 'test',
+                    note: String(body?.note || 'Test sound from website'),
+                    channel: 'app',
+                    source: 'manual-test',
+                }));
+                await this.pushToDevices(event).catch(() => {});
+                return json(event, 201);
+            }
+            if (pathname === '/api/alert-card' && request.method === 'GET') {
+                const params = new URL(request.url).searchParams;
+                const pair = (params.get('pair') || 'Gold / USD').slice(0, 50);
+                const target = (params.get('target') || 'test').slice(0, 50);
+                const note = (params.get('note') || '').slice(0, 500);
+                return new Response(renderAlertCard(pair, target, note), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, max-age=86400' },
+                });
+            }
+            if (pathname === '/api/alert-image' && request.method === 'GET') {
+                const params = new URL(request.url).searchParams;
+                const pair = (params.get('pair') || 'Gold / USD').slice(0, 50);
+                const target = (params.get('target') || 'test').slice(0, 50);
+                const note = (params.get('note') || '').slice(0, 500);
+                try {
+                    const { launch } = await import('@cloudflare/playwright');
+                    const browser = await launch(this.env.BROWSER);
+                    let png;
+                    try {
+                        const page = await browser.newPage({
+                            viewport: { width: 1200, height: 800 },
+                            // Scale 1: same card, smaller PNG for mobile data.
+                            deviceScaleFactor: 1,
+                        });
+                        await page.setContent(renderAlertCard(pair, target, note));
+                        await page.waitForTimeout(800);
+                        png = await page.screenshot({ fullPage: true });
+                    } finally {
+                        await browser.close();
+                    }
+                    return new Response(png, {
+                        headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400' },
+                    });
+                } catch {
+                    console.error('Alert image render failed');
+                    return json({ error: 'Could not render alert image' }, 502);
+                }
             }
             return await this.alertsApi(request);
         } catch {
@@ -110,6 +207,49 @@ export class AlertStore {
         return json(alert, creating ? 201 : 200);
     }
 
+    async pushToDevices(event) {
+        const devices = await this.storage.get('pushDevices') || [];
+        if (!devices.length) return;
+        const title = `Price Alert: ${event.pair}`;
+        const body = `${event.pair} ${event.target} — ${event.note || 'triggered'}`;
+        const data = { eventId: event.id, pair: String(event.pair), target: String(event.target), note: String(event.note || '') };
+        // FCM HTTP v1 (service account) first; legacy server key as fallback.
+        try {
+            const { getServiceAccount, sendFcmV1 } = await import('../js/fcmV1.js');
+            const serviceAccount = getServiceAccount(this.env);
+            if (serviceAccount) {
+                const tokens = devices.slice(-50).map(device => device.pushToken);
+                if (await sendFcmV1(serviceAccount, tokens, { title, body, data })) return;
+            }
+        } catch {
+            console.error('FCM v1 push failed');
+        }
+        await this.pushToDevicesLegacy(devices, title, body, data);
+    }
+
+    async pushToDevicesLegacy(devices, title, body, data) {
+        const serverKey = this.env.FCM_SERVER_KEY;
+        if (!serverKey || !devices.length) return;
+        await Promise.all(devices.slice(-50).map(async device => {
+            try {
+                const res = await fetch('https://fcm.googleapis.com/fcm/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `key=${serverKey}` },
+                    body: JSON.stringify({
+                        to: device.pushToken,
+                        priority: 'high',
+                        content_available: true,
+                        // Data-only: the app sounds the alarm itself in onMessageReceived.
+                        data: { title, body, ...data },
+                    }),
+                });
+                if (!res.ok) throw new Error('FCM push failed');
+            } catch {
+                console.error('FCM push failed for a device');
+            }
+        }));
+    }
+
     async checkAlerts() {
         let alerts = await this.getAlerts();
         if (!alerts.length) return;
@@ -130,10 +270,19 @@ export class AlertStore {
                     alert.deliveredChannels = [...new Set([...(alert.deliveredChannels || []), channel])];
                     await this.saveAlerts(alerts);
                 });
+                const event = await this.appendTriggered(this.makeTriggered({
+                    alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing',
+                }));
+                await this.pushToDevices(event).catch(() => {});
                 alerts = alerts.filter(item => item.id !== alert.id);
                 await this.saveAlerts(alerts);
             } catch {
                 console.error(`Notification failed for alert ${alert.id}; retained for retry`);
+                // Still ring the phone so provider outages are audible; retry-safe via event id.
+                const event = await this.appendTriggered(this.makeTriggered({
+                    alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing-delivery-failed',
+                })).catch(() => null);
+                if (event) await this.pushToDevices(event).catch(() => {});
                 // Rotate failed alerts so they do not starve other pending alerts.
                 alerts = [...alerts.filter(item => item.id !== alert.id), alert];
                 await this.saveAlerts(alerts);

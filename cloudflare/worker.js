@@ -29,7 +29,9 @@ export default {
                 return json({ error: 'Cross-origin requests are not allowed' }, 403);
             }
         }
-        if (url.pathname === '/api/alerts' || url.pathname.startsWith('/api/alerts/')) {
+        if (url.pathname === '/api/alerts' || url.pathname.startsWith('/api/alerts/') ||
+            url.pathname === '/api/triggered' || url.pathname === '/api/devices' || url.pathname === '/api/test-alert' ||
+            url.pathname === '/api/alert-card' || url.pathname === '/api/alert-image') {
             return store(env).fetch(request);
         }
         if (url.pathname === '/api/prices') {

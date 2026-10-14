@@ -1,0 +1,20 @@
+<resources>
+    <style name="Theme.PriceAlertSound" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/pa_bone</item>
+        <item name="colorOnPrimary">@color/pa_bg</item>
+        <item name="colorPrimaryContainer">@color/pa_panel2</item>
+        <item name="colorSecondary">@color/pa_red</item>
+        <item name="android:windowBackground">@color/pa_bg</item>
+        <item name="colorSurface">@color/pa_panel</item>
+        <item name="colorOnSurface">@color/pa_bone</item>
+        <item name="colorOutline">@color/pa_line</item>
+        <item name="buttonStyle">@style/PA.Button</item>
+    </style>
+
+    <!-- Website buttons: mono, uppercase, letter-spaced. Backgrounds stay per-button. -->
+    <style name="PA.Button" parent="Widget.AppCompat.Button">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+</resources>

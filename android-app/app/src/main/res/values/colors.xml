@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pa_bg">#0A0A0A</color>
+    <color name="pa_panel">#101010</color>
+    <color name="pa_panel2">#141414</color>
+    <color name="pa_bone">#E9E4D6</color>
+    <color name="pa_muted">#8B877B</color>
+    <color name="pa_dim">#5B584F</color>
+    <color name="pa_red">#D13B2F</color>
+    <color name="pa_green">#159D78</color>
+    <color name="pa_line">#24E9E4D6</color>
+    <color name="pa_line_strong">#61E9E4D6</color>
+</resources>

@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from './alertModel.js';
+import { renderAlertCard } from './alertCard.js';
 import { fileURLToPath } from 'node:url';
 import getPrices from './fetchPrice.js';
 import { alertSender, startTelegramBot } from './telegram.mjs';
@@ -48,6 +49,131 @@ function persistAlerts() {
     return alertWriteQueue;
 }
 
+const triggeredFile = resolve(projectRoot, 'data', 'triggered.json');
+const devicesFile = resolve(projectRoot, 'data', 'devices.json');
+
+async function loadJsonArray(file) {
+    try {
+        const value = JSON.parse(await readFile(file, 'utf8'));
+        return Array.isArray(value) ? value : [];
+    } catch (error) {
+        if (error.code === 'ENOENT') return [];
+        throw error;
+    }
+}
+
+let triggeredEvents = await loadJsonArray(triggeredFile);
+let pushDevices = await loadJsonArray(devicesFile);
+let triggeredWriteQueue = Promise.resolve();
+let devicesWriteQueue = Promise.resolve();
+
+function persistTriggered() {
+    const contents = JSON.stringify(triggeredEvents.slice(-100), null, 2);
+    triggeredWriteQueue = triggeredWriteQueue.then(async () => {
+        await mkdir(resolve(projectRoot, 'data'), { recursive: true });
+        await writeFile(triggeredFile, contents);
+    });
+    return triggeredWriteQueue;
+}
+
+function persistDevices() {
+    const contents = JSON.stringify(pushDevices, null, 2);
+    devicesWriteQueue = devicesWriteQueue.then(async () => {
+        await mkdir(resolve(projectRoot, 'data'), { recursive: true });
+        await writeFile(devicesFile, contents);
+    });
+    return devicesWriteQueue;
+}
+
+// In-memory PNG cache so the phone fetching the same card twice costs one render.
+const alertImageCache = new Map();
+async function renderAlertPng(pair, target, note) {
+    const key = `${pair}|${target}|${note}`;
+    const cached = alertImageCache.get(key);
+    if (cached) return cached;
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch({
+        channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome',
+    });
+    try {
+        const page = await browser.newPage({
+            viewport: { width: 1200, height: 800 },
+            // Scale 1 keeps the phone PNG small (~4x smaller than the
+            // Telegram print); same content, faster over mobile data.
+            deviceScaleFactor: 1,
+        });
+        await page.setContent(renderAlertCard(pair, target, note));
+        await page.waitForTimeout(800);
+        const png = await page.screenshot({ fullPage: true });
+        alertImageCache.set(key, png);
+        if (alertImageCache.size > 20) alertImageCache.delete(alertImageCache.keys().next().value);
+        return png;
+    } finally {
+        await browser.close();
+    }
+}
+
+// Push: FCM HTTP v1 (service account) first, legacy server key as fallback.
+// Polling works without either.
+async function pushToFcmDevices(event) {
+    if (pushDevices.length === 0) return;
+    const title = `Price Alert: ${event.pair}`;
+    const body = `${event.pair} ${event.target} — ${event.note || 'triggered'}`;
+    const data = { eventId: event.id, pair: String(event.pair), target: String(event.target), note: String(event.note || '') };
+    try {
+        const { getServiceAccount, sendFcmV1 } = await import('./fcmV1.js');
+        const serviceAccount = getServiceAccount();
+        if (serviceAccount) {
+            const tokens = pushDevices.slice(-50).map(device => device.pushToken);
+            if (await sendFcmV1(serviceAccount, tokens, { title, body, data })) return;
+        }
+    } catch (error) {
+        console.error('FCM v1 push failed:', error.message || error);
+    }
+    await pushToFcmLegacy(title, body, data);
+}
+
+async function pushToFcmLegacy(title, body, data) {
+    const serverKey = process.env.FCM_SERVER_KEY;
+    if (!serverKey || pushDevices.length === 0) return;
+    await Promise.all(pushDevices.slice(-50).map(async device => {
+        try {
+            const res = await fetch('https://fcm.googleapis.com/fcm/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `key=${serverKey}` },
+                body: JSON.stringify({
+                    to: device.pushToken,
+                    priority: 'high',
+                    content_available: true,
+                    // Data-only: the app sounds the alarm itself in onMessageReceived.
+                    data: { title, body, ...data },
+                }),
+            });
+            if (!res.ok) throw new Error(`FCM ${res.status}`);
+        } catch (error) {
+            console.error('FCM push failed:', error.message || error);
+        }
+    }));
+}
+// It is recorded for real crossings AND for manual website test buttons,
+// so the phone rings even if Telegram/Bale delivery fails.
+function recordTriggered({ alertId, pair, target, note, channel, source }) {
+    const event = {
+        id: crypto.randomUUID(),
+        alertId: alertId || null,
+        pair: pair || '',
+        target: target ?? null,
+        note: note || '',
+        channel: channel || '',
+        source: source || 'crossing',
+        triggeredAt: new Date().toISOString(),
+    };
+    triggeredEvents.push(event);
+    triggeredEvents = triggeredEvents.slice(-100);
+    void persistTriggered();
+    return event;
+}
+
 let isCheckingStoredAlerts = false;
 async function checkStoredAlerts() {
     if (isCheckingStoredAlerts || storedAlerts.length === 0) return;
@@ -64,10 +190,14 @@ async function checkStoredAlerts() {
 
             try {
                 await alertSender(alert.pair, alert.target, alert.note, alert.channel);
+                const event = recordTriggered({ alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing' });
+                void pushToFcmDevices(event).catch(() => {});
                 storedAlerts = storedAlerts.filter(item => item.id !== alert.id);
                 await persistAlerts();
             } catch (error) {
                 console.error(`Could not send alert ${alert.id}:`, error);
+                // Still ring the phone so a Telegram/Bale outage is audible.
+                recordTriggered({ alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing-delivery-failed' });
             }
         }
     } catch (error) {
@@ -183,6 +313,92 @@ const server = createServer(async (request, response) => {
         } catch (error) {
             const status = error.message === 'Invalid alert details' || error.message === 'Invalid alert channel' ? 400 : 502;
             sendJson(response, status, { error: error.message || 'Could not save alert' });
+        }
+        return;
+    }
+
+    if (pathname === '/api/triggered' && request.method === 'GET') {
+        const since = requestUrl.searchParams.get('since');
+        const sinceTime = since ? Date.parse(since) : Number.NaN;
+        const events = Number.isFinite(sinceTime)
+            ? triggeredEvents.filter(event => Date.parse(event.triggeredAt) > sinceTime)
+            : triggeredEvents;
+        sendJson(response, 200, events.slice(-100));
+        return;
+    }
+
+    if (pathname === '/api/devices' && request.method === 'POST') {
+        try {
+            const body = await readJson(request);
+            const pushToken = String(body?.pushToken || '').trim();
+            if (!pushToken || pushToken.length > 4096) {
+                sendJson(response, 400, { error: 'Invalid push token' });
+                return;
+            }
+            const platform = String(body?.platform || 'android').slice(0, 32);
+            pushDevices = pushDevices.filter(device => device.pushToken !== pushToken);
+            pushDevices.push({ pushToken, platform, updatedAt: new Date().toISOString() });
+            pushDevices = pushDevices.slice(-500);
+            await persistDevices();
+            sendJson(response, 201, { registered: true });
+        } catch {
+            sendJson(response, 400, { error: 'Invalid JSON' });
+        }
+        return;
+    }
+
+    if (pathname === '/api/test-alert' && request.method === 'POST') {
+        if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) {
+            sendJson(response, 403, { error: 'Cross-origin requests are not allowed' });
+            return;
+        }
+        try {
+            const body = await readJson(request).catch(() => ({}));
+            const event = recordTriggered({
+                alertId: null,
+                pair: String(body?.pair || 'Gold / USD'),
+                target: Number(body?.target || 0) || 'test',
+                note: String(body?.note || 'Test sound from website'),
+                channel: String(body?.channel || 'app'),
+                source: 'manual-test',
+            });
+            try {
+                await pushToFcmDevices(event).catch(() => {});
+            } catch { /* polling fallback covers this */ }
+            sendJson(response, 201, event);
+        } catch (error) {
+            sendJson(response, 500, { error: 'Could not create test event' });
+        }
+        return;
+    }
+
+    if (pathname === '/api/alert-card' && request.method === 'GET') {
+        const pair = (requestUrl.searchParams.get('pair') || 'Gold / USD').slice(0, 50);
+        const target = (requestUrl.searchParams.get('target') || 'test').slice(0, 50);
+        const note = (requestUrl.searchParams.get('note') || '').slice(0, 500);
+        response.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'private, max-age=86400',
+        });
+        response.end(renderAlertCard(pair, target, note));
+        return;
+    }
+
+    if (pathname === '/api/alert-image' && request.method === 'GET') {
+        const pair = (requestUrl.searchParams.get('pair') || 'Gold / USD').slice(0, 50);
+        const target = (requestUrl.searchParams.get('target') || 'test').slice(0, 50);
+        const note = (requestUrl.searchParams.get('note') || '').slice(0, 500);
+        try {
+            const png = await renderAlertPng(pair, target, note);
+            response.writeHead(200, {
+                'Content-Type': 'image/png',
+                'Content-Length': png.length,
+                'Cache-Control': 'private, max-age=86400',
+            });
+            response.end(png);
+        } catch (error) {
+            console.error('Could not render alert image:', error);
+            sendJson(response, 502, { error: 'Could not render alert image' });
         }
         return;
     }

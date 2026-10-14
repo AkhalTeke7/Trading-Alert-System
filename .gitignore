@@ -6,6 +6,11 @@ node_modules/
 .env.local
 .env.production
 
+# Firebase: client config + service-account keys (never commit)
+**/google-services.json
+**/service-account*.json
+FCM_SERVICE_ACCOUNT.json
+
 # Build outputs
 dist/
 build/

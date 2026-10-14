@@ -1,4 +1,5 @@
 ﻿import { showError } from "./error.js";
+import { showSuccess } from "./success.js";
 const ALERTS_API = '/api/alerts';
 const pairToSymbol = {
     'Gold / USD': 'OANDA:XAUUSD',
@@ -206,6 +207,29 @@ if (addBtn && historyContainer) {
             showError("please enter a valid alert with a target price and pair")
         }
     });
+
+    // Website -> Android app: POST /api/test-alert makes the phone ring.
+    /*const testPhoneBtn = document.querySelector('.test-phone-btn');
+    if (testPhoneBtn) {
+        testPhoneBtn.addEventListener('click', async () => {
+            const values = getAlertValues();
+            testPhoneBtn.disabled = true;
+            try {
+                const response = await fetch('/api/test-alert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pair: values.pair || 'Gold / USD', note: 'Test sound from website' }),
+                });
+                if (!response.ok) throw new Error('Test request failed');
+                showSuccess('Test sent — your phone should ring in a few seconds');
+            } catch (error) {
+                console.error(error);
+                showError('Could not send test sound request');
+            } finally {
+                testPhoneBtn.disabled = false;
+            }
+        });
+    }*/
 }
 
 
