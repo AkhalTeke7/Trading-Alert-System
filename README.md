@@ -48,37 +48,77 @@
 
 ### <span style="font-family: Fraunces">◍</span> Preview
 
-> Put screen recordings here — the README is already wired for them.
+> Near-black dossier, hairline borders, bone paper — every page as it actually looks.
+
+<!-- Save your 5 uploads as these exact filenames so the README renders on GitHub: -->
+<!-- Pictures/01-markets.png  Pictures/02-alerts.png  Pictures/03-journal-trade.png  Pictures/04-journal-form.png  Pictures/05-analyze.png -->
+<!-- Legacy fallbacks kept: Pictures/alert-preview.png, Pictures/alert-sent-preview.png -->
+
+<p align="center">
+  <img src="Pictures/01-markets.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="Markets — Gold / USD + EUR / USD live TradingView charts, draw-to-alert" />
+  <br/>
+  <sub style="color:#8b877b; font-family: JetBrains Mono, monospace; font-size:11px; letter-spacing:.08em">01 — MARKETS · <code>Public/main.html</code> — dual TradingView Advanced Charts (15m) · draw alert line → target · 75% chart view · black-down / green-up candles</sub>
+</p>
 
 <table>
 <tr>
 <td width="50%" align="center">
 
-**Markets — 6 live charts, draw-to-alert**
+**02 — Alerts · Create & History**
 
-`Public/main.html`
+`Public/Alert/alert.html`
 
-<img src="Pictures/alert-preview.png" width="100%" style="border:1px solid rgba(233,228,214,.14)" alt="Markets preview" />
+<img src="Pictures/02-alerts.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="Create Alert + History — Gold/USD down to 3434, channel App" />
 
-<sub>Hide with <code>.html</code> if you record a GIF — keep this as fallback</sub>
+<sub>Target · price · note <code>0/500</code> · channel <code>All→Both</code></sub>
 
 </td>
 <td width="50%" align="center">
 
-**Journal — dossier, Analyze & calendar**
+**03 — Journal · Dossier card**
 
 `Public/journal.html`
 
-<img src="Pictures/alert-sent-preview.png" width="100%" style="border:1px solid rgba(233,228,214,.14)" alt="Journal preview" />
+<img src="Pictures/03-journal-trade.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="Journal trade card — 01 GOLD/USD LONG WIN, 1min / 15min / 1h charts, caption 0/120" />
 
-<sub>Replace with <code>Pictures/journal-preview.gif</code> when ready</sub>
+<sub><code>01 — 1min · 02 — 15min · 03 — 1h</code> · Drive thumb + <code>0/120</code> caption</sub>
 
 </td>
 </tr>
 </table>
 
+<p align="center">
+  <img src="Pictures/04-journal-form.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="New Trade form — pair, date, direction, outcome, strategy, PnL, tags, notes, 3 image slots" />
+  <br/>
+  <sub style="color:#8b877b; font-family: JetBrains Mono, monospace; font-size:11px; letter-spacing:.08em">04 — JOURNAL FORM · pair / date / direction / outcome / strategy / PnL · tags · notes · 3 slots  <code>Choose file… (Uploads to Drive)</code> or paste Drive / TradingView link</sub>
+</p>
+
+<p align="center">
+  <img src="Pictures/05-analyze.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="Analyze — Win/Loss Mix, PnL Distribution, By Strategy, By Pair, PnL by Strategy, Weekday Edge, PnL Streaks, Calendar" />
+  <br/>
+  <sub style="color:#8b877b; font-family: JetBrains Mono, monospace; font-size:11px; letter-spacing:.08em">05 — ANALYZE · donut <code>WIN/LOSS/BE</code> · histogram · strat/pair tables · slim weekday candles · streak <code>W×n</code> · switchable calendar <code>‹ › Today</code></sub>
+</p>
+
 <details>
-<summary><b>🎬 How to add beautiful GIFs (recommended sizes)</b></summary>
+<summary><b>📂 Where the files live</b></summary>
+
+```
+Pictures/
+  01-markets.png        ← Image 1 — Markets (Gold/EUR 15m dual charts)
+  02-alerts.png         ← Image 2 — Create Alert + History
+  03-journal-trade.png  ← Image 3 — Journal dossier card (WIN · BOS RETEST 15M)
+  04-journal-form.png   ← Image 4 — New Trade form (choose file / paste link)
+  05-analyze.png        ← Image 5 — Analyze dashboards
+  alert-preview.png     ← legacy fallback (kept)
+  alert-sent-preview.png← legacy fallback (kept)
+```
+
+> Save the 5 images you sent with **exactly those names** in `Pictures/` and push — GitHub renders them immediately. No code change needed.
+
+</details>
+
+<details>
+<summary><b>🎬 How to add beautiful GIFs (optional, recommended sizes)</b></summary>
 
 ```sh
 # record with any tool, then optimize:
@@ -91,14 +131,14 @@ Pictures/journal-calendar-filter.gif  # click calendar day → dossiers filter
 Pictures/alert-notification.gif       # Telegram image card arriving
 ```
 
-Then replace the two `<img>` above with:
+Then add below the gallery:
 
 ```html
 <img src="Pictures/markets-draw-to-alert.gif" width="100%" alt="Draw to alert" />
 <img src="Pictures/journal-analyze.gif" width="100%" alt="Analyze" />
 ```
 
-GitHub auto-plays GIFs. Keep the `.png` fallbacks next to them — GitHub caches aggressively, so bump `?v=2` if a GIF doesn't refresh.
+GitHub auto-plays GIFs. Keep the `.png` fallbacks — bump `?v=2` if a GIF doesn't refresh.
 
 </details>
 

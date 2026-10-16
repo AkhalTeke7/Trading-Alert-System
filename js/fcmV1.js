@@ -6,6 +6,10 @@
 //     settings → Service accounts → Generate new private key). Never commit it.
 //   FCM_PROJECT_ID    = optional; defaults to the JSON's project_id.
 
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 let cachedToken = null;
 
 function base64url(input) {
@@ -23,9 +27,59 @@ function readEnv(env, name) {
     return '';
 }
 
+function extractJsonFromEnvText(text, key){
+    const idx=text.indexOf(key+'=');
+    if(idx===-1) return null;
+    let s=idx+key.length+1;
+    while(s<text.length && (text[s]===' '||text[s]==='\t')) s++;
+    if(s>=text.length) return null;
+    const ch=text[s];
+    if(ch==='"' || ch==="'"){
+        const q=ch; let e=s+1, esc=false;
+        while(e<text.length){ const c=text[e]; if(esc){esc=false;e++;continue;} if(c==='\\'){esc=true;e++;continue;} if(c===q) break; e++; }
+        if(e<text.length) return text.slice(s+1,e);
+        return text.slice(s+1).trim();
+    }
+    if(ch==='{'){
+        let d=0,e=s,inStr=false,esc=false,sc='';
+        for(;e<text.length;e++){
+            const c=text[e];
+            if(inStr){ if(esc){esc=false;continue;} if(c==='\\'){esc=true;continue;} if(c===sc) inStr=false; continue; }
+            else { if(c==='"'||c==="'"){inStr=true;sc=c;continue;} if(c==='{') d++; else if(c==='}'){d--; if(d===0){e++;break;}} }
+        }
+        return text.slice(s,e);
+    }
+    let e=text.indexOf('\n',s); if(e===-1) e=text.length;
+    return text.slice(s,e).trim();
+}
+function tryReadFcmDirect(){
+    try{
+        const cands=[];
+        try{ cands.push(resolve(process.cwd(), '.env')); }catch{}
+        try{ cands.push(resolve(dirname(fileURLToPath(import.meta.url)), '..', '.env')); }catch{}
+        try{ cands.push(resolve(dirname(fileURLToPath(import.meta.url)), '.env')); }catch{}
+        for(const p of cands){
+            try{
+                if(!existsSync(p)) continue;
+                const txt=readFileSync(p,'utf8');
+                const v=extractJsonFromEnvText(txt,'FCM_SERVICE_ACCOUNT');
+                if(v && v.length>30) return v.trim();
+            }catch{}
+        }
+    }catch{}
+    return null;
+}
+
 export function getServiceAccount(env) {
-    const raw = readEnv(env, 'FCM_SERVICE_ACCOUNT');
+    let raw = readEnv(env, 'FCM_SERVICE_ACCOUNT');
+    // loadEnvFile truncates pretty-printed multi-line JSON (Unterminated string at 1020) → raw is incomplete
+    const looksTruncated = raw && raw.trim().startsWith('{') && !raw.includes('client_email');
+    if(!raw || looksTruncated){
+        const direct=tryReadFcmDirect();
+        if(direct && direct.length>(raw||'').length) raw=direct;
+    }
     if (!raw) return null;
+    // one more fallback if JSON still won't parse (e.g. Unterminated string mid-key)
     try {
         const parsed = JSON.parse(raw);
         if (!parsed.client_email || !parsed.private_key) return null;
@@ -35,6 +89,13 @@ export function getServiceAccount(env) {
             projectId: readEnv(env, 'FCM_PROJECT_ID') || parsed.project_id || '',
         };
     } catch {
+        const direct=tryReadFcmDirect();
+        if(direct && direct!==raw){
+            try{
+                const parsed=JSON.parse(direct);
+                if(parsed.client_email && parsed.private_key) return { clientEmail: parsed.client_email, privateKey: parsed.private_key, projectId: readEnv(env,'FCM_PROJECT_ID')||parsed.project_id||'' };
+            }catch{}
+        }
         return null;
     }
 }

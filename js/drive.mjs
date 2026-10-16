@@ -36,19 +36,32 @@ function extractJsonFromEnvText(text, key){
   const ch=text[start];
   if(ch==='"' || ch==="'"){
     const q=ch;
-    let end=start+1;
+    let end=start+1, esc=false;
     while(end<text.length){
-      if(text[end]===q && text[end-1]!=='\\') break;
+      const c=text[end];
+      if(esc){ esc=false; end++; continue; }
+      if(c==='\\'){ esc=true; end++; continue; }
+      if(c===q) break;
       end++;
     }
     if(end<text.length) return text.slice(start+1, end);
     return text.slice(start+1).trim();
   }
   if(ch==='{'){
-    let depth=0, end=start;
+    // string-aware brace matching — don't count { } inside quoted strings
+    let depth=0, end=start, inStr=false, esc=false, strChar='';
     for(; end<text.length; end++){
-      if(text[end]==='{') depth++;
-      else if(text[end]==='}'){ depth--; if(depth===0){ end++; break; } }
+      const c=text[end];
+      if(inStr){
+        if(esc){ esc=false; continue; }
+        if(c==='\\'){ esc=true; continue; }
+        if(c===strChar){ inStr=false; }
+        continue;
+      } else {
+        if(c==='"' || c==="'"){ inStr=true; strChar=c; continue; }
+        if(c==='{') depth++;
+        else if(c==='}'){ depth--; if(depth===0){ end++; break; } }
+      }
     }
     return text.slice(start, end);
   }
@@ -74,7 +87,10 @@ function getServiceAccountRaw(env){
   if (!raw && file && existsSync(file)) {
     try { raw = readFileSync(file, 'utf8').trim(); } catch (e) { _diag.fileErr = e.message; }
   }
-  if(raw && raw.length<30 && raw.trim().startsWith('{')){
+  // If env var looks truncated / incomplete (starts with { but missing fields), always try file
+  // Old code only handled len<30 — now handles any incomplete JSON (e.g. 1020-char cut)
+  const looksTruncated = raw && raw.trim().startsWith('{') && !raw.includes('client_email');
+  if(raw && looksTruncated){
     const direct=tryReadEnvFileDirect();
     if(direct && direct.length>raw.length){ raw=direct; _diag.recoveredFromFile=true; }
   }
@@ -135,12 +151,34 @@ function getServiceAccount(env){
       return parsed;
     }catch(e){ lastErr=e.message; }
   }
+  // Parse failed — raw was likely truncated by loadEnvFile (e.g. Unterminated string at 1020).
+  // Last resort: always re-read .env file directly with string-aware parser, even if raw was non-empty.
+  if(!_diag.recoveredFromFile){
+    try{
+      const direct=tryReadEnvFileDirect();
+      if(direct && direct.length>raw.length){
+        _diag.recoveredFromFile=true; _diag.rawLen=direct.length;
+        const directCand = stripOuterQuotes(direct);
+        for(const cand of tryParseVariants(directCand)){
+          try{
+            const parsed=JSON.parse(cand);
+            if(parsed.client_email && parsed.private_key){
+              _diag.hasClientEmail=true; _diag.hasPrivateKey=true;
+              _diag.clientEmail=parsed.client_email.slice(0,6)+'***';
+              _diag.error=null; _diag.rawHead=null; _diag.recoveredVariant=true;
+              return parsed;
+            }
+          }catch(e){ lastErr=e.message; }
+        }
+      }
+    }catch{}
+  }
   _diag.error = 'JSON parse: ' + lastErr.slice(0, 220);
   _diag.rawHead = JSON.stringify(raw.slice(0, 200));
   _diag.rawHeadLen = raw.slice(0,200).length;
   _diag.hint = raw.length<50
-    ? 'Value looks truncated (len '+raw.length+'). If you pasted pretty-printed JSON with line breaks, minify to ONE line in .env: GOOGLE_DRIVE_SERVICE_ACCOUNT={...} . Or use GOOGLE_DRIVE_KEY_FILE=C:\\path\\to\\key.json (more reliable).'
-    : 'Paste the service-account JSON as ONE line, or base64-encode it, or point GOOGLE_DRIVE_KEY_FILE to the downloaded .json file. Then restart npm start.';
+    ? 'Value looks truncated (len '+raw.length+'). If you pasted pretty-printed JSON with line breaks, minify to ONE line in .env: GOOGLE_DRIVE_SERVICE_ACCOUNT={...} . Or use GOOGLE_DRIVE_KEY_FILE=C:\\path\\to\\key.json (more reliable). Run: node scripts/fix-env.mjs'
+    : 'Paste the service-account JSON as ONE line, or base64-encode it, or point GOOGLE_DRIVE_KEY_FILE to the downloaded .json file. Then restart npm start. Fix now: node scripts/fix-env.mjs (minifies the pretty-printed block in .env)';
   try{ console.warn('[drive] bad GOOGLE_DRIVE_SERVICE_ACCOUNT json', lastErr, 'rawLen', raw.length, 'head', raw.slice(0,80)); }catch{}
   return null;
 }

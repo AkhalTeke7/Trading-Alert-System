@@ -166,14 +166,32 @@ function extractFromEnvText(text, key){
   if(s>=text.length) return null;
   const ch=text[s];
   if(ch==='"'||ch==="'"){
-    const q=ch; let e=s+1;
-    while(e<text.length){ if(text[e]===q && text[e-1]!=='\\') break; e++; }
+    const q=ch; let e=s+1, esc=false;
+    while(e<text.length){
+      const c=text[e];
+      if(esc){ esc=false; e++; continue; }
+      if(c==='\\'){ esc=true; e++; continue; }
+      if(c===q) break;
+      e++;
+    }
     if(e<text.length) return text.slice(s+1,e);
     return text.slice(s+1).trim();
   }
   if(ch==='{'){
-    let d=0, e=s;
-    for(; e<text.length; e++){ if(text[e]==='{') d++; else if(text[e]==='}'){ d--; if(d===0){ e++; break; } } }
+    let depth=0, e=s, inStr=false, esc=false, strChar='';
+    for(; e<text.length; e++){
+      const c=text[e];
+      if(inStr){
+        if(esc){ esc=false; continue; }
+        if(c==='\\'){ esc=true; continue; }
+        if(c===strChar) inStr=false;
+        continue;
+      } else {
+        if(c==='"' || c==="'"){ inStr=true; strChar=c; continue; }
+        if(c==='{') depth++;
+        else if(c==='}'){ depth--; if(depth===0){ e++; break; } }
+      }
+    }
     return text.slice(s,e);
   }
   let e=text.indexOf('\n',s);
