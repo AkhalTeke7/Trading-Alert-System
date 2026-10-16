@@ -1,11 +1,11 @@
 /* ---------- navigation (same behaviour as the main page) ---------- */
 document.getElementById("backBtn").addEventListener("click", function () {
     if (document.referrer && history.length > 1) history.back();
-    else window.location = "../../index.html";
+    else window.location = "./main.html";
 });
 
 /* ---------- config ---------- */
-const API = "https://chartevents-reuters.tradingview.com/events";
+const API = "/api/events";
 const COUNTRIES = "AR,AU,BR,CA,CN,FR,DE,IN,ID,IT,JP,KR,MX,RU,SA,ZA,TR,GB,US,ERL";
 const LOCAL_FALLBACK = "./events.json";
 
@@ -97,23 +97,44 @@ async function load() {
     const url = `${API}?minImportance=0&from=${encodeURIComponent(s.toISOString())}&to=${encodeURIComponent(e.toISOString())}&countries=${encodeURIComponent(COUNTRIES)}`;
     setStatus("Loading events…", "loading");
 
-    for (const src of [url, LOCAL_FALLBACK]) {
-        try {
-            const data = await fetchJSON(src);
-            const list = inWeek(normalize(data));
-            if (list.length) {
-                state.events = list;
-                setStatus("");
-                buildCountries();
-                render();
-                return;
-            }
-        } catch (err) { /* try next source */ }
+    // 1) primary: same-origin proxy (avoids CORS). Empty = valid, just no weekend events.
+    try {
+        const data = await fetchJSON(url);
+        const list = inWeek(normalize(data));
+        state.events = list;
+        buildCountries();
+        render();
+        if (list.length) setStatus("");
+        else setStatus("No events scheduled for the rest of this week — check again Monday or set filter to All.", "");
+        return;
+    } catch (err) {
+        console.warn("api/events failed:", err.message || err);
+    }
+
+    // 2) fallback: static file next to page
+    try {
+        const data = await fetchJSON(LOCAL_FALLBACK);
+        const list = inWeek(normalize(data));
+        if (list.length) {
+            state.events = list;
+            setStatus("");
+            buildCountries();
+            render();
+            return;
+        }
+        // empty fallback also counts as loaded
+        state.events = list;
+        buildCountries();
+        render();
+        setStatus("No events in events.json for this week.", "");
+        return;
+    } catch (err) {
+        console.warn("events.json fallback failed:", err.message || err);
     }
 
     state.events = [];
     render();
-    setStatus("Couldn't load events (the data source may block requests from this page). Add an events.json file next to this page.", "error");
+    setStatus("Couldn't load events — is the dev server running? Open via http://127.0.0.1:3000/news.html (not file://) and restart with npm start. Proxy: GET /api/events", "error");
 }
 
 /* ---------- rendering ---------- */

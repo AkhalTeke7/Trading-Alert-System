@@ -125,6 +125,35 @@ The scheduled job samples prices; it is not an exchange tick stream and cannot g
 - Delivery is **at least once**, not exactly once. A crash/network failure after a provider accepts a message but before confirmation is stored can cause a duplicate. Telegram update/save deduplication covers the latest 100 processed updates; much older replays are outside that window.
 - Missing channel secrets, exhausted browser quotas, or upstream failures retain pending alerts rather than silently discarding them. Check logs and billing limits.
 
+## Journal — Drive sync (Cloudflare)
+
+The Journal (`/journal.html`) is **Drive-only** but provider-pluggable. On Workers it uses the same `js/drive.mjs` (reads `env` bindings; quota-aware; WebCrypto JWT signing fallback so it runs on Workers even though Node `crypto` is also used locally). The Worker adds `GET /api/drive/status`, `GET /api/drive/diag`, `POST/GET /api/journal/backup`, `POST /api/journal/upload`, `GET /api/drive/thumb/:id` — all behind dashboard auth (except the Telegram webhook).
+
+Service accounts still have **no My Drive quota** on Workers — you must use a **Shared Drive**:
+
+1. Create the Shared Drive and add the service-account email as **Manager** (same steps as local — see README **Setup — Journal Drive**).
+2. Put the **service-account JSON** and **Shared Drive ID** into **Worker secrets** (not `.dev.vars` unless you want local preview):
+
+```sh
+# GOOGLE_DRIVE_SERVICE_ACCOUNT — paste the whole JSON on ONE line, or base64-encode it
+# On Windows, --env-file may truncate multi-line .env JSON; pasting one-line or base64 is safest.
+npx wrangler secret put GOOGLE_DRIVE_SERVICE_ACCOUNT
+npx wrangler secret put GOOGLE_DRIVE_SHARED_DRIVE_ID
+# optional: wrangler secret put JOURNAL_DRIVE_FILENAME
+# optional: wrangler secret put JOURNAL_PROVIDER   # default "drive"
+```
+
+   *Tip:* generate base64 locally to avoid quoting issues:
+   ```sh
+   node -e "console.log(require('fs').readFileSync('C:\\keys\\drive-key.json','utf8').toString('base64'))"
+   ```
+   then paste that as the secret — `js/drive.mjs` auto-decodes base64 when it doesn't start with `{`.
+
+3. For **local Wrangler preview** (`npm run dev:cloudflare`), put the same vars in `.dev.vars` (copy `.dev.vars.example`). Those mirror the Worker secrets but are **ignored by git** and only used locally.
+4. Deploy: `npm run deploy:cloudflare` → open Journal → badge **Drive: connected ✓**. Diagnose with authenticated `GET /api/drive/diag` / `GET /api/drive/status`.
+
+**Adding another API provider:** create `js/myProvider.mjs` with `{isConfigured, upload, putJson, getJson, findInfo, getJournalName, isQuotaError, getDriveDiagnostics, getDriveConfigHelp}` and register it in `js/journalProviders.mjs` under `export const providers = { drive: {...}, my: {...} }`. Set `JOURNAL_PROVIDER=my` as a Wrangler secret / `.dev.vars` entry — `cloudflare/worker.js` and `js/server.js` both go through `getProvider(null, env)`.
+
 ## Local development and tests
 
 ```sh

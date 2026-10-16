@@ -8,6 +8,9 @@ import { renderAlertCard } from './alertCard.js';
 import { fileURLToPath } from 'node:url';
 import getPrices from './fetchPrice.js';
 import { alertSender, startTelegramBot } from './telegram.mjs';
+import { getAccessToken, isDriveConfigured, uploadToDrive, upsertJournalJson, getJournalJson, journalFileInfo, JOURNAL_NAME, getDriveDiagnostics, isQuotaError, getDriveConfigHelp } from './drive.mjs';
+// providers registry — to add another API, create js/<myProvider>.mjs with same interface and register in js/journalProviders.mjs
+import { getProvider } from './journalProviders.mjs';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 // Only the Public/ folder is served — everything else (js/, data/, .env) stays private.
@@ -85,32 +88,46 @@ function persistDevices() {
     return devicesWriteQueue;
 }
 
-// In-memory PNG cache so the phone fetching the same card twice costs one render.
+// Live chart PNG cache — key includes price snapshot so each trigger is fresh, not reused
 const alertImageCache = new Map();
 async function renderAlertPng(pair, target, note) {
     const key = `${pair}|${target}|${note}`;
     const cached = alertImageCache.get(key);
     if (cached) return cached;
     const { chromium } = await import('playwright');
-    const browser = await chromium.launch({
-        channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome',
-    });
+    const symbolMap = { 'Gold / USD': 'OANDA:XAUUSD', 'EUR / USD': 'FX_IDC:EURUSD', 'BTC / USD': 'BITSTAMP:BTCUSD', 'GBP / USD': 'FX_IDC:GBPUSD', 'NASDAQ / USD': 'OANDA:NAS100USD', 'S&P 500 / USD': 'OANDA:SPX500USD' };
+    const tvSymbol = symbolMap[pair] || pair;
+    const safeNote = String(note||'').slice(0,60).replace(/</g,'');
+    // Prefer live TradingView chart at this moment; fall back to static glass card
+    const liveHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=1200, initial-scale=1"><style>html,body{margin:0;padding:0;background:#0a0a0a;overflow:hidden} #wrap{width:1200px;height:675px;display:flex;position:relative} .tradingview-widget-container{flex:1} .tradingview-widget-container iframe{border:0} .tag{position:absolute;left:12px;bottom:12px;background:rgba(10,10,10,.88);border:1px solid rgba(233,228,214,.18);color:#e9e4d6;font:11px 'JetBrains Mono',monospace;letter-spacing:.08em;padding:6px 10px;z-index:9}</style></head><body><div id="wrap"><div class="tradingview-widget-container" id="tv"><div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div></div><div class="tag">${pair}  ·  TARGET ${target}  ·  ${safeNote}</div></div><script>const s=document.createElement('script');s.type='text/javascript';s.async=true;s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';s.textContent=JSON.stringify({autosize:true,symbol:"${tvSymbol}",interval:"15",timezone:"Etc/UTC",theme:"dark",style:"1",locale:"en",enable_publishing:false,backgroundColor:"rgba(10, 10, 10, 1)",gridColor:"rgba(233, 228, 214, 0.06)",overrides:{"mainSeriesProperties.candleStyle.upColor":"#16a34a","mainSeriesProperties.candleStyle.downColor":"#0a0a0a","mainSeriesProperties.candleStyle.borderUpColor":"#16a34a","mainSeriesProperties.candleStyle.borderDownColor":"#555555","mainSeriesProperties.candleStyle.wickUpColor":"#16a34a","mainSeriesProperties.candleStyle.wickDownColor":"#555555","mainSeriesProperties.candleStyle.borderColor":"#555555"},hide_top_toolbar:false,hide_side_toolbar:true,allow_symbol_change:false,save_image:false,calendar:false,support_host:"https://www.tradingview.com"});document.getElementById('tv').appendChild(s);<\/script></body></html>`;
     try {
-        const page = await browser.newPage({
-            viewport: { width: 1200, height: 800 },
-            // Scale 1 keeps the phone PNG small (~4x smaller than the
-            // Telegram print); same content, faster over mobile data.
-            deviceScaleFactor: 1,
-        });
+        const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
+        try {
+            const page = await browser.newPage({ viewport: { width: 1200, height: 675 }, deviceScaleFactor: 2 });
+            await page.setContent(liveHtml, { waitUntil: 'domcontentloaded' });
+            try { await page.waitForSelector('iframe', { timeout: 12000 }); } catch {}
+            await page.waitForTimeout(4500);
+            const png = await page.screenshot({ fullPage: false });
+            if (png && png.length > 20000) {
+                if (alertImageCache.size > 20) alertImageCache.delete(alertImageCache.keys().next().value);
+                alertImageCache.set(key, png);
+                return png;
+            }
+            throw new Error('live chart empty');
+        } finally { await browser.close(); }
+    } catch (e) {
+        console.warn('renderAlertPng live chart failed, fallback to glass card:', e.message || e);
+    }
+    const browser2 = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
+    try {
+        const page = await browser2.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 1 });
         await page.setContent(renderAlertCard(pair, target, note));
         await page.waitForTimeout(800);
         const png = await page.screenshot({ fullPage: true });
-        alertImageCache.set(key, png);
         if (alertImageCache.size > 20) alertImageCache.delete(alertImageCache.keys().next().value);
+        alertImageCache.set(key, png);
         return png;
-    } finally {
-        await browser.close();
-    }
+    } finally { await browser2.close(); }
 }
 
 // Push: FCM HTTP v1 (service account) first, legacy server key as fallback.
@@ -176,16 +193,33 @@ function recordTriggered({ alertId, pair, target, note, channel, source }) {
 
 let isCheckingStoredAlerts = false;
 async function checkStoredAlerts() {
-    if (isCheckingStoredAlerts || storedAlerts.length === 0) return;
+    if (isCheckingStoredAlerts) return;
+    if (storedAlerts.length === 0) {
+        // still log occasionally so user knows checker is alive
+        // console.log('[check] no stored alerts');
+        return;
+    }
     isCheckingStoredAlerts = true;
     try {
         const prices = await getPrices();
+        // migrate old symbols (e.g. NASDAQ:NDX -> OANDA:NAS100USD) without breaking old alerts
+        for (const a of storedAlerts) {
+            const correct = pairToSymbol[a.pair];
+            if (correct && a.symbol !== correct) {
+                console.log(`[migrate] ${a.id} ${a.pair}: ${a.symbol} -> ${correct}`);
+                a.symbol = correct;
+            }
+        }
         for (const alert of [...storedAlerts]) {
-            const current = Number(prices[alert.symbol || pairToSymbol[alert.pair]]?.price);
+            const sym = pairToSymbol[alert.pair] || alert.symbol;
+            const raw = prices[sym]?.price ?? prices[alert.symbol]?.price;
+            const current = Number(raw);
             const comparedCurrent = truncateToPrecision(current, alert.targetPrecision || 0);
-            const crossed = alert.state === 'up'
-                ? comparedCurrent >= alert.target
-                : alert.state === 'down' && comparedCurrent <= alert.target;
+            let crossed = false;
+            if (alert.state === 'up') crossed = Number.isFinite(comparedCurrent) && comparedCurrent >= alert.target;
+            else if (alert.state === 'down') crossed = Number.isFinite(comparedCurrent) && comparedCurrent <= alert.target;
+            else crossed = Number.isFinite(comparedCurrent) && comparedCurrent === alert.target;
+            console.log(`[check] ${alert.pair} target=${alert.target} state=${alert.state} prec=${alert.targetPrecision} symbol=${sym} current=${current} trunc=${comparedCurrent} crossed=${crossed}`);
             if (!Number.isFinite(comparedCurrent) || !crossed) continue;
 
             try {
@@ -194,6 +228,7 @@ async function checkStoredAlerts() {
                 void pushToFcmDevices(event).catch(() => {});
                 storedAlerts = storedAlerts.filter(item => item.id !== alert.id);
                 await persistAlerts();
+                console.log(`[triggered] ${alert.id} ${alert.pair} ${alert.target} sent -> ${alert.channel}`);
             } catch (error) {
                 console.error(`Could not send alert ${alert.id}:`, error);
                 // Still ring the phone so a Telegram/Bale outage is audible.
@@ -215,17 +250,20 @@ function sendJson(response, status, value) {
     response.end(JSON.stringify(value));
 }
 
-async function readJson(request) {
+async function readJson(request, maxBytes = 10_000) {
     const chunks = [];
     let size = 0;
-
     for await (const chunk of request) {
         size += chunk.length;
-        if (size > 10_000) throw new Error('Request body is too large');
+        if (size > maxBytes) throw new Error('Request body is too large');
         chunks.push(chunk);
     }
-
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+async function readBodyBuffer(request, maxBytes = 12 * 1024 * 1024) {
+    const chunks = []; let size = 0;
+    for await (const chunk of request) { size += chunk.length; if (size > maxBytes) throw new Error('Request body is too large'); chunks.push(chunk); }
+    return Buffer.concat(chunks);
 }
 
 async function serveStatic(pathname, response) {
@@ -271,6 +309,7 @@ const server = createServer(async (request, response) => {
         return;
     }
 
+
     if (request.method === 'GET' && pathname === '/api/prices') {
         try {
             sendJson(response, 200, await getPrices());
@@ -280,6 +319,26 @@ const server = createServer(async (request, response) => {
         }
         return;
         }
+
+    // Proxy TradingView calendar events — fixes CORS (browser blocks direct fetch to chartevents-reuters)
+    if (request.method === 'GET' && pathname === '/api/events') {
+        try {
+            const from = requestUrl.searchParams.get('from') || new Date().toISOString();
+            const to = requestUrl.searchParams.get('to') || new Date(Date.now() + 7*24*3600*1000).toISOString();
+            const countries = requestUrl.searchParams.get('countries') || 'AR,AU,BR,CA,CN,FR,DE,IN,ID,IT,JP,KR,MX,RU,SA,ZA,TR,GB,US,ERL';
+            const minImportance = requestUrl.searchParams.get('minImportance') || '0';
+            const upstream = `https://chartevents-reuters.tradingview.com/events?minImportance=${encodeURIComponent(minImportance)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&countries=${encodeURIComponent(countries)}`;
+            const r = await fetch(upstream, { headers: { 'Accept': 'application/json', 'User-Agent': 'Price-Alert/1.0' }, signal: AbortSignal.timeout(15_000) });
+            if (!r.ok) throw new Error(`upstream ${r.status}`);
+            const data = await r.json();
+            response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+            response.end(JSON.stringify(data));
+        } catch (error) {
+            console.error('Could not fetch events:', error.message || error);
+            sendJson(response, 502, { error: 'Could not fetch events' });
+        }
+        return;
+    }
 
 
     if (pathname === '/api/alerts' && request.method === 'GET') {
@@ -354,21 +413,159 @@ const server = createServer(async (request, response) => {
         }
         try {
             const body = await readJson(request).catch(() => ({}));
+            const pair = String(body?.pair || 'Gold / USD').slice(0, 50);
+            const target = String(body?.target ?? 'test').slice(0, 50);
+            const note = String(body?.note || 'Test chart alert').slice(0, 500);
+            const channel = String(body?.channel || 'Telegram').slice(0, 20);
+            const testSend = String(body?.testSend || '') === '1' || body?.testSend === true;
+            let sendError = null;
+            let sent = false;
+            if (testSend && channel !== 'App') {
+                try { await alertSender(pair, target, note, channel); sent = true; console.log(`test-alert sent: ${pair} ${target} -> ${channel}`); } catch (e) { sendError = e.message||String(e); console.error('test-alert send failed:', sendError); }
+            }
             const event = recordTriggered({
                 alertId: null,
-                pair: String(body?.pair || 'Gold / USD'),
-                target: Number(body?.target || 0) || 'test',
-                note: String(body?.note || 'Test sound from website'),
-                channel: String(body?.channel || 'app'),
+                pair,
+                target,
+                note,
+                channel,
                 source: 'manual-test',
             });
-            try {
-                await pushToFcmDevices(event).catch(() => {});
-            } catch { /* polling fallback covers this */ }
-            sendJson(response, 201, event);
+            try { await pushToFcmDevices(event).catch(() => {}); } catch { /* polling fallback covers this */ }
+            sendJson(response, 201, { ...event, sent, sendError });
         } catch (error) {
             sendJson(response, 500, { error: 'Could not create test event' });
         }
+        return;
+    }
+
+    if (request.method === 'GET' && pathname === '/api/check-now') {
+        await checkStoredAlerts();
+        sendJson(response, 200, { checked: true, remaining: storedAlerts.length, triggered: triggeredEvents.slice(-3) });
+        return;
+    }
+
+    // --- Journal Drive: status / upload / thumb proxy / json backup ---
+    if (request.method === 'GET' && pathname === '/api/drive/status') {
+        let journal = null;
+        let diag = null;
+        try { diag = getDriveDiagnostics(); } catch {}
+        if (isDriveConfigured()) { try { journal = await journalFileInfo(); } catch (e) { diag = diag || {}; diag.journalErr = e.message; } }
+        sendJson(response, 200, { configured: isDriveConfigured(), diag, journal: journal ? { id: journal.id, name: journal.name, modifiedTime: journal.modifiedTime, size: journal.size } : null, journalName: JOURNAL_NAME });
+        return;
+    }
+    if (request.method === 'GET' && pathname === '/api/drive/diag') {
+        sendJson(response, 200, getDriveDiagnostics());
+        return;
+    }
+    // --- Journal — Drive-only (provider pluggable via JOURNAL_PROVIDER env / secrets) ---
+    if (request.method === 'POST' && pathname === '/api/journal/backup') {
+        if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) { sendJson(response, 403, { error: 'Cross-origin requests are not allowed' }); return; }
+        const journal = getProvider(null);
+        if(!journal.isConfigured()){
+          const help = journal.configHelp();
+          sendJson(response, 503, { error: 'Drive not configured', help: help.hint, driveError: getDriveDiagnostics()?.error || 'Set GOOGLE_DRIVE_SERVICE_ACCOUNT / KEY_FILE (and GOOGLE_DRIVE_SHARED_DRIVE_ID for service accounts) and restart.' });
+          return;
+        }
+        try{
+          const body = await readJson(request, 20 * 1024 * 1024);
+          const jsonStr = JSON.stringify(body, null, 2);
+          if (jsonStr.length > 18 * 1024 * 1024) throw new Error('Backup too large (max 18MB)');
+          const file = await journal.putJson(jsonStr);
+          sendJson(response, 201, { ok: true, ...file, provider: journal.id });
+        }catch(e){
+          const msg=String(e.message||'');
+          if(isQuotaError(msg)){
+            sendJson(response, 507, { error: 'Drive quota', driveError: msg.slice(0,600), help: getDriveConfigHelp().hint + ' Or add more API: set JOURNAL_PROVIDER and implement js/<provider>.mjs.' });
+            return;
+          }
+          sendJson(response, 500, { error: e.message || 'Backup failed' });
+        }
+        return;
+    }
+    if (request.method === 'GET' && pathname === '/api/journal/backup') {
+        const journal = getProvider(null);
+        if(!journal.isConfigured()){ sendJson(response, 503, { error: 'Drive not configured', help: getDriveConfigHelp().hint }); return; }
+        try{
+          const data = await journal.getJson();
+          if(!data){ sendJson(response, 404, { error: 'No backup in Drive yet — save one first.' }); return; }
+          response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+          response.end(data.json);
+        }catch(e){ sendJson(response, 502, { error: e.message }); }
+        return;
+    }
+    // also allow importing a file object: POST /api/journal/restore {json: "..."} just validates
+    if (request.method === 'POST' && pathname === '/api/journal/restore') {
+        if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) { sendJson(response, 403, { error: 'Cross-origin requests are not allowed' }); return; }
+        try {
+            const body = await readJson(request, 20 * 1024 * 1024);
+            const payload = body.json ? JSON.parse(typeof body.json === 'string' ? body.json : JSON.stringify(body.json)) : body;
+            if (!payload || (typeof payload !== 'object')) throw new Error('Invalid JSON');
+            sendJson(response, 200, { ok: true, trades: Array.isArray(payload.trades) ? payload.trades.length : 0, strategies: Array.isArray(payload.strategies) ? payload.strategies.length : 0 });
+        } catch (e) { sendJson(response, 400, { error: e.message }); }
+        return;
+    }
+    if (request.method === 'POST' && pathname === '/api/journal/upload') {
+        if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) {
+            sendJson(response, 403, { error: 'Cross-origin requests are not allowed' });
+            return;
+        }
+        try {
+            const ct = String(request.headers['content-type'] || '');
+            let buffer, filename = 'journal.jpg', mimeType = 'image/jpeg';
+            if (ct.includes('application/json')) {
+                const body = await readJson(request, 15 * 1024 * 1024);
+                filename = String(body.filename || filename).slice(0, 120).replace(/[\\/]/g, '_');
+                mimeType = String(body.mimeType || mimeType).slice(0, 120);
+                const data = String(body.data || body.dataUrl || '');
+                const b64 = data.includes(',') ? data.split(',').pop() : data;
+                if (!b64) throw new Error('Missing image data');
+                buffer = Buffer.from(b64, 'base64');
+            } else {
+                // raw binary — filename from query
+                filename = String(requestUrl.searchParams.get('filename') || filename).slice(0, 120).replace(/[\\/]/g, '_');
+                mimeType = String(request.headers['content-type'] || mimeType).split(';')[0].trim() || mimeType;
+                buffer = await readBodyBuffer(request, 12 * 1024 * 1024);
+            }
+            if (!buffer || buffer.length < 100) throw new Error('Empty image');
+            if (buffer.length > 10 * 1024 * 1024) throw new Error('Image too large (max 10MB)');
+            if (!mimeType.startsWith('image/')) mimeType = 'image/jpeg';
+            const safeName = `${Date.now()}_${filename}`;
+            const journal = getProvider(null);
+            if(!journal.isConfigured()){
+              sendJson(response, 503, { error: 'Drive not configured', help: getDriveConfigHelp().hint });
+              return;
+            }
+            try{
+              const file = await journal.upload({ buffer, filename: safeName, mimeType });
+              sendJson(response, 201, { ...file, provider: journal.id });
+            }catch(e){
+              if(isQuotaError(String(e.message||''))){
+                sendJson(response, 507, { error: 'Drive quota — add Shared Drive', driveError: String(e.message).slice(0,600), help: getDriveConfigHelp().hint });
+                return;
+              }
+              throw e;
+            }
+        } catch (e) {
+            console.error('journal upload failed', e.message || e);
+            sendJson(response, 500, { error: e.message || 'Upload failed' });
+        }
+        return;
+    }
+    if (request.method === 'GET' && pathname.startsWith('/api/drive/thumb/')) {
+        const id = pathname.slice('/api/drive/thumb/'.length).trim();
+        if (!id || !/^[a-zA-Z0-9_-]{10,}$/.test(id)) { sendJson(response, 400, { error: 'Bad id' }); return; }
+        try {
+            const token = await getAccessToken();
+            if (!token) { sendJson(response, 503, { error: 'Drive not configured' }); return; }
+            const upstream = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!upstream.ok) { sendJson(response, upstream.status, { error: `Drive ${upstream.status}` }); return; }
+            const ct = upstream.headers.get('content-type') || 'image/jpeg';
+            const len = upstream.headers.get('content-length');
+            response.writeHead(200, { 'Content-Type': ct, ...(len ? { 'Content-Length': len } : {}), 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
+            const buf = Buffer.from(await upstream.arrayBuffer());
+            response.end(buf);
+        } catch (e) { sendJson(response, 502, { error: e.message }); }
         return;
     }
 
@@ -449,5 +646,7 @@ server.listen(port, host, () => {
 
 void startTelegramBot().catch(error => console.error('Could not start Telegram bot:', error));
 
-setInterval(() => void checkStoredAlerts(), 60_000);
+setInterval(() => void checkStoredAlerts(), 10_000);
 void checkStoredAlerts();
+// Also expose manual trigger for debugging: GET /api/check-now
+

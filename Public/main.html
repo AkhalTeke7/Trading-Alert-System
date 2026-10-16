@@ -34,7 +34,7 @@
 
         <aside class="sidebar">
             <button type="button" class="alert sid-botton"><i class="ico ti ti-bell-ringing"></i><span class="lb">Alert</span></button>
-            <button type="button" class="sid-botton"><i class="ico ti ti-notebook"></i><span class="lb">Journal</span></button>
+            <button type="button" class="journal sid-botton"><i class="ico ti ti-notebook"></i><span class="lb">Journal</span></button>
             <button type="button" class="news sid-botton"><i class="ico ti ti-news"></i><span class="lb">News</span></button>
             <button type="button" class="sid-botton"><i class="ico ti ti-cpu"></i><span class="lb">AI</span></button>
         </aside>
@@ -46,40 +46,11 @@
                 <span class="rule"></span>
             </div>
 
-            <div class="chart-part">
-                <section class="card gold">
-                    <div class="card-head">
-                        <span class="tag">01 // GOLD</span>
-                        <span class="kanji">𐰀</span>
-                    </div>
-                    <div class="card-body">
-                        <h2>Gold</h2>
-                        <p class="hint">chart area</p>
-                    </div>
-                </section>
-
-                <section class="card eur">
-                    <div class="card-head">
-                        <span class="tag">02 // EUR</span>
-                        <span class="kanji">𐰇</span>
-                    </div>
-                    <div class="card-body">
-                        <h2>EUR</h2>
-                        <p class="hint">chart area</p>
-                    </div>
-                </section>
+            <div class="chart-part" id="chart-part"></div>
+            <div class="pa-add-wrap" id="pa-add-wrap">
+                <button class="pa-add-btn" id="pa-add">+ Add chart</button>
+                <span class="pa-add-hint" id="pa-add-hint">— / 6</span>
             </div>
-
-            <section class="card bottom">
-                <div class="card-head">
-                    <span class="tag">03 // BOTTOM</span>
-                    <span class="kanji">𐰉</span>
-                </div>
-                <div class="card-body">
-                    <h2>Bottom</h2>
-                    <p class="hint">no data yet</p>
-                </div>
-            </section>
 
         </div>
 
@@ -106,7 +77,253 @@
     document.querySelector(".news").addEventListener("click", function () {
         window.location = "./news.html";
     });
+    document.querySelector(".journal")?.addEventListener("click", function () {
+        window.location = "./journal.html";
+    });
 </script>
+<script>
+// --- Dynamic charts (max 6), persisted to localStorage ---
+const PAIR_META = {
+  "Gold / USD":   { symbol: "OANDA:XAUUSD",    Tv: "OANDA:XAUUSD",    fixed: 2, step: 0.01,    rangePct: 0.015 },
+  "EUR / USD":    { symbol: "FX_IDC:EURUSD",    Tv: "FX:EURUSD",       fixed: 5, step: 0.00001, rangePct: 0.008 },
+  "BTC / USD":    { symbol: "BITSTAMP:BTCUSD",  Tv: "BITSTAMP:BTCUSD", fixed: 2, step: 1,       rangePct: 0.02  },
+  "GBP / USD":    { symbol: "FX_IDC:GBPUSD",    Tv: "FX:GBPUSD",       fixed: 5, step: 0.00001, rangePct: 0.008 },
+  // screenshot: All → NASDAQ / US Tech 100 Cash / IG index cfd — using OANDA cash CFD (same instrument, available on scanner + chart)
+  "NASDAQ / USD": { symbol: "OANDA:NAS100USD", Tv: "OANDA:NAS100USD", fixed: 2, step: 0.01,    rangePct: 0.015 },
+  "S&P 500 / USD":{ symbol: "OANDA:SPX500USD", Tv: "OANDA:SPX500USD", fixed: 2, step: 0.01,    rangePct: 0.012 },
+};
+const PAIR_OPTIONS = Object.keys(PAIR_META);
+const KANJI = ["𐰀","𐰇","𐰉","𐰴","𐰚","𐱅"];
+const MAX_CHARTS = 6;
+const LS_KEY = "pa.charts.v1";
+function metaForPair(pair){ return PAIR_META[pair] || PAIR_META["Gold / USD"]; }
+function loadLayout(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){ const arr = JSON.parse(raw); if(Array.isArray(arr) && arr.length && arr.length<=MAX_CHARTS && arr.every(p=>PAIR_META[p])) return arr; }
+  }catch{}
+  return ["Gold / USD","EUR / USD"];
+}
+function saveLayout(){
+  localStorage.setItem(LS_KEY, JSON.stringify([...PA_ORDER]));
+}
+let PA = {}; let PA_ORDER = [];
+const chartPart = document.getElementById('chart-part');
+function fmt(v, fixed){ return Number(v).toFixed(fixed); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function pairSelectHtml(selected){
+  return PAIR_OPTIONS.map(p=> `<option${p===selected?' selected':''}>${esc(p)}</option>`).join('');
+}
+function chartHtml(idx, pair){
+  const m = metaForPair(pair);
+  const num = String(idx+1).padStart(2,'0');
+  return `<section class="card" data-idx="${idx}">
+    <div class="card-head">
+      <span class="tag">${num} // <select class="pa-pair" id="pa-pair-${idx}" title="Select market">${pairSelectHtml(pair)}</select></span>
+      <span style="display:flex;align-items:center;gap:8px"><span class="kanji">${KANJI[idx%KANJI.length]}</span>${PA_ORDER.length>1?`<button class="pa-remove" data-remove="${idx}" title="Remove chart">✕</button>`:''}</span>
+    </div>
+    <div class="si si--chartonly" id="si-${idx}">
+      <div class="si-chart-wrap si-chart-wrap--fill">
+        <div class="si-tv-chart si-tv-chart--fill">
+          <div class="tradingview-widget-container pa-tv" id="pa-tv-${idx}" style="height:100%;width:100%">
+            <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+          </div>
+        </div>
+        <div class="pa-overlay inactive" id="pa-overlay-${idx}" title="Click or drag to set alert price">
+          <div class="pa-line" id="pa-line-${idx}"><span id="pa-line-label-${idx}">—</span></div>
+          <div class="pa-hint">⊕ click / drag on chart to set price → Create Alert</div>
+        </div>
+      </div>
+      <div class="pa-bar" id="pa-bar-${idx}">
+        <span class="pa-bar-row">
+          <button class="pa-draw" id="pa-draw-${idx}">⊕ Draw alert line</button>
+          <span class="pa-live" id="pa-live-${idx}">—</span>
+          <input type="number" id="pa-price-${idx}" step="${m.step}" placeholder="Alert price">
+          <select class="pa-chan" id="pa-chan-${idx}" title="Channel"><option value="Telegram">Telegram</option><option value="Bale">Bale</option><option value="Both">All (Bale+Telegram)</option><option value="App">Mobile App</option></select>
+        </span>
+        <label class="pa-note-inline-wrap" for="pa-note-${idx}">
+          <input class="pa-note-inline" id="pa-note-${idx}" type="text" maxlength="500" placeholder="Custom note — e.g. good for sell (optional)">
+          <span class="pa-note-count" id="pa-note-count-${idx}">0 / 500</span>
+        </label>
+        <span class="pa-bar-row pa-bar-row--actions">
+          <button class="pa-create" id="pa-create-${idx}">Create Alert</button>
+          <span class="pa-status" id="pa-status-${idx}"></span>
+        </span>
+      </div>
+    </div>
+  </section>`;
+}
+function injectChartScript(idx){
+  const m = PA[idx];
+  const container = document.getElementById('pa-tv-'+idx);
+  if(!container) return;
+  container.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>';
+  const s = document.createElement('script');
+  s.type='text/javascript'; s.async=true;
+  s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  s.textContent = JSON.stringify({ autosize:true, symbol:m.Tv, interval:"15", timezone:"Etc/UTC", theme:"dark", style:"1", locale:"en", enable_publishing:false, backgroundColor:"rgba(10, 10, 10, 1)", gridColor:"rgba(233, 228, 214, 0.06)", overrides:{"mainSeriesProperties.candleStyle.upColor":"#16a34a","mainSeriesProperties.candleStyle.downColor":"#0a0a0a","mainSeriesProperties.candleStyle.borderUpColor":"#16a34a","mainSeriesProperties.candleStyle.borderDownColor":"#555555","mainSeriesProperties.candleStyle.wickUpColor":"#16a34a","mainSeriesProperties.candleStyle.wickDownColor":"#555555","mainSeriesProperties.candleStyle.borderColor":"#555555"}, hide_top_toolbar:false, hide_side_toolbar:true, allow_symbol_change:false, save_image:false, calendar:false, support_host:"https://www.tradingview.com" });
+  container.appendChild(s);
+}
+function rebuildDOM(){
+  // rebuild PA map from PA_ORDER
+  PA = {};
+  PA_ORDER.forEach((pair, idx)=>{
+    const m = metaForPair(pair);
+    PA[idx] = { pair, live:null, ...m };
+  });
+  chartPart.innerHTML = PA_ORDER.map((p,i)=> chartHtml(i,p)).join('');
+  PA_ORDER.forEach((_, idx)=> injectChartScript(idx));
+  PA_ORDER.forEach((_, idx)=> setupKind(idx));
+  PA_ORDER.forEach((_, idx)=>{
+    const noteEl=document.getElementById('pa-note-'+idx);
+    const countEl=document.getElementById('pa-note-count-'+idx);
+    if(noteEl && countEl){
+      const upd=()=> countEl.textContent = `${noteEl.value.length} / 500`;
+      noteEl.addEventListener('input', upd); upd();
+    }
+  });
+  updateAddBar();
+  fetchLives();
+}
+function updateAddBar(){
+  const hint=document.getElementById('pa-add-hint');
+  const btn=document.getElementById('pa-add');
+  if(hint) hint.textContent = `${PA_ORDER.length} / ${MAX_CHARTS}`;
+  if(btn) btn.disabled = PA_ORDER.length >= MAX_CHARTS;
+}
+
+// initial load
+PA_ORDER = loadLayout();
+rebuildDOM();
+
+document.getElementById('pa-add').addEventListener('click', ()=>{
+  if(PA_ORDER.length >= MAX_CHARTS) return;
+  // pick first pair not already used, else Gold
+  const used = new Set(PA_ORDER);
+  const next = PAIR_OPTIONS.find(p=> !used.has(p)) || "Gold / USD";
+  PA_ORDER.push(next);
+  saveLayout();
+  rebuildDOM();
+});
+chartPart.addEventListener('click', e=>{
+  const btn = e.target.closest('[data-remove]');
+  if(!btn) return;
+  const idx = Number(btn.getAttribute('data-remove'));
+  if(PA_ORDER.length<=1) return;
+  PA_ORDER.splice(idx,1);
+  saveLayout();
+  rebuildDOM();
+});
+chartPart.addEventListener('change', e=>{
+  if(!e.target.matches('.pa-pair')) return;
+  const idx = Number(e.target.id.replace('pa-pair-',''));
+  const pair = e.target.value;
+  if(!PAIR_META[pair]) return;
+  PA_ORDER[idx]=pair;
+  saveLayout();
+  const m=metaForPair(pair);
+  PA[idx].pair=pair; Object.assign(PA[idx], {symbol:m.symbol,Tv:m.Tv,fixed:m.fixed,step:m.step,rangePct:m.rangePct, live:null});
+  const inp=document.getElementById('pa-price-'+idx); if(inp) inp.step=String(m.step);
+  injectChartScript(idx);
+  // reset live label
+  const liveEl=document.getElementById('pa-live-'+idx); if(liveEl) liveEl.textContent='…';
+  fetchLives();
+});
+
+async function fetchLives(){
+  try{
+    const r=await fetch('/api/prices'); if(!r.ok) throw new Error(r.status);
+    const p=await r.json();
+    for(const idx of Object.keys(PA)){
+      const cfg=PA[idx];
+      const entry = p[cfg.symbol] || (cfg.Tv ? p[cfg.Tv] : null) || null;
+      const price = entry && Number(entry.price);
+      if(Number.isFinite(price)){
+        cfg.live = price;
+        const el=document.getElementById('pa-live-'+idx);
+        if(el){ el.textContent = fmt(price, cfg.fixed)+" USD"; el.title="Live: "+price; }
+      }
+    }
+    Object.keys(PA).forEach(k=> syncLineToInput(k));
+  }catch(e){}
+}
+setInterval(fetchLives, 5000);
+
+function priceToY(idx, price){
+  const cfg=PA[idx]; const live=cfg.live; if(!live) return null;
+  const el=document.getElementById('pa-overlay-'+idx); const h=el? el.clientHeight:380;
+  const ratio=(price/live -1)/(2*cfg.rangePct);
+  const y=h*(0.5 - ratio);
+  return Math.max(4, Math.min(h-4, y));
+}
+function yToPrice(idx, y){
+  const cfg=PA[idx]; const live=cfg.live; if(!live) return null;
+  const el=document.getElementById('pa-overlay-'+idx); const h=el? el.clientHeight:380;
+  const ratio=0.5 - y/h;
+  const price=live*(1+ratio*2*cfg.rangePct);
+  return Number(price.toFixed(cfg.fixed));
+}
+function syncLineToInput(idx){
+  const inp=document.getElementById('pa-price-'+idx);
+  const line=document.getElementById('pa-line-'+idx);
+  const label=document.getElementById('pa-line-label-'+idx);
+  if(!inp||!line||!label) return;
+  const v=Number(inp.value);
+  if(!Number.isFinite(v) || !PA[idx].live){ line.classList.remove('visible'); return; }
+  const y=priceToY(idx,v); if(y==null) return;
+  line.style.top=y+"px"; line.classList.add('visible');
+  label.textContent=fmt(v, PA[idx].fixed);
+}
+function setupKind(idx){
+  const drawBtn=document.getElementById('pa-draw-'+idx);
+  const overlay=document.getElementById('pa-overlay-'+idx);
+  const line=document.getElementById('pa-line-'+idx);
+  const inp=document.getElementById('pa-price-'+idx);
+  const createBtn=document.getElementById('pa-create-'+idx);
+  const status=document.getElementById('pa-status-'+idx);
+  if(!drawBtn||!overlay||!line||!inp||!createBtn||!status) return;
+  let dragging=false;
+  function setFromY(y){ const price=yToPrice(idx,y); if(price==null) return; inp.value=price; syncLineToInput(idx); }
+  drawBtn.addEventListener('click', ()=>{
+    const active = overlay.classList.contains('inactive');
+    overlay.classList.toggle('inactive', !active);
+    overlay.classList.toggle('active', active);
+    drawBtn.classList.toggle('active', active);
+    drawBtn.textContent = active ? "✕ Cancel draw" : "⊕ Draw alert line";
+  });
+  overlay.addEventListener('mousemove', e=>{
+    const rect=overlay.getBoundingClientRect(); const y=e.clientY-rect.top;
+    if(dragging){ setFromY(y); return; }
+    if(!inp.value && PA[idx].live){
+      const p=yToPrice(idx,y); if(p!=null){ line.style.top=y+"px"; line.classList.add('visible'); document.getElementById('pa-line-label-'+idx).textContent=fmt(p, PA[idx].fixed); }
+    }
+  });
+  overlay.addEventListener('mouseleave', ()=>{ if(!dragging && !inp.value) line.classList.remove('visible'); });
+  overlay.addEventListener('mousedown', e=>{ const rect=overlay.getBoundingClientRect(); const y=e.clientY-rect.top; dragging=true; overlay.classList.add('dragging'); setFromY(y); e.preventDefault(); });
+  window.addEventListener('mouseup', ()=>{ if(dragging){ dragging=false; overlay.classList.remove('dragging'); }});
+  overlay.addEventListener('click', e=>{ if(!dragging){ const rect=overlay.getBoundingClientRect(); setFromY(e.clientY-rect.top); }});
+  inp.addEventListener('input', ()=> syncLineToInput(idx));
+  createBtn.addEventListener('click', async ()=>{
+    const price=Number(inp.value);
+    if(!Number.isFinite(price)){ status.textContent="Enter a price"; status.className="pa-status err"; return; }
+    const pair=PA[idx].pair;
+    status.textContent="Creating…"; status.className="pa-status";
+    try{
+      const chanEl=document.getElementById('pa-chan-'+idx); const channel=chanEl?chanEl.value:'Telegram';
+      const noteEl=document.getElementById('pa-note-'+idx); let note=noteEl?noteEl.value.trim():'';
+      if(!note) note=`Chart ${price}`;
+      const r=await fetch('/api/alerts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pair, target:String(price), note, channel, source:'website'})});
+      if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||r.status); }
+      status.textContent="✓ Created — see Alert page"; status.className="pa-status ok";
+      createBtn.textContent="✓ Created"; setTimeout(()=>createBtn.textContent="Create Alert", 1500);
+    }catch(e){ status.textContent="✕ "+(e.message||"failed"); status.className="pa-status err"; }
+  });
+}
+</script>
+
+
+
 
 </body>
 </html>

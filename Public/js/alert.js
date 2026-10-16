@@ -5,7 +5,9 @@ const pairToSymbol = {
     'Gold / USD': 'OANDA:XAUUSD',
     'EUR / USD': 'FX_IDC:EURUSD',
     'BTC / USD': 'BITSTAMP:BTCUSD',
-    'GBP / USD': 'FX_IDC:GBPUSD'
+    'GBP / USD': 'FX_IDC:GBPUSD',
+    'NASDAQ / USD': 'OANDA:NAS100USD',
+    'S&P 500 / USD': 'OANDA:SPX500USD'
 };
 let alerts = [];
 let editingAlertIndex = -1;

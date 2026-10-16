@@ -3,12 +3,16 @@ const allowedPairs = new Set([
     'EUR / USD',
     'BTC / USD',
     'GBP / USD',
+    'NASDAQ / USD',
+    'S&P 500 / USD',
 ]);
 export const pairToSymbol = {
     'Gold / USD': 'OANDA:XAUUSD',
     'EUR / USD': 'FX_IDC:EURUSD',
     'BTC / USD': 'BITSTAMP:BTCUSD',
     'GBP / USD': 'FX_IDC:GBPUSD',
+    'NASDAQ / USD': 'OANDA:NAS100USD',
+    'S&P 500 / USD': 'OANDA:SPX500USD',
 };
 
 // "1.5e-7" -> "0.00000015": String() switches to exponent notation for very small
@@ -38,11 +42,12 @@ export function getAlertInput(body) {
     const targetInputValue = normalizeNumberString(rawTarget);
     const target = /^\d+(\.\d+)?$/.test(targetInputValue) ? Number(targetInputValue) : Number.NaN;
     const note = String(body?.note || '');
-    const channel = String(body?.channel || 'Telegram');
+    let channel = String(body?.channel || 'Telegram');
+    if (channel === 'All') channel = 'Both';
     if (!allowedPairs.has(pair) || !Number.isFinite(target) || target <= 0 || note.length > 500) {
         throw new Error('Invalid alert details');
     }
-    if (!['Bale', 'Telegram', 'Both'].includes(channel)) {
+    if (!['Bale', 'Telegram', 'Both', 'App'].includes(channel)) {
         throw new Error('Invalid alert channel');
     }
     return { pair, target, targetInputValue, targetPrecision: (targetInputValue.split('.')[1] || '').length, note, channel };
