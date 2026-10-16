@@ -50,9 +50,12 @@
 
 > Near-black dossier, hairline borders, bone paper — every page as it actually looks.
 
-<!-- Save your 5 uploads as these exact filenames so the README renders on GitHub: -->
+> ⚠️ **Why you see broken images:** the 5 you just pasted in chat are **not saved to `Pictures/` yet** — the folder on disk still only has `alert-preview.png` + `alert-sent-preview.png` (see below). Follow the 30-second fix right under the gallery.
+
+<!-- 5 slots — will render as soon as you save the files with these exact names: -->
 <!-- Pictures/01-markets.png  Pictures/02-alerts.png  Pictures/03-journal-trade.png  Pictures/04-journal-form.png  Pictures/05-analyze.png -->
-<!-- Legacy fallbacks kept: Pictures/alert-preview.png, Pictures/alert-sent-preview.png -->
+
+<!-- These use raw HTML so GitHub doesn't collapse them; if the file is missing GitHub shows a broken-icon — that disappears once you save the file. -->
 
 <p align="center">
   <img src="Pictures/01-markets.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="Markets — Gold / USD + EUR / USD live TradingView charts, draw-to-alert" />
@@ -97,6 +100,15 @@
   <img src="Pictures/05-analyze.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="Analyze — Win/Loss Mix, PnL Distribution, By Strategy, By Pair, PnL by Strategy, Weekday Edge, PnL Streaks, Calendar" />
   <br/>
   <sub style="color:#8b877b; font-family: JetBrains Mono, monospace; font-size:11px; letter-spacing:.08em">05 — ANALYZE · donut <code>WIN/LOSS/BE</code> · histogram · strat/pair tables · slim weekday candles · streak <code>W×n</code> · switchable calendar <code>‹ › Today</code></sub>
+</p>
+
+> **Currently on disk:** `Pictures/` contains only the 2 legacy files below. The 5 above will appear instantly once you save them with those names — GitHub uses the exact filename (case-sensitive).
+
+<p align="center" style="opacity:.9">
+  <img src="Pictures/alert-preview.png" width="49%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="legacy Markets preview" />
+  <img src="Pictures/alert-sent-preview.png" width="49%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="legacy Journal preview" />
+  <br/>
+  <sub style="color:#5b584f; font-family: JetBrains Mono, monospace; font-size:10px">legacy fallbacks — still visible because they already exist on disk · replaced by the 5 above once you save them</sub>
 </p>
 
 <details>
