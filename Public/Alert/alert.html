@@ -6,7 +6,7 @@
         <title>Alert</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Vazirmatn:wght@400;500&display=swap">
         <link rel="stylesheet" href="./../css/alert.css">
     </head>
     <body>
@@ -18,38 +18,46 @@
                     <div class="form-header">
                         <span class="badge">New Alert</span>
                         <h2>Create Alert</h2>
+                        <p class="form-sub">Get a message when the price reaches your target.</p>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label for="alert-pair">Select Target:</label>
+                            <select id="alert-pair" class="input select-input">
+                                <option>Gold / USD</option>
+                                <option>EUR / USD</option>
+                                <option>BTC / USD</option>
+                                <option>GBP / USD</option>
+                            </select>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="alert-price">Target Price:</label>
+                            <input id="alert-price" class="target-price input" type="text" inputmode="decimal" autocomplete="off" dir="ltr" placeholder="1.2334">
+                        </div>
                     </div>
 
                     <div class="field-group">
-                        <p>Select The Target:</p>
-                        <select class="input select-input">
-                            <option>Gold / USD</option>
-                            <option>EUR / USD</option>
-                            <option>BTC / USD</option>
-                            <option>GBP / USD</option>
-                        </select>
+                        <div class="field-head">
+                            <label for="alert-note">Custom Note:</label>
+                            <span class="note-count">0 / 500</span>
+                        </div>
+                        <textarea id="alert-note" class="custom-note input" rows="3" maxlength="500" dir="auto" placeholder="good for sell"></textarea>
                     </div>
 
                     <div class="field-group">
-                        <p>Target Price:</p>
-                        <textarea class="target-price input" placeholder="1.2334"></textarea>
-                    </div>
-
-                    <div class="field-group">
-                        <p>Custom Note:</p>
-                        <textarea class="custom-note input" placeholder="good for sell"></textarea>
-                    </div>
-
-                    <div class="field-group">
-                        <p>Select Channel:</p>
-                        <select class="input select-input channel-select">
+                        <label for="alert-channel">Select Channel:</label>
+                        <select id="alert-channel" class="input select-input channel-select">
                             <option>Bale</option>
                             <option selected>Telegram</option>
                             <option>Both</option>
                         </select>
                     </div>
 
-                    <button class="save-btn">Save</button>
+                    <div class="form-footer">
+                        <button class="save-btn">Save</button>
+                    </div>
                     <!--<button class="save-btn test-phone-btn" type="button" style="margin-top:10px">Test phone sound</button>-->
                     <!--<p class="hint" style="margin-top:8px">Sends a request that makes your Android app ring. Start monitoring in the app first.</p>-->
                 </div>

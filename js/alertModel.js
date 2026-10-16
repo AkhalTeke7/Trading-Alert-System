@@ -11,10 +11,32 @@ export const pairToSymbol = {
     'GBP / USD': 'FX_IDC:GBPUSD',
 };
 
+// "1.5e-7" -> "0.00000015": String() switches to exponent notation for very small
+// or very large numbers, which would break any code that slices at the decimal point.
+function toPlainString(value) {
+    const text = String(value);
+    if (!/e/i.test(text)) return text;
+    const number = Number(value);
+    if (!Number.isFinite(number) || Math.abs(number) >= 1e21) return text;
+    return number.toFixed(20).replace(/\.?0+$/, '');
+}
+
+// Turns "۴۲۳۱", "1,234.50" or " 4168 " into a plain "1234.50" string.
+export function normalizeNumberString(raw) {
+    return String(raw ?? '')
+        .replace(/[۰-۹]/g, digit => String(digit.charCodeAt(0) - 0x06F0))
+        .replace(/[٠-٩]/g, digit => String(digit.charCodeAt(0) - 0x0660))
+        .replace(/٫/g, '.')
+        .replace(/[,٬\s]/g, '');
+}
+
 export function getAlertInput(body) {
     const pair = String(body?.pair || '');
-    const targetInputValue = String(body?.targetInputValue ?? body?.target ?? '').trim();
-    const target = Number(body?.target ?? targetInputValue);
+    // One source of truth: the target text. Both the number and the precision come from it,
+    // so a target can have any number of digits and decimals without the two disagreeing.
+    const rawTarget = body?.targetInputValue ?? (typeof body?.target === 'number' ? toPlainString(body.target) : body?.target) ?? '';
+    const targetInputValue = normalizeNumberString(rawTarget);
+    const target = /^\d+(\.\d+)?$/.test(targetInputValue) ? Number(targetInputValue) : Number.NaN;
     const note = String(body?.note || '');
     const channel = String(body?.channel || 'Telegram');
     if (!allowedPairs.has(pair) || !Number.isFinite(target) || target <= 0 || note.length > 500) {
@@ -39,8 +61,12 @@ export function makeAlert(input, currentPrice, metadata = {}) {
     };
 }
 
+// Cuts the fetched price down to the same number of decimals as the target (no rounding),
+// so 4168.559 compared against a target typed as "4168.55" becomes 4168.55.
 export function truncateToPrecision(value, precision) {
     if (!Number.isFinite(value)) return Number.NaN;
-    const decimalIndex = String(value).indexOf('.');
-    return decimalIndex === -1 ? value : Number(String(value).slice(0, decimalIndex + precision + 1));
+    const digits = Number.isInteger(precision) && precision > 0 ? precision : 0;
+    const text = toPlainString(value);
+    const decimalIndex = text.indexOf('.');
+    return decimalIndex === -1 ? value : Number(text.slice(0, decimalIndex + digits + 1));
 }

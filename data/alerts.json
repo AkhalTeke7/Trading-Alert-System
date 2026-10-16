@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "id": "a510f30e-e281-4d29-a465-2b5e030e11b6",
+    "pair": "Gold / USD",
+    "target": 43432,
+    "targetInputValue": "43432",
+    "targetPrecision": 0,
+    "note": "",
+    "channel": "Telegram",
+    "symbol": "OANDA:XAUUSD",
+    "currentPrice": 4174.995,
+    "state": "up",
+    "source": "website",
+    "createdAt": "2026-10-16T10:56:26.442Z"
+  },
+  {
+    "id": "51579d6f-36bf-40a8-94aa-06272fc97f50",
+    "pair": "Gold / USD",
+    "target": 2323,
+    "targetInputValue": "2323",
+    "targetPrecision": 0,
+    "note": "به حق رهبر ندیده و نشنیده\nیک دو یک دو بتیببنیبیبیبتینبیب\nبلثقلثلثقلثل\nثفلثلضثفلثفل\nفلثفلثفل",
+    "channel": "Telegram",
+    "symbol": "OANDA:XAUUSD",
+    "currentPrice": 4174.545,
+    "state": "down",
+    "source": "website",
+    "createdAt": "2026-10-16T10:58:21.959Z"
+  }
+]
