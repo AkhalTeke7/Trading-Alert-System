@@ -16,6 +16,8 @@ data class TriggeredEvent(
 )
 
 object Api {
+    @Volatile var lastImageError: String = ""
+
     fun authHeader(user: String, pass: String): String? {
         if (user.isEmpty() && pass.isEmpty()) return null
         return "Basic " + Base64.encodeToString("$user:$pass".toByteArray(), Base64.NO_WRAP)
@@ -61,13 +63,30 @@ object Api {
             val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 20_000
-                readTimeout = 20_000
+                readTimeout = 30_000
                 setRequestProperty("Accept", "image/png")
                 authHeader(user, pass)?.let { setRequestProperty("Authorization", it) }
             }
-            if (conn.responseCode != 200) return null
-            conn.inputStream.use { it.readBytes().takeIf { bytes -> bytes.isNotEmpty() } }
-        } catch (_: Exception) {
+            val code = conn.responseCode
+            if (code != 200) {
+                lastImageError = when (code) {
+                    401, 403 -> "HTTP $code — CHECK USER/PASS"
+                    404 -> "HTTP 404 — REDEPLOY SERVER FOR /api/alert-image"
+                    502, 503, 504 -> "HTTP $code — SERVER RENDER FAILED (REDEPLOY WORKER)"
+                    else -> "HTTP $code FROM /api/alert-image"
+                }
+                return null
+            }
+            val bytes = conn.inputStream.use { it.readBytes().takeIf { b -> b.isNotEmpty() } }
+            if (bytes != null) lastImageError = "" else lastImageError = "EMPTY IMAGE RESPONSE"
+            bytes
+        } catch (e: Exception) {
+            val msg = e.message ?: ""
+            lastImageError = when {
+                msg.contains("timed out", true) || msg.contains("timeout", true) -> "TIMEOUT — /api/alert-image TOO SLOW"
+                msg.contains("CLEARTEXT", true) -> "HTTP BLOCKED — USE HTTPS"
+                else -> "UNREACHABLE — CHECK SERVER URL"
+            }
             null
         }
     }

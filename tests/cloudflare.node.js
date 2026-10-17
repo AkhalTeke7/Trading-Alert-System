@@ -228,3 +228,14 @@ test('notification template preserves the card and escapes user-provided HTML', 
     assert.match(html, /&lt;script&gt;/);
     assert.doesNotMatch(html, /<script>/);
 });
+
+test('/api/alert-image returns a valid PNG card even when BROWSER binding is unavailable', async () => {
+    const store = setup({}, new MemoryStorage(), {});
+    const res = await store.fetch(request('/api/alert-image?pair=Gold%20%2F%20USD&target=2650.50&note=Breakout'));
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Content-Type'), 'image/png');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    assert.ok(bytes.byteLength > 1000);
+    assert.deepEqual([...bytes.slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+});
+
