@@ -2,6 +2,11 @@ import getPrices from '../js/fetchPrice.js';
 import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from '../js/alertModel.js';
 import { renderAlertCard } from '../js/alertCard.js';
 import { createTelegramBot } from '../js/telegramBot.js';
+import {
+    PROVIDERS, listSkills, maskKey,
+    upsertProvider, removeProvider, createSkillEntry, updateSkillEntry, deleteSkillEntry,
+    runChat, testProvider, createToolExecutors,
+} from '../js/aiCore.js';
 import { sendAlert } from './notifications.js';
 import { json, readJson } from './http.js';
 
@@ -15,6 +20,8 @@ export class AlertStore {
         this.prices = services.getPrices || getPrices;
         this.notify = services.sendAlert || sendAlert;
         this.createBot = services.createTelegramBot || createTelegramBot;
+        this.aiFetch = services.aiFetch || fetch;
+        this.demoDelayMs = services.demoDelayMs ?? 18;
         this.queue = Promise.resolve();
     }
 
@@ -147,11 +154,235 @@ export class AlertStore {
                     return json({ error: 'Could not render alert image' }, 502);
                 }
             }
+            if (pathname.startsWith('/api/ai/')) {
+                return await this.aiApi(request);
+            }
             return await this.alertsApi(request);
         } catch {
             // Upstream exception messages can include credential-bearing URLs.
             console.error('Alert store operation failed');
             return json({ error: 'Could not complete the alert operation. Check your bindings and upstream services.' }, 502);
+        }
+    }
+
+    // --- AI console: provider keys, skills and proxied chat (keys stay server-side) ---
+
+    async getAiSettings() {
+        const settings = await this.storage.get('aiSettings') || {};
+        return {
+            providers: settings.providers || {},
+            skills: Array.isArray(settings.skills) ? settings.skills : [],
+            activeProvider: settings.activeProvider || 'demo',
+            activeModel: settings.activeModel || '',
+        };
+    }
+
+    async saveAiSettings(patch) {
+        const settings = await this.getAiSettings();
+        await this.storage.put('aiSettings', { ...settings, ...patch });
+    }
+
+    maskedProviders(settings) {
+        return PROVIDERS.map(preset => {
+            const saved = settings.providers[preset.id] || null;
+            return {
+                id: preset.id,
+                name: preset.name,
+                hint: preset.hint,
+                kind: preset.kind,
+                keyless: !!preset.keyless,
+                requiresBaseUrl: !!preset.requiresBaseUrl,
+                models: preset.models,
+                defaultModel: preset.defaultModel,
+                configured: !!preset.keyless || Boolean(saved?.apiKey),
+                keyMask: saved?.apiKey ? maskKey(saved.apiKey) : null,
+                model: saved?.model || '',
+                baseUrl: saved?.baseUrl || '',
+                savedAt: saved?.savedAt || null,
+            };
+        });
+    }
+
+    // Tool executors bound to this dashboard's real data — the chat can read
+    // prices, alerts, triggered events and the journal through these.
+    aiExecutors(settings) {
+        return createToolExecutors({
+            getPrices: this.prices,
+            getAlerts: () => this.getAlerts(),
+            getTriggered: () => this.getTriggered(),
+            getJournal: async () => {
+                const journal = getProvider(null, this.env);
+                if (!journal.isConfigured(this.env)) return null;
+                const data = await journal.getJson(this.env);
+                return data?.json ? JSON.parse(data.json) : null;
+            },
+            fetchImpl: this.aiFetch,
+            searchApiKey: String(settings.providers?.tavily?.apiKey || ''),
+        });
+    }
+
+    aiStatePayload(settings) {
+        return {
+            providers: this.maskedProviders(settings),
+            active: { provider: settings.activeProvider, model: settings.activeModel },
+            skills: listSkills(settings.skills),
+        };
+    }
+
+    async aiApi(request) {
+        const url = new URL(request.url);
+        const path = url.pathname;
+        try {
+            if (path === '/api/ai/state' && request.method === 'GET') {
+                return json(this.aiStatePayload(await this.getAiSettings()));
+            }
+
+            if (path === '/api/ai/providers' && request.method === 'PUT') {
+                let body;
+                try {
+                    body = await readJson(request, 8_000);
+                } catch {
+                    return json({ error: 'Invalid JSON' }, 400);
+                }
+                const settings = await this.getAiSettings();
+                const result = upsertProvider(settings, body);
+                if (result.error) return json({ error: result.error }, result.status || 400);
+                await this.saveAiSettings(result.settings);
+                return json(this.aiStatePayload(await this.getAiSettings()));
+            }
+
+            const providerMatch = path.match(/^\/api\/ai\/providers\/([^/]+)$/);
+            if (providerMatch && request.method === 'DELETE') {
+                const id = decodeURIComponent(providerMatch[1]);
+                const settings = await this.getAiSettings();
+                const result = removeProvider(settings, id);
+                if (result.error) return json({ error: result.error }, result.status || 400);
+                await this.saveAiSettings(result.settings);
+                return json(this.aiStatePayload(await this.getAiSettings()));
+            }
+
+            if (path === '/api/ai/providers/test' && request.method === 'POST') {
+                let body;
+                try {
+                    body = await readJson(request, 8_000);
+                } catch {
+                    return json({ error: 'Invalid JSON' }, 400);
+                }
+                const settings = await this.getAiSettings();
+                try {
+                    const result = await testProvider({
+                        provider: String(body?.provider || 'demo'),
+                        apiKey: body?.apiKey,
+                        model: body?.model,
+                        baseUrl: body?.baseUrl,
+                    }, { providers: settings.providers, fetchImpl: this.aiFetch });
+                    return json(result);
+                } catch (error) {
+                    return json({ error: error.publicMessage || error.message || 'Key test failed' }, error.status || 502);
+                }
+            }
+
+            if (path === '/api/ai/skills' && request.method === 'GET') {
+                const settings = await this.getAiSettings();
+                return json({ skills: listSkills(settings.skills) });
+            }
+
+            if (path === '/api/ai/skills' && request.method === 'POST') {
+                let body;
+                try {
+                    body = await readJson(request, 12_000);
+                } catch {
+                    return json({ error: 'Invalid JSON' }, 400);
+                }
+                const settings = await this.getAiSettings();
+                const result = createSkillEntry(settings, body);
+                if (result.error) return json({ error: result.error }, result.status || 400);
+                await this.saveAiSettings(result.settings);
+                return json({ skills: listSkills(result.settings.skills), created: result.skill }, 201);
+            }
+
+            const skillMatch = path.match(/^\/api\/ai\/skills\/([^/]+)$/);
+            if (skillMatch && ['PUT', 'DELETE'].includes(request.method)) {
+                const id = decodeURIComponent(skillMatch[1]);
+                const settings = await this.getAiSettings();
+                if (request.method === 'DELETE') {
+                    const result = deleteSkillEntry(settings, id);
+                    if (result.error) return json({ error: result.error }, result.status || 400);
+                    await this.saveAiSettings(result.settings);
+                    return json({ skills: listSkills(result.settings.skills), deleted: true });
+                }
+                let body;
+                try {
+                    body = await readJson(request, 12_000);
+                } catch {
+                    return json({ error: 'Invalid JSON' }, 400);
+                }
+                const result = updateSkillEntry(settings, id, body);
+                if (result.error) return json({ error: result.error }, result.status || 400);
+                await this.saveAiSettings(result.settings);
+                return json({ skills: listSkills(result.settings.skills), updated: result.skill });
+            }
+
+            if (path === '/api/ai/chat' && request.method === 'POST') {
+                let body;
+                try {
+                    body = await readJson(request, 200_000);
+                } catch {
+                    return json({ error: 'Invalid JSON' }, 400);
+                }
+                const settings = await this.getAiSettings();
+                if (!body.provider) body.provider = settings.activeProvider || 'demo';
+                if (!body.model && settings.activeModel) body.model = settings.activeModel;
+                let result;
+                try {
+                    result = await runChat(body, {
+                        providers: settings.providers,
+                        skills: settings.skills,
+                        fetchImpl: this.aiFetch,
+                        demoDelayMs: this.demoDelayMs,
+                        executors: this.aiExecutors(settings),
+                    });
+                } catch (error) {
+                    return json({ error: error.publicMessage || error.message || 'Chat failed' }, error.status || 502);
+                }
+                if (result.kind === 'json') {
+                    return json({
+                        message: { role: 'assistant', content: result.content },
+                        provider: result.provider,
+                        model: result.model,
+                        skill: result.skill?.id || null,
+                        toolCalls: result.toolCalls || [],
+                    });
+                }
+                const encoder = new TextEncoder();
+                const { readable, writable } = new TransformStream();
+                const writer = writable.getWriter();
+                (async () => {
+                    try {
+                        // { delta } | { reset } | { tool } | { done } | { error }
+                        for await (const event of result.events) {
+                            await writer.write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+                        }
+                    } catch {
+                        await writer.write(encoder.encode(`data: ${JSON.stringify({ error: 'The response stream ended unexpectedly.' })}\n\n`)).catch(() => {});
+                    } finally {
+                        await writer.close().catch(() => {});
+                    }
+                })();
+                return new Response(readable, {
+                    headers: {
+                        'Content-Type': 'text/event-stream; charset=utf-8',
+                        'Cache-Control': 'no-store',
+                        'X-Content-Type-Options': 'nosniff',
+                        'X-Accel-Buffering': 'no',
+                    },
+                });
+            }
+
+            return json({ error: 'Not found' }, 404);
+        } catch (error) {
+            console.error('AI operation failed');
+            return json({ error: error?.publicMessage || 'Could not complete the AI operation.' }, error?.status || 502);
         }
     }
 

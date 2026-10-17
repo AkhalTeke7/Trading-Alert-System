@@ -40,3 +40,6 @@ Thumbs.db
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
+
+# AI console: locally saved provider API keys (never commit)
+data/ai-settings.json
