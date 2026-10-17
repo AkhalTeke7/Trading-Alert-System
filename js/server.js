@@ -309,7 +309,9 @@ function aiMaskedProviders(settings) {
 // Tool executors bound to this server's real data (prices, alerts, journal…).
 function aiExecutors(settings) {
     return createToolExecutors({
-            testNotification: args => testNotification({ ...args, env: process.env, getDevices: async () => pushDevices }),
+            // App test = queue a triggered event; the Android app polls /api/triggered
+            // and pulls it automatically — no device registration / FCM needed.
+            testNotification: args => testNotification({ ...args, env: process.env, recordTriggered: async event => recordTriggered(event) }),
         getPrices,
         getAlerts: async () => storedAlerts,
         getTriggered: async () => triggeredEvents,

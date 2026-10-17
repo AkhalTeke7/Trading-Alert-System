@@ -1,40 +1,34 @@
-import { getServiceAccount, sendFcmV1 } from './fcmV1.js';
-
 // Fixed test content and configured destinations only: never accept tokens,
 // recipient overrides, provider URLs, or arbitrary messages from the model.
-export async function testNotification({ channel, env = {}, getDevices, fetchImpl = fetch }) {
+//
+// App is NOT FCM: the Android app (AlertMonitorService) polls
+// GET /api/triggered automatically, so an App test only has to append a
+// fixed event to triggered history. No device registration, no push
+// credentials, no /api/devices entry is required for it to ring.
+export async function testNotification({ channel, env = {}, recordTriggered, fetchImpl = fetch }) {
     if (!['Telegram', 'Bale', 'App'].includes(channel)) return { error: 'Choose Telegram, Bale, or App.' };
     const text = 'Trading Alert System — AI notification delivery test. No price alert was triggered.';
     if (channel === 'App') {
-        const devices = await getDevices?.() || [];
-        if (!devices.length) return { error: 'No registered phone devices. Register the Android app first.' };
-        const tokens = devices.slice(-50).map(device => device.pushToken);
-        const serviceAccount = getServiceAccount(env);
-        if (!serviceAccount && !env.FCM_SERVER_KEY) return { error: 'Phone push credentials are not configured.' };
+        if (typeof recordTriggered !== 'function') {
+            return { error: 'App test alerts are not available in this runtime.' };
+        }
         try {
-            const payload = { title: 'Notification test', body: text, data: {
-                eventId: `ai-test-${crypto.randomUUID()}`, pair: 'Test', target: 'test', note: text,
-            } };
-            let accepted;
-            if (serviceAccount) {
-                accepted = await sendFcmV1(serviceAccount, tokens, payload);
-            } else {
-                const results = await Promise.all(tokens.map(async token => {
-                    const response = await fetchImpl('https://fcm.googleapis.com/fcm/send', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `key=${env.FCM_SERVER_KEY}` },
-                        body: JSON.stringify({ to: token, priority: 'high', data: { ...payload.data, title: payload.title, body: text } }),
-                        signal: AbortSignal.timeout(20_000),
-                    });
-                    const result = await response.json();
-                    return response.ok && result.success > 0;
-                }));
-                accepted = results.some(Boolean);
-            }
-            return accepted ? { channel, status: 'accepted', detail: 'Push provider accepted at least one test. Phone receipt or sound is not confirmed.' }
-                : { error: 'Push provider did not accept any test notifications.' };
+            const event = await recordTriggered({
+                alertId: null,
+                pair: 'Test',
+                target: 'test',
+                note: text,
+                channel: 'App',
+                source: 'ai-test',
+            });
+            return {
+                channel,
+                status: 'queued',
+                eventId: event?.id || null,
+                detail: 'Test alert added to triggered history (/api/triggered). The Android app pulls it automatically on its next poll — no device registration needed. The phone has not sounded until it polls.',
+            };
         } catch {
-            return { error: 'Phone push test failed. Check server push configuration.' };
+            return { error: 'Could not queue the App test alert. Check server triggered-history storage.' };
         }
     }
     const prefix = channel === 'Telegram' ? 'TELEGRAM' : 'BALE';

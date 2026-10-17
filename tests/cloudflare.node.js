@@ -112,6 +112,23 @@ test('validation and body limits reject bad writes without fetching prices', asy
     assert.equal((await store.fetch(invalidJson)).status, 400);
 });
 
+test('AI App test queues a triggered event the Android poller pulls — no registered devices', async () => {
+    const store = setup();
+    // No pushDevices in storage and no FCM secrets in env: registration is not required.
+    const result = await store.aiExecutors(await store.getAiSettings()).exec('test_notification', { channel: 'App' });
+    assert.equal(result.status, 'queued');
+    assert.ok(result.eventId);
+    const events = await (await store.fetch(request('/api/triggered'))).json();
+    assert.equal(events.length, 1);
+    assert.equal(events[0].id, result.eventId);
+    assert.equal(events[0].pair, 'Test');
+    assert.equal(events[0].channel, 'App');
+    assert.equal(events[0].source, 'ai-test');
+    // The Android poller's `since` filter sees it as a fresh event.
+    const fresh = await (await store.fetch(request('/api/triggered?since=2000-01-01T00:00:00.000Z'))).json();
+    assert.equal(fresh.length, 1);
+});
+
 test('concurrent saves and cron invocations are serialized; crossed alert is sent once', async () => {
     let price = 1.2;
     let sent = 0;
