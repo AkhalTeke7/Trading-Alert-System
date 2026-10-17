@@ -5,6 +5,7 @@ import { AlertStore } from '../cloudflare/alertStore.js';
 import {
     maskKey, validateKey, runChat, DEFAULT_SKILLS, TOOLS, FUNCTION_CATALOG,
     parseToolCall, webSearch, summarizeJournal, createToolExecutors,
+    normalizeChatInput, capabilitiesSystemPrompt,
 } from '../js/aiCore.js';
 
 class MemoryStorage {
@@ -220,6 +221,68 @@ test('the AI can inspect every dashboard function with limited notification test
         'alert_testing', 'messaging_delivery', 'mobile_delivery', 'alert_creation', 'alert_management',
     ]);
     assert.ok(result.functions.every(entry => ['read', 'inspect-only', 'test'].includes(entry.access)));
+});
+
+test('every skill, including Market Analyst, is told that delivery tests are supported', () => {
+    const capability = capabilitiesSystemPrompt();
+    assert.match(capability, /every skill/i);
+    assert.match(capability, /test_notification/);
+    assert.match(capability, /never claim/i);
+    for (const skill of DEFAULT_SKILLS) {
+        const { messages } = normalizeChatInput({
+            skillId: skill.id,
+            provider: 'demo',
+            messages: [{ role: 'user', content: 'Send a Telegram test message' }],
+        }, { skills: [] });
+        const system = messages.find(message => message.role === 'system')?.content || '';
+        assert.match(system, /CONSOLE CAPABILITIES & PERMISSIONS/, `${skill.id} must receive the capability contract`);
+        assert.match(system, /available in every skill, including Market Analyst/i, `${skill.id} must not feel read-only`);
+        assert.match(system, /test_notification/);
+        assert.match(system, /never claim/i);
+    }
+    const analyst = DEFAULT_SKILLS.find(skill => skill.id === 'market-analyst');
+    assert.match(analyst.systemPrompt, /not a read-only assistant/i);
+    assert.doesNotMatch(analyst.systemPrompt, /you are (a )?read-only/i);
+});
+
+test('Market Analyst can send a delivery test through its own tool loop', async () => {
+    const toolCall = JSON.stringify({
+        choices: [{ message: { content: '```tool\n{"tool": "test_notification", "args": {"channel": "Telegram"}}\n```' } }],
+    });
+    const final = JSON.stringify({
+        choices: [{ message: { content: 'Telegram test accepted.' } }],
+    });
+    let sent = null;
+    const bodies = [];
+    const result = await runChat({
+        skillId: 'market-analyst',
+        provider: 'mistral',
+        model: 'mistral-small-latest',
+        stream: false,
+        messages: [{ role: 'user', content: 'Send a Telegram test notification' }],
+    }, {
+        providers: { mistral: { apiKey: 'sk-live-1234567890' } },
+        executors: createToolExecutors({
+            testNotification: async args => {
+                sent = args;
+                return { channel: args.channel, status: 'accepted' };
+            },
+        }),
+        fetchImpl: async (url, options) => {
+            bodies.push(JSON.parse(options.body));
+            return new Response(bodies.length === 1 ? toolCall : final, {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        },
+        demoDelayMs: 0,
+    });
+    assert.equal(result.content, 'Telegram test accepted.');
+    assert.deepEqual(sent, { channel: 'Telegram' });
+    assert.equal(result.toolCalls.length, 1);
+    assert.equal(result.toolCalls[0].name, 'test_notification');
+    assert.match(bodies[0].messages[0].content, /CONSOLE CAPABILITIES & PERMISSIONS/);
+    assert.match(bodies[0].messages[0].content, /including Market Analyst/);
 });
 
 test('the model can call console data tools and gets their real outputs', async () => {
