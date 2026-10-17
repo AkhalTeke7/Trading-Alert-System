@@ -13,11 +13,12 @@ const state = { events: [], imp: "all", country: "all" };
 
 /* ---------- helpers ---------- */
 function weekRange() {
-    // today 00:00 -> next Monday 00:00 (browser local time)
+    // Monday 00:00 -> next Monday 00:00 (browser local time) - matches TradingView widget
     const start = new Date();
-    start.setHours(0, 0, 0, 0);                      // start from today, past days are skipped
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
     const end = new Date(start);
-    end.setDate(end.getDate() + (7 - ((start.getDay() + 6) % 7)));   // up to the end of this week (Sunday)
+    end.setDate(end.getDate() + 7);
     return [start, end];
 }
 
