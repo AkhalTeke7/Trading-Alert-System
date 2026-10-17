@@ -1,4 +1,5 @@
 import { renderMainChartHtml } from './mainChartShot.js';
+import { getCachedAlertPng, setCachedAlertPng, renderFallbackAlertPng } from './alertPngFallback.js';
 import { createTelegramBot, botCommands } from './telegramBot.js';
 import { pathToFileURL } from 'node:url';
 import { Bot, InputFile } from 'grammy';
@@ -35,16 +36,31 @@ export async function alertSender(pair, targetPrice, note, channel = 'Bale', pre
     });
 
     // Screenshot of the main page chart as it appears in main.html
-    const html = renderMainChartHtml(pair, targetPrice, note);
-    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
-    let screenshot;
-    try {
-        const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
-        await page.setContent(html, { waitUntil: 'domcontentloaded' });
-        try { await page.waitForSelector('iframe', { timeout: 14000 }); } catch {}
-        await page.waitForTimeout(5000);
-        screenshot = await page.screenshot({ fullPage: false });
-    } finally { await browser.close(); }
+    let screenshot = getCachedAlertPng(pair, targetPrice, note);
+    if (!screenshot) {
+        try {
+            const html = renderMainChartHtml(pair, targetPrice, note);
+            let browser;
+            try {
+                browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
+            } catch {
+                browser = await chromium.launch();
+            }
+            try {
+                const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
+                await page.setContent(html, { waitUntil: 'domcontentloaded' });
+                try { await page.waitForSelector('iframe', { timeout: 10000 }); } catch {}
+                await page.waitForTimeout(3500);
+                screenshot = await page.screenshot({ fullPage: false });
+                setCachedAlertPng(pair, targetPrice, note, screenshot);
+            } finally {
+                await browser.close();
+            }
+        } catch (error) {
+            console.warn('Playwright screenshot failed; using fallback alert PNG card:', error?.message || error);
+            screenshot = renderFallbackAlertPng(pair, targetPrice, note);
+        }
+    }
     if (previewPath) await writeFile(previewPath, screenshot);
 
     const caption = `${pair} crossed the target ${targetPrice}. ${note}`;

@@ -40,7 +40,9 @@ class PriceAlertMessagingService : FirebaseMessagingService() {
         } catch (_: Exception) {}
         seen.add(event.id)
         p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
-        AlarmPlayer.ring(this, event, bytes, path)
+        android.os.Handler(mainLooper).post {
+            AlarmPlayer.ring(this, event, bytes, path)
+        }
     }
 
     override fun onNewToken(token: String) {

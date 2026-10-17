@@ -8,7 +8,7 @@ import {
     upsertProvider, removeProvider, createSkillEntry, updateSkillEntry, deleteSkillEntry,
     runChat, testProvider, createToolExecutors,
 } from '../js/aiCore.js';
-import { sendAlert } from './notifications.js';
+import { sendAlert, renderCloudflareAlertPng } from './notifications.js';
 import { json, readJson } from './http.js';
 
 // One Durable Object owns the personal dashboard, including Telegram conversation
@@ -44,9 +44,36 @@ export class AlertStore {
     }
 
     fetch(request) {
+        try {
+            const pathname = new URL(request.url).pathname;
+            if (request.method === 'GET' && (pathname === '/api/alert-card' || pathname === '/api/alert-image')) {
+                return this.handleAlertMedia(request, pathname);
+            }
+        } catch {}
         const result = this.queue.then(() => this.handle(request));
         this.queue = result.catch(() => {});
         return result;
+    }
+
+    async handleAlertMedia(request, pathname) {
+        const params = new URL(request.url).searchParams;
+        const pair = (params.get('pair') || 'Gold / USD').slice(0, 50);
+        const target = (params.get('target') || 'test').slice(0, 50);
+        const note = (params.get('note') || '').slice(0, 500);
+        if (pathname === '/api/alert-card') {
+            return new Response(renderMainChartHtml(pair, target, note), {
+                headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, max-age=86400' },
+            });
+        }
+        try {
+            const png = await renderCloudflareAlertPng(pair, target, note, this.env);
+            return new Response(png, {
+                headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400' },
+            });
+        } catch {
+            console.error('Alert image render failed');
+            return json({ error: 'Could not render alert image' }, 502);
+        }
     }
 
     async getTriggered() {
@@ -118,42 +145,10 @@ export class AlertStore {
                 return json(event, 201);
             }
             if (pathname === '/api/alert-card' && request.method === 'GET') {
-                const params = new URL(request.url).searchParams;
-                const pair = (params.get('pair') || 'Gold / USD').slice(0, 50);
-                const target = (params.get('target') || 'test').slice(0, 50);
-                const note = (params.get('note') || '').slice(0, 500);
-                return new Response(renderMainChartHtml(pair, target, note), {
-                    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, max-age=86400' },
-                });
+                return await this.handleAlertMedia(request, pathname);
             }
             if (pathname === '/api/alert-image' && request.method === 'GET') {
-                const params = new URL(request.url).searchParams;
-                const pair = (params.get('pair') || 'Gold / USD').slice(0, 50);
-                const target = (params.get('target') || 'test').slice(0, 50);
-                const note = (params.get('note') || '').slice(0, 500);
-                try {
-                    const { launch } = await import('@cloudflare/playwright');
-                    const browser = await launch(this.env.BROWSER);
-                    let png;
-                    try {
-                        const page = await browser.newPage({
-                            viewport: { width: 1200, height: 800 },
-                            deviceScaleFactor: 2,
-                        });
-                        await page.setContent(renderMainChartHtml(pair, target, note), { waitUntil: 'domcontentloaded' });
-                        try { await page.waitForSelector('iframe', { timeout: 14000 }); } catch {}
-                        await page.waitForTimeout(5000);
-                        png = await page.screenshot({ fullPage: false });
-                    } finally {
-                        await browser.close();
-                    }
-                    return new Response(png, {
-                        headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400' },
-                    });
-                } catch {
-                    console.error('Alert image render failed');
-                    return json({ error: 'Could not render alert image' }, 502);
-                }
+                return await this.handleAlertMedia(request, pathname);
             }
             if (pathname.startsWith('/api/ai/')) {
                 return await this.aiApi(request);
