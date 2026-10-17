@@ -456,6 +456,15 @@ needed. With an AI provider configured, ask “Send a Telegram test message”,
 “Test Bale delivery”, or “Send a test push to my phone”. `App` means Android
 push notifications, not SMS. The demo channel does not send tests.
 
+Delivery tests work from **every skill**, including **Market Analyst** — a skill
+changes the assistant's voice and focus, not its permissions. Both runtimes
+prepend a shared capability contract (`capabilitiesSystemPrompt()` in
+`js/aiCore.js`) to the skill prompt, so the model is explicitly told that
+notification tests are supported and must not answer “the system does not
+support sending notifications” or “I am read-only”. Creating, updating or
+deleting alerts and registering devices remain UI-only and are reported as
+such.
+
 Tests use fixed text and only server-configured destinations:
 `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`, `BALE_BOT_TOKEN` / `BALE_CHAT_ID`,
 or registered app devices with the existing FCM configuration. The AI cannot
