@@ -51,7 +51,7 @@ npx wrangler secret put DASHBOARD_USER
 npx wrangler secret put DASHBOARD_PASSWORD
 ```
 
-Choose your own username (no colon) and a long, unique password. All visitors share this **personal dashboard**; this is not a multi-tenant service with separate website accounts. The browser remembers HTTP Basic credentials for the session; there is no application logout button. Use HTTPS in production.
+Choose your own username (no colon) and a long, unique password. All visitors share this **personal dashboard**; this is not a multi-tenant service with separate website accounts. Unauthenticated visitors are sent to the branded `/login.html` sign-in page. A successful sign-in creates a signed, HttpOnly, SameSite cookie (12 hours by default; 30 days with “Remember this device”); HTTP Basic credentials remain supported for API clients. The cookie is invalidated when the dashboard password changes. Use HTTPS in production.
 
 For Telegram notifications:
 

@@ -1,9 +1,24 @@
 import getPrices from '../js/fetchPrice.js';
-import { dashboardAuth, json, sameSecret } from './http.js';
+import { clearDashboardSession, createDashboardSession, crossOriginWrite, dashboardAuth, json, readJson, sameSecret } from './http.js';
 export { AlertStore } from './alertStore.js';
 
 function store(env) {
     return env.ALERT_STORE.get(env.ALERT_STORE.idFromName('personal-dashboard'));
+}
+
+function loginAsset(pathname) {
+    return pathname === '/login.html' || pathname === '/css/login.css' || pathname === '/js/login.js' || pathname === '/asset/bullish-cow.jpg';
+}
+
+function safeNextUrl(requested, currentUrl) {
+    try {
+        const candidate = new URL(requested || '/', currentUrl);
+        return candidate.origin === currentUrl.origin && candidate.pathname !== '/login.html'
+            ? candidate
+            : new URL('/', currentUrl);
+    } catch {
+        return new URL('/', currentUrl);
+    }
 }
 
 export default {
@@ -20,23 +35,55 @@ export default {
             return store(env).fetch(new Request('https://internal/internal/telegram', request));
         }
 
+        if (url.pathname === '/api/login') {
+            if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+            if (!env.DASHBOARD_USER || !env.DASHBOARD_PASSWORD) {
+                return json({ error: 'Configure dashboard credentials before signing in.' }, 503);
+            }
+            if (crossOriginWrite(request, url)) return json({ error: 'Cross-origin requests are not allowed' }, 403);
+            let body;
+            try { body = await readJson(request, 4096); } catch { return json({ error: 'Invalid login request' }, 400); }
+            const username = typeof body?.username === 'string' ? body.username.trim() : '';
+            const password = typeof body?.password === 'string' ? body.password : '';
+            if (username.length > 256 || password.length > 1024 ||
+                !await sameSecret(`${username}:${password}`, `${env.DASHBOARD_USER}:${env.DASHBOARD_PASSWORD}`)) {
+                return json({ error: 'Invalid username or password' }, 401);
+            }
+            const remember = body?.remember === true;
+            const cookie = await createDashboardSession(request, env, remember);
+            return json({ authenticated: true }, 200, { 'Set-Cookie': cookie });
+        }
+
+        if (url.pathname === '/api/logout') {
+            if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+            if (crossOriginWrite(request, url)) return json({ error: 'Cross-origin requests are not allowed' }, 403);
+            return json({ authenticated: false }, 200, { 'Set-Cookie': clearDashboardSession(request) });
+        }
+
+        // Serve only the sign-in surface before authentication; the dashboard and API remain protected.
+        if (loginAsset(url.pathname)) {
+            if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
+            if (!env.DASHBOARD_USER || !env.DASHBOARD_PASSWORD) {
+                return json({ error: 'Configure the dashboard credentials before using this deployment.' }, 503);
+            }
+            if (url.pathname === '/login.html' && !await dashboardAuth(request, env)) {
+                return Response.redirect(safeNextUrl(url.searchParams.get('next'), url), 302);
+            }
+            return assetResponse(url, request, env);
+        }
+
         // Fail closed; authentication protects assets as well as the shared API.
         const unauthorized = await dashboardAuth(request, env);
-        if (unauthorized) return unauthorized;
-        if (!['GET', 'HEAD'].includes(request.method)) {
-            const origin = request.headers.get('Origin');
-            // Compare hosts, not full origins: reverse proxies terminate TLS, so the
-            // worker may see http while the browser origin is https — same site still.
-            const crossOrigin = origin && (() => {
-                try {
-                    return new URL(origin).host !== url.host;
-                } catch {
-                    return true;
-                }
-            })();
-            if (crossOrigin || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
-                return json({ error: 'Cross-origin requests are not allowed' }, 403);
+        if (unauthorized) {
+            if (unauthorized.status === 503) return unauthorized;
+            if (['GET', 'HEAD'].includes(request.method) && !url.pathname.startsWith('/api/')) {
+                const next = `${url.pathname}${url.search}`;
+                return Response.redirect(new URL(`/login.html?next=${encodeURIComponent(next)}`, url), 302);
             }
+            return unauthorized;
+        }
+        if (!['GET', 'HEAD'].includes(request.method) && crossOriginWrite(request, url)) {
+            return json({ error: 'Cross-origin requests are not allowed' }, 403);
         }
         if (url.pathname === '/api/alerts' || url.pathname.startsWith('/api/alerts/') ||
             url.pathname === '/api/triggered' || url.pathname === '/api/devices' || url.pathname === '/api/test-alert' ||
@@ -69,19 +116,13 @@ export default {
                 return json({ error: 'Could not fetch events', detail: String(e?.message || e).slice(0, 300) }, 502);
             }
         }
-        // Journal is local-only (browser localStorage + compressed base64 JSON). No Drive endpoints.
+        // Journal is local-only (browser localStorage + compressed base64 JSON). No Worker secrets needed.
         if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/internal/')) {
             return json({ error: 'Not found' }, 404);
         }
         if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
         // Only the Public/ folder is uploaded as assets, so .env, data, and backend code stay private.
-        if (url.pathname === '/') url.pathname = '/main.html';
-        const response = await env.ASSETS.fetch(new Request(url, request));
-        const headers = new Headers(response.headers);
-        headers.set('Cache-Control', 'private, no-store');
-        headers.set('X-Content-Type-Options', 'nosniff');
-        headers.set('Referrer-Policy', 'same-origin');
-        return new Response(response.body, { status: response.status, headers });
+        return assetResponse(url, request, env);
     },
 
     async scheduled(controller, env, ctx) {
@@ -91,3 +132,14 @@ export default {
         })());
     },
 };
+
+async function assetResponse(url, request, env) {
+    const assetUrl = new URL(url);
+    if (assetUrl.pathname === '/') assetUrl.pathname = '/main.html';
+    const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+    const headers = new Headers(response.headers);
+    headers.set('Cache-Control', 'private, no-store');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('Referrer-Policy', 'same-origin');
+    return new Response(response.body, { status: response.status, headers });
+}
