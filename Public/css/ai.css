@@ -143,6 +143,7 @@
 .ai-skill-copy {
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .ai-skill-name {
@@ -154,6 +155,10 @@
   font-size: 13.5px;
   letter-spacing: 0.03em;
   color: var(--bone);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ai-skill-name i {
@@ -170,13 +175,19 @@
 .ai-skill-tag {
   margin-top: 3px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  line-height: 1.45;
   text-transform: uppercase;
   color: var(--dim);
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ai-skill-builtin {
@@ -1113,9 +1124,10 @@ button.ai-chip:hover {
 .ai-composer {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  padding: 14px 14px 14px 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 14px;
+  min-height: 62px;
   background: var(--panel);
   background-image: radial-gradient(rgba(233, 228, 214, 0.06) 1px, transparent 1px);
   background-size: 7px 7px;
@@ -1132,6 +1144,7 @@ button.ai-chip:hover {
   flex: 1;
   min-width: 0;
   max-height: 200px;
+  min-height: 24px;
   resize: none;
   border: 0;
   outline: none;
@@ -1140,13 +1153,69 @@ button.ai-chip:hover {
   font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.6;
-  padding: 4px 0;
+  padding: 8px 0;
+  align-self: center;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
 
 .ai-composer textarea::placeholder {
   color: var(--dim);
+  line-height: 1.6;
+  text-align: center;
+}
+.ai-composer.has-text textarea::placeholder { text-align: center; }
+.ai-composer textarea:not(:placeholder-shown) { text-align: left; }
+
+/* local-only upload */
+.ai-attach {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 16px;
+  transition: border-color .2s, color .2s, background .2s;
+}
+.ai-attach:hover { color: var(--bone); border-color: var(--line-strong); }
+.ai-attach.has-file { color: var(--bone); border-color: rgba(209,59,47,.45); background: rgba(209,59,47,.08); }
+.ai-attach-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ai-attach-previews:empty { display: none; }
+.ai-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 8px 6px 6px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+.ai-attach-chip img {
+  width: 32px; height: 32px; object-fit: cover; border: 1px solid var(--line); flex-shrink: 0;
+}
+.ai-attach-chip .name {
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--bone);
+}
+.ai-attach-chip .rm {
+  width: 22px; height: 22px; display: grid; place-items: center;
+  border: 1px solid var(--line); background: var(--bg); color: var(--muted); flex-shrink: 0;
+}
+.ai-attach-chip .rm:hover { color: var(--red); border-color: rgba(209,59,47,.4); }
+.ai-attach-hint {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+  margin-bottom: 6px;
 }
 
 .ai-send {

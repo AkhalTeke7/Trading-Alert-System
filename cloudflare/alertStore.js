@@ -10,6 +10,7 @@ import {
 } from '../js/aiCore.js';
 import { sendAlert, renderCloudflareAlertPng } from './notifications.js';
 import { json, readJson } from './http.js';
+import { buildNewsDigest } from '../js/newsDigest.js';
 
 // One Durable Object owns the personal dashboard, including Telegram conversation
 // state. Serializing operations prevents a price check from deleting an edited
@@ -209,12 +210,8 @@ export class AlertStore {
             getPrices: this.prices,
             getAlerts: () => this.getAlerts(),
             getTriggered: () => this.getTriggered(),
-            getJournal: async () => {
-                const journal = getProvider(null, this.env);
-                if (!journal.isConfigured(this.env)) return null;
-                const data = await journal.getJson(this.env);
-                return data?.json ? JSON.parse(data.json) : null;
-            },
+            // journal is local-only (browser localStorage) — no Drive copy in Cloudflare
+            getJournal: async () => null,
             fetchImpl: this.aiFetch,
             searchApiKey: String(settings.providers?.tavily?.apiKey || ''),
         });
@@ -527,10 +524,28 @@ export class AlertStore {
         const completed = await this.storage.get('telegramUpdates') || [];
         if (completed.includes(update.update_id)) return json({ ok: true });
         const userStates = new Map(await this.storage.get('telegramStates') || []);
+        const aiSettings = await this.getAiSettings();
+        const handleNewsDigest = async (kind) => {
+          return buildNewsDigest({
+            kind,
+            env: this.env,
+            fetchImpl: this.aiFetch,
+            providers: aiSettings,
+            skills: aiSettings.skills,
+            overrides: {
+              getPrices: this.prices,
+              getAlerts: () => this.getAlerts(),
+              getTriggered: () => this.getTriggered(),
+              getJournal: async () => null,
+              fetchImpl: this.aiFetch,
+            },
+          });
+        };
         const bot = this.createBot(this.env.TELEGRAM_BOT_TOKEN, {
             userStates,
             // Internal call: never fetch the public, password-protected dashboard.
             apiFetch: (url, options) => this.alertsApi(new Request(url, options), update.update_id),
+            handleNewsDigest,
         });
         await bot.init();
         await bot.handleUpdate(update);

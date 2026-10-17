@@ -87,6 +87,40 @@ const RUNES = ['𐰀', '𐰇', '𐰉', '𐰴', '𐰚', '𐱅', '𐰸', '𐰺', '
 
 export const DEFAULT_SKILLS = [
     {
+        id: 'daily-brief',
+        name: 'Daily Brief',
+        icon: 'ti-news',
+        rune: '𐱅',
+        tagline: 'Today\u2019s calendar \u2014 AI brief',
+        builtin: true,
+        systemPrompt: [
+            'You are the Daily Brief skill inside Price-Alert — a one-tap Telegram + dossier reporter.',
+            'Mission: analyze TODAY\'S economic calendar news only (not the whole week). To do that you MUST call get_events, then filter to today\'s date (use get_time if needed).',
+            'Output every reply as a tight dossier in Markdown: 1) Top 3 drivers today (why they matter), 2) Bias table per pair (Gold / USD, EUR / USD, GBP / USD, BTC / USD, NASDAQ / USD, S&P 500 / USD) with Bull/Bear/Neutral + trigger level, 3) Key levels to watch / invalidation, 4) What would change the bias, 5) One-line Risk note.',
+            'Rules: prefer tables for levels, bold for direction, blockquote for Risk. Keep under 900 words. If no events today, say so and preview the next high-impact event.',
+            'After you answer, the system will wrap your Markdown into a dossier HTML card and screenshot it as a Telegram image — so write as if the text will be rendered as a card.',
+            'Tools: get_events (required), get_prices when level context helps, web_search only for context outside the tracked pairs. Never call test_notification unless the user explicitly asks for a delivery test.',
+            'Formatting rule: always use full Markdown (https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet) — headers, tables, blockquotes, bold.',
+        ].join(' '),
+    },
+    {
+        id: 'global-macro',
+        name: 'Global Macro',
+        icon: 'ti-world',
+        rune: '𐰇',
+        tagline: 'World news \u2014 pair impact',
+        builtin: true,
+        systemPrompt: [
+            'You are the Global Macro skill inside Price-Alert — world news beyond the Forex Factory calendar.',
+            'Mission: cover international / world news and analyze its potential impact on Gold / USD, EUR / USD, GBP / USD, BTC / USD, NASDAQ / USD, S&P 500 / USD.',
+            'You MUST call web_search with query "international world news today geopolitics markets" and max_results 6. NEVER use Forex Factory or chartevents-reuters / TradingView calendar domains — exclude them. Treat any Forex Factory data as forbidden.',
+            'Output as Markdown dossier: 1) 4-5 headline bullets with source, 2) Impact table with columns Headline | Impact (↑/↓) | Magnitude (Low/Med/High) | Assets | Timeframe | Risk, 3) Cross-asset bias summary (Gold vs Dollar vs Risk), 4) Two levels to watch if risk escalates, 5) One-line Risk note.',
+            'Keep under 900 words. Use tables for impact, bold for direction, blockquote for Risk. Be terse, no hype.',
+            'After you answer, the system will screenshot your Markdown as a dossier card for Telegram — write for a card layout.',
+            'Formatting rule: always use full Markdown (https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet).',
+        ].join(' '),
+    },
+    {
         id: 'market-analyst',
         name: 'Market Analyst',
         icon: 'ti-chart-candle',
@@ -205,17 +239,57 @@ export function listSkills(saved = []) {
 // Upstream request building + response parsing
 // ---------------------------------------------------------------------------
 
+function contentToOpenAiParts(content) {
+    if (Array.isArray(content)) {
+        return content.map(p => {
+            if (p && p.type === 'image_url' && p.image_url?.url) return { type: 'image_url', image_url: { url: String(p.image_url.url).slice(0, 300000) } };
+            if (p && p.type === 'text') return { type: 'text', text: String(p.text ?? '').slice(0, 30000) };
+            return { type: 'text', text: String(p?.text ?? p ?? '').slice(0, 30000) };
+        });
+    }
+    return String(content ?? '');
+}
+
 function openAiMessages(messages) {
-    return messages.map(message => ({
-        role: message.role === 'system' ? 'system' : message.role === 'assistant' ? 'assistant' : 'user',
-        content: String(message.content),
-    }));
+    return messages.map(message => {
+        const c = message.content;
+        if (Array.isArray(c)) {
+            return {
+                role: message.role === 'system' ? 'system' : message.role === 'assistant' ? 'assistant' : 'user',
+                content: contentToOpenAiParts(c),
+            };
+        }
+        return {
+            role: message.role === 'system' ? 'system' : message.role === 'assistant' ? 'assistant' : 'user',
+            content: String(c ?? ''),
+        };
+    });
+}
+
+function contentToText(c) {
+    if (Array.isArray(c)) return c.filter(p => p && p.type === 'text').map(p => String(p.text ?? '')).join('\n');
+    return String(c ?? '');
 }
 
 function splitSystem(messages) {
-    const system = messages.filter(message => message.role === 'system').map(message => message.content).join('\n');
+    const system = messages.filter(message => message.role === 'system').map(message => contentToText(message.content)).join('\n');
     const rest = messages.filter(message => message.role !== 'system');
     return { system, rest };
+}
+
+function toAnthropicContent(c) {
+    if (!Array.isArray(c)) return String(c ?? '');
+    // OpenAI {type:'image_url'} -> Anthropic {type:'image', source:{type:'base64', media_type, data}}
+    return c.map(p => {
+        if (p && p.type === 'image_url' && p.image_url?.url) {
+            const url = String(p.image_url.url);
+            const m = url.match(/^data:([^;]+);base64,(.*)$/s);
+            if (m) return { type: 'image', source: { type: 'base64', media_type: m[1], data: m[2].slice(0, 300000) } };
+            return { type: 'image', source: { type: 'url', url } };
+        }
+        if (p && p.type === 'text') return { type: 'text', text: String(p.text ?? '') };
+        return { type: 'text', text: String(p?.text ?? p ?? '') };
+    });
 }
 
 export function buildUpstreamRequest({ preset, apiKey, model, baseUrl, messages, stream }) {
@@ -233,7 +307,10 @@ export function buildUpstreamRequest({ preset, apiKey, model, baseUrl, messages,
                 model,
                 max_tokens: 4096,
                 ...(system ? { system } : {}),
-                messages: openAiMessages(rest),
+                messages: rest.map(m => ({
+                    role: m.role === 'assistant' ? 'assistant' : 'user',
+                    content: Array.isArray(m.content) ? toAnthropicContent(m.content) : String(m.content ?? ''),
+                })),
                 ...(stream ? { stream: true } : {}),
             }),
         };
@@ -241,6 +318,18 @@ export function buildUpstreamRequest({ preset, apiKey, model, baseUrl, messages,
     if (preset.kind === 'google') {
         const { system, rest } = splitSystem(messages);
         const url = `${base}/models/${encodeURIComponent(model)}:${stream ? 'streamGenerateContent?alt=sse' : 'generateContent'}`;
+        const toParts = c => {
+            if (Array.isArray(c)) return c.map(p => {
+                if (p && p.type === 'image_url' && p.image_url?.url) {
+                    const url = String(p.image_url.url);
+                    const comma = url.indexOf(',');
+                    const b64 = comma !== -1 ? url.slice(comma + 1) : url;
+                    return { inlineData: { mimeType: 'image/jpeg', data: b64.slice(0, 300000) } };
+                }
+                return { text: String(p?.text ?? '') };
+            });
+            return [{ text: String(c ?? '') }];
+        };
         return {
             url,
             headers: {
@@ -251,7 +340,7 @@ export function buildUpstreamRequest({ preset, apiKey, model, baseUrl, messages,
                 ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
                 contents: rest.map(message => ({
                     role: message.role === 'assistant' ? 'model' : 'user',
-                    parts: [{ text: String(message.content) }],
+                    parts: toParts(message.content),
                 })),
                 generationConfig: { maxOutputTokens: 4096 },
             }),
@@ -770,9 +859,24 @@ export function normalizeChatInput(body, { providers = {}, skills = [] } = {}) {
     if (rawMessages.length > 40) throw new Error('Conversation is too long for one request (max 40 messages)');
     const messages = rawMessages.map(message => {
         const role = ['user', 'assistant', 'system'].includes(message?.role) ? message.role : 'user';
-        const content = String(message?.content ?? '').slice(0, 8000);
+        const raw = message?.content;
+        let content;
+        if (Array.isArray(raw)) {
+            content = raw.map(p => {
+                if (p && p.type === 'image_url' && p.image_url?.url) {
+                    return { type: 'image_url', image_url: { url: String(p.image_url.url).slice(0, 300000) } };
+                }
+                if (p && p.type === 'text') return { type: 'text', text: String(p.text ?? '').slice(0, 24000) };
+                return { type: 'text', text: String(p?.text ?? p ?? '').slice(0, 24000) };
+            }).filter(p => (p.type === 'text' ? p.text.trim() : true));
+        } else {
+            content = String(raw ?? '').slice(0, 24000);
+            if (!String(content).trim()) return null;
+        }
+        if (Array.isArray(content) && !content.length) return null;
+        if (!Array.isArray(content) && !String(content).trim()) return null;
         return { role, content };
-    }).filter(message => message.content.trim());
+    }).filter(Boolean);
     if (!messages.length) throw new Error('Messages are required');
 
     const presetId = String(body?.provider || 'demo').trim();

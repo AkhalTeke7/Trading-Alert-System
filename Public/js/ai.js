@@ -15,9 +15,20 @@
     skillId: 'market-analyst',
     threads: {},
     sending: false,
+    pendingFiles: [], // {id,name,kind,mime,dataUrl,text}
   };
 
   const SUGGESTIONS = {
+    'daily-brief': [
+      { num: '01', title: 'Brief today’s calendar — top drivers + bias', hint: 'one-tap dossier · card' },
+      { num: '02', title: 'Which events matter for Gold today?', hint: 'filter to today · levels' },
+      { num: '03', title: 'What would invalidate today’s bias?', hint: 'levels · risk' },
+    ],
+    'global-macro': [
+      { num: '01', title: 'World headlines today — impact on Gold & BTC', hint: 'ex Forex Factory' },
+      { num: '02', title: 'Geopolitics vs Dollar — who wins this week?', hint: 'cross-asset map' },
+      { num: '03', title: 'Which world news is high-risk for my pairs?', hint: 'magnitude · timeframe' },
+    ],
     'market-analyst': [
       { num: '01', title: 'Gold / USD — read the current structure', hint: 'bias · levels · invalidation' },
       { num: '02', title: 'Where is momentum shifting on NASDAQ / USD?', hint: 'divergence · session flow' },
@@ -285,11 +296,11 @@
     const list = $('#ai-skill-list');
     if (!list) return;
     list.innerHTML = state.skills.map((skill, index) => `
-      <button type="button" class="ai-skill ${skill.id === state.skillId ? 'active' : ''}" data-skill="${esc(skill.id)}" style="--d:${(0.08 + index * 0.07).toFixed(2)}s">
+      <button type="button" class="ai-skill ${skill.id === state.skillId ? 'active' : ''}" data-skill="${esc(skill.id)}" style="--d:${(0.08 + index * 0.07).toFixed(2)}s" title="${esc(skill.tagline || skill.name)}">
         <span class="ai-skill-glyph">${esc(skill.rune || '𐰀')}</span>
         <span class="ai-skill-copy">
           <span class="ai-skill-name"><i class="ti ${esc(skill.icon || 'ti-sparkles')}"></i>${esc(skill.name)}</span>
-          <span class="ai-skill-tag">${esc(skill.tagline || '')}</span>
+          <span class="ai-skill-tag" title="${esc(skill.tagline || '')}">${esc(skill.tagline || '')}</span>
         </span>
         ${skill.builtin ? '<span class="ai-skill-builtin">core</span>' : ''}
       </button>`).join('');
@@ -369,6 +380,10 @@
             ${call.summary ? `<span class="t-sum">${esc(call.summary)}</span>` : ''}
           </div>`).join('')}</div>`
       : '';
+    const attachHtml = user && Array.isArray(message.attachments) && message.attachments.length
+      ? `<div class="ai-attach-previews" style="margin-top:8px">${message.attachments.map(a => `
+          <span class="ai-attach-chip">${a.kind==='image' && a.thumb ? `<img src="${esc(a.thumb)}" alt="">` : `<i class="ti ti-file" style="font-size:16px;color:var(--muted)"></i>`}<span class="name">${esc(a.name)}</span></span>`).join('')}</div>`
+      : '';
     return `
       <div class="msg ${user ? 'msg-user' : 'msg-assistant'}" data-msg="${esc(message.id || String(index))}">
         <div class="msg-avatar">${user ? '<i class="ti ti-user"></i>' : esc(activeSkill().rune || '𐰀')}</div>
@@ -380,6 +395,7 @@
           </div>
           ${toolChips}
           <div class="msg-text">${user ? renderMarkdown(message.content) : renderMarkdown(message.content)}</div>
+          ${attachHtml}
         </div>
       </div>`;
   }
@@ -539,30 +555,78 @@
     return finalMeta;
   }
 
+  // Build API content for vision models: [{type:'text'}, {type:'image_url'}]
+  // JSON / text files are inlined as text; images as true image_url parts so vision keys see them.
+  function buildApiParts(prompt, files) {
+    if (!files.length) return String(prompt || '');
+    const parts = [];
+    if (prompt) parts.push({ type: 'text', text: String(prompt) });
+    else parts.push({ type: 'text', text: 'Analyze the attached file(s) in detail.' });
+    for (const f of files) {
+      if (f.kind === 'image' && f.dataUrl) {
+        parts.push({ type: 'image_url', image_url: { url: f.dataUrl } });
+        parts.push({ type: 'text', text: `[Image: ${f.name}] — analyze the chart / screenshot above.` });
+      } else if (f.text) {
+        const preview = String(f.text).slice(0, 18000);
+        const truncated = f.text.length > 18000 ? '\n…[file truncated to 18000 chars — ask if you need the rest]' : '';
+        parts.push({ type: 'text', text: `File: ${f.name} (${f.mime})\n\`\`\`\n${preview}${truncated}\n\`\`\`` });
+      } else {
+        parts.push({ type: 'text', text: `File: ${f.name} (${f.mime}) — [no extractable text]` });
+      }
+    }
+    return parts;
+  }
+
+  function messageHtmlWithAttachments(message) {
+    return messageHtml(message, 0);
+  }
+
   async function send(text) {
-    const prompt = String(text || '').trim();
-    if (!prompt || state.sending) return;
+    const raw = String(text || '');
+    const prompt = raw.trim();
+    const hasFiles = state.pendingFiles.length > 0;
+    if ((!prompt && !hasFiles) || state.sending) return;
     const skill = activeSkill();
     const messages = thread();
+    const sentFiles = hasFiles ? [...state.pendingFiles] : [];
+    // API payload: array with image_url for vision, text blocks for JSON
+    const apiParts = hasFiles ? buildApiParts(prompt, sentFiles) : String(prompt);
+    // What we store locally: text only (never persist full base64 to localStorage — quota)
+    const displayText = hasFiles
+      ? (prompt ? prompt + '\n\n' : '') + sentFiles.map(f => `[Attached: ${f.name} — ${f.kind === 'image' ? 'image sent as vision input' : f.text ? `${f.text.length} chars inlined` : 'no text'}]`).join('\n')
+      : String(prompt);
+    const previewText = displayText.slice(0, 3000);
     messages.push({
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       role: 'user',
-      content: prompt,
+      content: previewText || '(attached files)',
+      _apiContent: apiParts, // kept for this turn's request only; stripped before save
+      attachments: sentFiles.map(f => ({ name: f.name, kind: f.kind, thumb: f.kind === 'image' ? f.dataUrl : null })),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     });
     if (messages.length > MAX_THREAD) messages.splice(0, messages.length - MAX_THREAD);
+    // Strip _apiContent before persisting (base64 would blow localStorage)
+    const toSave = messages.map(m => ({ ...m, _apiContent: undefined }));
+    const prevThreads = state.threads[state.skillId];
+    state.threads[state.skillId] = toSave;
     saveLocal();
+    state.threads[state.skillId] = messages; // restore for live context
     renderThread();
     $('#ai-hero')?.classList.add('hidden');
+    state.pendingFiles = [];
+    renderAttachPreviews();
+    updateHasText();
     state.sending = true;
     const sendBtn = $('#ai-send');
     sendBtn?.classList.add('busy');
     const thinking = appendThinking();
 
-    const context = messages.slice(-CONTEXT_MESSAGES).map(message => ({
-      role: message.role,
-      content: message.content,
-    }));
+    // Context: all prior messages as text, last user message as array (if files)
+    const baseContext = messages.slice(-CONTEXT_MESSAGES).map((message, idx, arr) => {
+      const isLast = idx === arr.length - 1;
+      const c = isLast && message._apiContent ? message._apiContent : message.content;
+      return { role: message.role, content: c };
+    });
 
     try {
       const response = await fetch('/api/ai/chat', {
@@ -573,7 +637,7 @@
           provider: state.active.provider || undefined,
           model: state.active.model || undefined,
           stream: true,
-          messages: context,
+          messages: baseContext,
         }),
       });
 
@@ -668,7 +732,12 @@
     const input = $('#ai-input');
     const form = $('#ai-composer');
     if (!input || !form) return;
-    form.classList.toggle('has-text', Boolean(input.value.trim()));
+    const has = Boolean(input.value.trim()) || state.pendingFiles.length > 0;
+    form.classList.toggle('has-text', has);
+    const attachBtn = $('#ai-attach-btn');
+    if (attachBtn) attachBtn.classList.toggle('has-file', state.pendingFiles.length > 0);
+    const hint = $('#ai-attach-hint');
+    if (hint) hint.style.display = state.pendingFiles.length ? 'block' : 'none';
   }
 
   function autoGrow() {
@@ -676,6 +745,65 @@
     if (!input) return;
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  }
+
+  function renderAttachPreviews() {
+    const host = $('#ai-attach-previews');
+    if (!host) return;
+    if (!state.pendingFiles.length) { host.innerHTML = ''; return; }
+    host.innerHTML = state.pendingFiles.map(f => `
+      <span class="ai-attach-chip">
+        ${f.kind==='image' && f.dataUrl ? `<img src="${esc(f.dataUrl)}" alt="">` : `<i class="ti ${f.kind==='image'?'ti-photo':'ti-file'}" style="font-size:16px;color:var(--muted)"></i>`}
+        <span class="name" title="${esc(f.name)}">${esc(f.name)}</span>
+        <button type="button" class="rm" data-rm-file="${esc(f.id)}" title="Remove"><i class="ti ti-x"></i></button>
+      </span>`).join('');
+  }
+
+  function compressImageToDataUrl(file, maxSide=1280, quality=0.72) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        const scale = Math.min(1, maxSide / Math.max(w, h));
+        w = Math.round(w * scale); h = Math.round(h * scale);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        try { resolve(c.toDataURL('image/jpeg', quality)); } catch(e){ reject(e); }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
+      img.src = url;
+    });
+  }
+
+  async function handlePickedFiles(fileList) {
+    const files = Array.from(fileList || []).slice(0, 4 - state.pendingFiles.length);
+    if (!files.length) { toast('Max 4 files per message', 'warn'); return; }
+    for (const file of files) {
+      const id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random())).slice(0,8);
+      const isImage = file.type.startsWith('image/');
+      const isTextLike = /^(text\/|application\/(json|csv))/.test(file.type) || /\.(txt|md|csv|json)$/i.test(file.name);
+      if (isImage) {
+        if (file.size > 12 * 1024 * 1024) { toast(`${file.name} too large (max 12MB)`, 'err'); continue; }
+        try {
+          const dataUrl = await compressImageToDataUrl(file);
+          state.pendingFiles.push({ id, name: file.name, kind: 'image', mime: 'image/jpeg', dataUrl, text: '' });
+        } catch { toast(`Could not read ${file.name}`, 'err'); }
+      } else if (isTextLike || file.type === 'application/pdf') {
+        if (file.size > 2 * 1024 * 1024) { toast(`${file.name} too large (max 2MB for text/pdf)`, 'err'); continue; }
+        try {
+          const text = await file.text();
+          state.pendingFiles.push({ id, name: file.name, kind: 'text', mime: file.type || 'text/plain', dataUrl: '', text: text.slice(0, 12000) });
+        } catch { toast(`Could not read ${file.name}`, 'err'); }
+      } else {
+        toast(`${file.name}: only images / txt / md / csv / json / pdf`, 'warn');
+      }
+    }
+    renderAttachPreviews();
+    updateHasText();
   }
 
   /* ---------------- events ---------------- */
@@ -752,6 +880,38 @@
     });
 
     const input = $('#ai-input');
+    const fileInput = $('#ai-file');
+    const attachBtn = $('#ai-attach-btn');
+    attachBtn?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', () => {
+      if (fileInput.files?.length) { handlePickedFiles(fileInput.files); fileInput.value = ''; }
+    });
+    // click X on a chip
+    $('#ai-attach-previews')?.addEventListener('click', event => {
+      const btn = event.target.closest('[data-rm-file]');
+      if (!btn) return;
+      const id = btn.dataset.rmFile;
+      state.pendingFiles = state.pendingFiles.filter(f => f.id !== id);
+      renderAttachPreviews();
+      updateHasText();
+    });
+    // paste image directly (Ctrl+V)
+    input?.addEventListener('paste', event => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      const files = [];
+      for (const it of items) if (it.kind === 'file') { const f = it.getAsFile(); if (f) files.push(f); }
+      if (files.length) { event.preventDefault(); handlePickedFiles(files); }
+    });
+    // drag & drop onto composer
+    const composer = $('#ai-composer');
+    composer?.addEventListener('dragover', e => { e.preventDefault(); composer.classList.add('drag-over'); });
+    composer?.addEventListener('dragleave', () => composer.classList.remove('drag-over'));
+    composer?.addEventListener('drop', e => {
+      e.preventDefault(); composer.classList.remove('drag-over');
+      const files = e.dataTransfer?.files;
+      if (files?.length) handlePickedFiles(files);
+    });
     input?.addEventListener('input', () => {
       autoGrow();
       updateHasText();
@@ -799,7 +959,7 @@
       const detail = event.detail || {};
       if (Array.isArray(detail.providers)) state.providers = detail.providers;
       if (Array.isArray(detail.skills)) {
-        state.skills = detail.skills;
+        state.skills = withMandatorySkills(detail.skills);
         if (!state.skills.some(skill => skill.id === state.skillId)) {
           state.skillId = state.skills[0]?.id || 'market-analyst';
         }
@@ -823,17 +983,40 @@
   /* ---------------- boot ---------------- */
 
   // Shell fallback so the page always looks complete (e.g. static preview)
-  // even when /api/ai/state is unreachable.
+  // even when /api/ai/state is unreachable. Must mirror aiCore DEFAULT_SKILLS.
   const FALLBACK_SKILLS = [
+    { id: 'daily-brief', name: 'Daily Brief', icon: 'ti-news', rune: '𐱅', tagline: 'Today\u2019s calendar \u2014 AI brief', builtin: true },
+    { id: 'global-macro', name: 'Global Macro', icon: 'ti-world', rune: '𐰇', tagline: 'World news \u2014 pair impact', builtin: true },
     { id: 'market-analyst', name: 'Market Analyst', icon: 'ti-chart-candle', rune: '𐰴', tagline: 'Structure, momentum & setups', builtin: true },
-    { id: 'alert-architect', name: 'Alert Architect', icon: 'ti-bell-ringing', rune: '𐰇', tagline: 'Design precise alert levels', builtin: true },
-    { id: 'journal-coach', name: 'Journal Coach', icon: 'ti-notebook', rune: '𐱅', tagline: 'Discipline & performance review', builtin: true },
+    { id: 'alert-architect', name: 'Alert Architect', icon: 'ti-bell-ringing', rune: '𐰛', tagline: 'Design precise alert levels', builtin: true },
+    { id: 'journal-coach', name: 'Journal Coach', icon: 'ti-notebook', rune: '𐰸', tagline: 'Discipline & performance review', builtin: true },
   ];
+
+  // Guarantee the two new briefs appear in the LEFT RAIL even if the server
+  // is still on an old bundle (before deploy/restart). The server is source of
+  // truth long-term; this is a forward-compat shim so you see them immediately.
+  function withMandatorySkills(skills) {
+    const list = Array.isArray(skills) ? [...skills] : [];
+    const have = new Set(list.map(s => s.id));
+    for (const must of FALLBACK_SKILLS) {
+      if ((must.id === 'daily-brief' || must.id === 'global-macro') && !have.has(must.id)) {
+        // keep order: daily, global first
+        if (must.id === 'daily-brief') list.unshift(must);
+        else {
+          const idx = list.findIndex(s => s.id === 'daily-brief');
+          list.splice(idx === -1 ? 0 : idx + 1, 0, must);
+        }
+      }
+    }
+    // de-dupe just in case
+    const seen = new Set();
+    return list.filter(s => (seen.has(s.id) ? false : (seen.add(s.id), true)));
+  }
 
   async function boot() {
     loadLocal();
     wire();
-    if (!state.skills.length) state.skills = FALLBACK_SKILLS.map(skill => ({ ...skill }));
+    state.skills = withMandatorySkills(state.skills.length ? state.skills : FALLBACK_SKILLS.map(skill => ({ ...skill })));
     renderRail();
     renderProviderBadge();
     renderThread();
@@ -844,10 +1027,12 @@
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data.skills) && data.skills.length) {
-          state.skills = data.skills;
+          state.skills = withMandatorySkills(data.skills);
           if (!state.skills.some(skill => skill.id === state.skillId)) {
             state.skillId = state.skills[0].id;
           }
+        } else {
+          state.skills = withMandatorySkills(state.skills);
         }
         if (Array.isArray(data.providers)) state.providers = data.providers;
         if (data.active) state.active = data.active;

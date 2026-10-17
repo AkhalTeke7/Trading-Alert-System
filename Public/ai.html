@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
     <link rel="stylesheet" href="./css/style.css">
-    <link rel="stylesheet" href="./css/ai.css">
+    <link rel="stylesheet" href="./css/ai.css?v=20241017g">
     <link rel="stylesheet" href="./css/ai-settings.css">
     <link rel="stylesheet" href="./css/theme.css">
     <script src="./js/theme.js"></script>
@@ -79,7 +79,11 @@
                             <i class="ti ti-settings" style="margin-left:2px"></i>
                         </button>
                     </div>
+                    <div class="ai-attach-previews" id="ai-attach-previews" aria-live="polite"></div>
+                    <div class="ai-attach-hint" id="ai-attach-hint" style="display:none">Attachments are local-only — compressed on-device and sent only with this message</div>
                     <form class="ai-composer" id="ai-composer" autocomplete="off">
+                        <input type="file" id="ai-file" hidden accept="image/*,.pdf,.txt,.md,.csv,.json" multiple>
+                        <button type="button" class="ai-attach" id="ai-attach-btn" title="Attach image / file (local-only)"><i class="ti ti-paperclip"></i></button>
                         <textarea id="ai-input" rows="1" placeholder="Ask the console…  (Enter to send · Shift+Enter for a new line)"></textarea>
                         <button type="button" class="ai-send" id="ai-send" title="Send">
                             <i class="ti ti-arrow-up"></i>
@@ -98,7 +102,7 @@
     <div class="ai-toast" id="ai-toast"></div>
 
     <script src="./js/ai-settings.js"></script>
-    <script src="./js/ai.js"></script>
+    <script src="./js/ai.js?v=20241017g"></script>
     <script>
         document.getElementById('ai-settings-btn').addEventListener('click', function () {
             window.PriceAlertSettings.open();

@@ -447,7 +447,8 @@ async function handleAiApi(request, response, url) {
         }
 
         if (path === '/api/ai/chat' && method === 'POST') {
-            const body = await readJson(request, 200_000).catch(() => null);
+            // vision JSON+charts can be 180KB+ base64; keep limit generous but below memory DOS
+            const body = await readJson(request, 350_000).catch(() => null);
             if (!body) {
                 sendJson(response, 400, { error: 'Invalid JSON' });
                 return true;
@@ -729,6 +730,42 @@ const server = createServer(async (request, response) => {
             sendJson(response, 502, { error: 'Could not render alert image' });
         }
         return;
+    }
+
+    // AI news digests: screenshot card for Telegram buttons and direct preview on the site
+    if ((pathname === '/api/news-digest' || pathname === '/api/news-digest.png') && request.method === 'GET') {
+        const kind = (requestUrl.searchParams.get('kind') || 'daily').toLowerCase();
+        const wantPng = pathname.endsWith('.png') || requestUrl.searchParams.get('format') === 'png';
+        try {
+            const { buildNewsDigest } = await import('./newsDigest.js');
+            const { default: getPricesLocal } = await import('./fetchPrice.js');
+            const res = await buildNewsDigest({
+                kind: kind === 'global' ? 'global' : 'daily',
+                env: process.env,
+                fetchImpl: fetch,
+                providers: aiSettings,
+                skills: aiSettings.skills,
+                overrides: { getPrices: getPricesLocal, getAlerts: async()=> storedAlerts, getTriggered: async()=> triggeredEvents, fetchImpl: fetch },
+            });
+            if (wantPng && res.png) {
+                response.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': res.png.length, 'Cache-Control': 'no-store' });
+                response.end(res.png);
+                return;
+            }
+            if (wantPng) { sendJson(response, 502, { error: 'PNG not rendered, try HTML preview' }); return; }
+            const fmt = requestUrl.searchParams.get('html') === '1' ? 'html' : 'json';
+            if (fmt === 'html') {
+                response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+                response.end(res.html);
+                return;
+            }
+            sendJson(response, 200, { kind, caption: res.caption, aiContent: res.aiContent, htmlLen: res.html?.length || 0 });
+            return;
+        } catch (e) {
+            console.error('news-digest failed', e?.message);
+            sendJson(response, 502, { error: 'Could not build news digest' });
+            return;
+        }
     }
 
     if (await handleAiApi(request, response, requestUrl)) return;

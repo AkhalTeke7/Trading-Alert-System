@@ -89,8 +89,33 @@ export async function alertSender(pair, targetPrice, note, channel = 'Bale', pre
 // Local Node entry point. Importing the sender no longer starts polling.
 export async function startTelegramBot() {
     if (!process.env.TELEGRAM_BOT_TOKEN) return;
+    // AI digests for /daily and /global: lazy-load to keep startup fast and avoid hard dep on aiCore when no key is set
+    const handleNewsDigest = async (kind) => {
+      const { buildNewsDigest } = await import('./newsDigest.js');
+      const aiSettings = await (async()=>{
+        try{
+          const { readFile } = await import('node:fs/promises');
+          const { resolve } = await import('node:path');
+          const { fileURLToPath } = await import('node:url');
+          const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+          const raw = await readFile(resolve(root,'data','ai-settings.json'),'utf8');
+          const j = JSON.parse(raw);
+          return { providers: j.providers||{}, skills: j.skills||[], activeProvider: j.activeProvider||'demo', activeModel: j.activeModel||'' };
+        }catch{ return { providers:{}, skills:[], activeProvider:'demo', activeModel:'' }; }
+      })();
+      const { default: getPrices } = await import('./fetchPrice.js');
+      return buildNewsDigest({
+        kind,
+        env: process.env,
+        fetchImpl: fetch,
+        providers: aiSettings,
+        skills: aiSettings.skills,
+        overrides: { getPrices, getAlerts: async()=>[], getTriggered: async()=>[], fetchImpl: fetch },
+      });
+    };
     const bot = createTelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
         apiUrl: process.env.ALERTS_API_URL || 'http://127.0.0.1:3000/api/alerts',
+        handleNewsDigest,
     });
     bot.catch(error => console.error('Bot error:', error));
     await bot.api.setMyCommands(botCommands);

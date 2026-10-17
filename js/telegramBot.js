@@ -1,8 +1,11 @@
-import { Bot, InlineKeyboard } from 'grammy';
+import { Bot, InlineKeyboard, InputFile } from 'grammy';
 
 export const botCommands = [
+    { command: 'start', description: '🏠 Menu' },
     { command: 'alert', description: '➕ Create alert' },
     { command: 'alerts', description: '📋 My alerts' },
+    { command: 'daily', description: '📰 Daily Brief — today’s calendar + AI card' },
+    { command: 'global', description: '🌍 Global Macro — world news impact card' },
     { command: 'help', description: '❓ Help' },
 ];
 
@@ -11,6 +14,7 @@ export function createTelegramBot(token, {
     apiUrl = 'https://internal/api/alerts',
     apiFetch = fetch,
     userStates = new Map(),
+    handleNewsDigest, // injected: async (kind) => {caption, png} — photo sender
 } = {}) {
     const bot = new Bot(token);
     const symbols = {
@@ -22,16 +26,19 @@ export function createTelegramBot(token, {
 
     const mainMenu = () =>
       new InlineKeyboard()
-        .text("➕ Create alert", "menu:alert").style("success")
+        .text("➕ Create alert", "menu:alert")
+        .text("📋 My alerts", "menu:alerts")
         .row()
-        .text("📋 My alerts", "menu:alerts").style("primary")
+        .text("📰 Daily Brief", "menu:daily").style("success")
+        .text("🌍 Global Macro", "menu:global").style("primary")
         .row()
-        .text("❓ Help", "menu:help").style("danger");
+        .text("❓ Help", "menu:help");
 
     bot.command("start", async (ctx) => {
-      await ctx.reply("Welcome to Price Alert!", {
-        reply_markup: mainMenu(),
-      });
+      await ctx.reply(
+        "Welcome to Price Alert!\n\n📰 Daily Brief — today's economic calendar analyzed by AI.\n🌍 Global Macro — world headlines & their impact on your pairs.\n\nTap a button or use /daily /global.",
+        { reply_markup: mainMenu() }
+      );
     });
 
     const assetKeyboard = () =>
@@ -92,9 +99,41 @@ export function createTelegramBot(token, {
         await showSavedSelections(ctx);
     });
 
+    bot.command('daily', async (ctx) => { await sendNewsDigest(ctx, 'daily'); });
+    bot.command('global', async (ctx) => { await sendNewsDigest(ctx, 'global'); });
+
     bot.command('help', async (ctx) => {
-        await ctx.reply('Use /alert to save and send an alert selection, or /alerts to review saved selections.');
+        await ctx.reply('Use /alert to save an alert, /alerts to review, /daily for a Daily Brief card, /global for Global Macro — or tap the menu.');
     });
+
+    async function sendNewsDigest(ctxOrEdit, kind){
+      const isDaily = kind === 'daily';
+      const label = isDaily ? 'Daily Brief' : 'Global Macro';
+      const chatId = ctxOrEdit.chat?.id || ctxOrEdit.from?.id;
+      try{
+        // acknowledge quickly — AI + screenshot can take 8-25s
+        const ack = await ctxOrEdit.reply(`⏳ Generating ${label}… AI is analyzing ${isDaily ? "today's calendar" : 'world headlines'} and building your card.`);
+        if(!handleNewsDigest){
+          await ctxOrEdit.api.editMessageText(chatId, ack.message_id, `Add an AI key in AI Console → Settings to enable ${label}.`);
+          return;
+        }
+        const res = await handleNewsDigest(kind);
+        if(!res?.png){
+          await ctxOrEdit.api.editMessageText(chatId, ack.message_id, (res?.caption || label) .slice(0, 4000));
+          return;
+        }
+        // edit ack to done, then send photo (prevents double messages if edit fails, still delivers)
+        try{ await ctxOrEdit.api.deleteMessage(chatId, ack.message_id); }catch{}
+        const kb = new InlineKeyboard().text(`↻ Regenerate ${label}`, `menu:${kind}`);
+        await ctxOrEdit.api.sendPhoto(chatId, new InputFile(res.png, `${kind}-brief.png`), {
+          caption: (res.caption || label).slice(0, 1024),
+          reply_markup: kb,
+        });
+      } catch(e){
+        const msg = String(e?.message || e).slice(0, 500);
+        try{ await ctxOrEdit.reply(`Could not build ${label}: ${msg}\nTry again in a moment or check AI provider settings.`); }catch{}
+      }
+    }
 
     bot.on('callback_query:data', async (ctx) => {
         const data = ctx.callbackQuery.data;
@@ -110,9 +149,11 @@ export function createTelegramBot(token, {
             return;
         }
         if (data === 'menu:help') {
-            await ctx.reply('Use Create alert to save and send an alert selection. My alerts shows your saved selections.');
+            await ctx.reply('Use Create alert to save an alert. Daily Brief analyzes today\'s calendar, Global Macro analyzes world headlines — both generate an AI screenshot card.');
             return;
         }
+        if (data === 'menu:daily') { await sendNewsDigest(ctx, 'daily'); return; }
+        if (data === 'menu:global'){ await sendNewsDigest(ctx, 'global'); return; }
         if (data.startsWith('asset:')) {
             const pair = symbols[data.slice('asset:'.length)];
             if (!pair) return;
