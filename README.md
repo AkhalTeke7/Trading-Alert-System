@@ -448,3 +448,17 @@ js/
 <p align="center" style="color:#5b584f; font-family: JetBrains Mono, monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase">
   Built for one desk · Deployed on Cloudflare · Local journal · Styled like paper
 </p>
+
+#### AI notification delivery tests
+
+The AI console can call `test_notification` directly; no additional buttons are
+needed. With an AI provider configured, ask “Send a Telegram test message”,
+“Test Bale delivery”, or “Send a test push to my phone”. `App` means Android
+push notifications, not SMS. The demo channel does not send tests.
+
+Tests use fixed text and only server-configured destinations:
+`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`, `BALE_BOT_TOKEN` / `BALE_CHAT_ID`,
+or registered app devices with the existing FCM configuration. The AI cannot
+supply credentials, override recipients, register devices, or modify alerts.
+A provider accepting a test does not prove that the recipient read it or that
+a phone sounded. Failures are returned without secret-bearing provider URLs.

@@ -1,3 +1,4 @@
+import { testNotification } from '../js/notificationTest.js';
 import getPrices from '../js/fetchPrice.js';
 import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from '../js/alertModel.js';
 import { renderAlertCard } from '../js/alertCard.js';
@@ -207,6 +208,7 @@ export class AlertStore {
     // prices, alerts, triggered events and the journal through these.
     aiExecutors(settings) {
         return createToolExecutors({
+            testNotification: args => testNotification({ ...args, env: this.env, getDevices: async () => await this.storage.get('pushDevices') || [], fetchImpl: this.aiFetch }),
             getPrices: this.prices,
             getAlerts: () => this.getAlerts(),
             getTriggered: () => this.getTriggered(),
