@@ -19,5 +19,11 @@
   ],
   "browser": { "binding": "BROWSER" },
   "triggers": { "crons": ["* * * * *"] },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "alias": {
+    "chromium-bidi/lib/cjs/bidiMapper/BidiMapper": "./cloudflare/empty.js",
+    "chromium-bidi/lib/cjs/cdp/CdpConnection": "./cloudflare/empty.js",
+    "playwright": "./cloudflare/empty.js",
+    "playwright-core": "./cloudflare/empty.js"
+  }
 }

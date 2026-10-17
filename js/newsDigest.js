@@ -138,7 +138,10 @@ function newsCacheKey(kind, dateStr){ return `news:${kind}|${dateStr}`; }
 export async function renderNewsPng(html, cacheKey, env){
   const cached = cacheKey ? getCachedAlertPng(cacheKey, '', '') : null;
   if(cached) return cached;
-  // Try Browser Rendering first (Cloudflare or Playwright)
+  // Cloudflare Worker: use Browser Rendering (@cloudflare/playwright) via BROWSER binding.
+  // Node's `playwright` must NOT be imported in the Worker bundle — it pulls
+  // chromium-bidi and breaks wrangler/esbuild (your deploy error). Local Node
+  // rendering is handled by js/server.js, not by the Worker.
   if(env?.BROWSER){
     try{
       const { launch } = await import('@cloudflare/playwright');
@@ -153,22 +156,7 @@ export async function renderNewsPng(html, cacheKey, env){
       } finally { await browser.close(); }
     } catch(e){ console.error('news cloudflare browser failed, fallback', e?.message); }
   }
-  try{
-    const { chromium } = await import('playwright');
-    const h = String(html);
-    let browser; try{ browser=await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' }); }catch{ browser=await chromium.launch(); }
-    try{
-      const page = await browser.newPage({ viewport:{ width:1200, height:900 }, deviceScaleFactor:2 });
-      await page.setContent(h, { waitUntil:'domcontentloaded' });
-      await page.waitForTimeout(1200);
-      const png = await page.screenshot({ fullPage:true });
-      if(cacheKey) setCachedAlertPng(cacheKey,'','',png);
-      return png;
-    } finally{ await browser.close(); }
-  } catch(e){
-    console.warn('news playwright unavailable, fallback PNG', e?.message);
-  }
-  // fallback: pure-JS card with title only
+  // No BROWSER binding (local preview without wrangler dev, or Worker without browser) → fast fallback card
   return renderFallbackAlertPng('News Digest','AI', 'analysis');
 }
 
