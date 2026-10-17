@@ -338,7 +338,7 @@ export class AlertStore {
                     return json({ error: 'Invalid JSON' }, 400);
                 }
                 const settings = await this.getAiSettings();
-                if (!body.provider) body.provider = settings.activeProvider || 'demo';
+                if (!body.provider) body.provider = settings.activeProvider || 'opencode';
                 if (!body.model && settings.activeModel) body.model = settings.activeModel;
                 let result;
                 try {

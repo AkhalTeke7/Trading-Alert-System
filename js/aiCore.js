@@ -968,7 +968,11 @@ async function* toolLoopStream({ fetchImpl, preset, apiKey, baseUrl, model, skil
             return;
         }
         if (!upstream.ok) {
-            yield { error: `${preset.name} rejected the request (HTTP ${upstream.status}). Check the saved key and model name.` };
+            const isLocalOC = preset.id === 'opencode' && String(baseUrl||'').includes('127.0.0.1');
+            const hint = isLocalOC
+                ? ` OpenCode points to ${baseUrl} (localhost) — only works when running locally via "npm start" + an OpenCode gateway on :4096. On Cloudflare, change Active channel to Demo or a real provider (OpenAI/Groq/Anthropic), or set a public OPENCODE_BASE_URL via "wrangler secret put OPENCODE_BASE_URL".`
+                : (upstream.status===429 ? ' Rate limited / quota exceeded. Wait a minute or switch provider.' : '') + (upstream.status===401||upstream.status===403 ? ' Key invalid, expired, or model not allowed for this key.' : '');
+            yield { error: `${preset.name} rejected the request (HTTP ${upstream.status}).${hint}` };
             return;
         }
         let text = '';
@@ -1027,7 +1031,11 @@ async function toolLoopJson({ fetchImpl, preset, apiKey, baseUrl, model, skill, 
             throw error;
         }
         if (!upstream.ok) {
-            const error = new Error(`${preset.name} rejected the request (HTTP ${upstream.status}). Check the saved key and model name.`);
+            const isLocalOC = preset.id === 'opencode' && String(baseUrl||'').includes('127.0.0.1');
+            const hint = isLocalOC
+                ? ` OpenCode is localhost-only (${baseUrl}). On Cloudflare, switch Active channel to Demo or a real provider, or set a public OPENCODE_BASE_URL.`
+                : '' + (upstream.status===429 ? ' Rate limited / quota exceeded.' : '') + (upstream.status===401||upstream.status===403 ? ' Key invalid/expired.' : '');
+            const error = new Error(`${preset.name} rejected the request (HTTP ${upstream.status}).${hint}`);
             error.publicMessage = error.message;
             error.status = upstream.status === 401 || upstream.status === 403 ? 402 : 502;
             throw error;
@@ -1099,15 +1107,73 @@ async function runChatWithFallback(input, opts) {
         const tryId = chain[idx];
         try {
             const res = await runChatDirect({ ...input, provider: tryId }, opts);
-            if (idx > 0) res.fallbackFrom = primaryId;
-            return res;
+            if (res.kind !== 'stream') {
+                if (idx > 0) res.fallbackFrom = primaryId;
+                return res;
+            }
+            // Stream: wrap so an early upstream error (403/429/502 etc) auto-retries the next provider
+            // instead of just yielding {error} to the UI. The wrapper looks ahead until first delta/done/error.
+            const wrappedRes = wrapStreamWithFallback(res, tryId, chain, idx, input, opts, primaryId);
+            return wrappedRes;
         } catch (e) {
             lastErr = e;
-            const retriable = e?.status === 402 || e?.status === 429 || e?.status === 502 || e?.status === 503 || e?.status === 504 || e?.status === 409;
+            const retriable = e?.status === 402 || e?.status === 403 || e?.status === 429 || e?.status === 502 || e?.status === 503 || e?.status === 504 || e?.status === 409;
             if (!retriable || idx === chain.length - 1) throw e;
         }
     }
     throw lastErr;
+}
+
+function wrapStreamWithFallback(initialRes, _initialId, chain, startIdx, input, opts, primaryId) {
+    async function* eventsGen() {
+        let curIdx = startIdx;
+        let curRes = initialRes;
+        while (true) {
+            let hadDelta = false;
+            let earlyError = null;
+            // Stream curRes.events; if we get a delta we're committed to this provider.
+            for await (const ev of curRes.events) {
+                if (ev.delta) hadDelta = true;
+                if (ev.error && !hadDelta) { earlyError = String(ev.error); break; }
+                yield ev;
+                if (ev.done) return;
+                if (ev.delta) {
+                    // Once we emitted a delta, just pipe the rest of this provider through.
+                    for await (const rest of curRes.events) yield rest;
+                    return;
+                }
+            }
+            if (!earlyError) return;
+            // Early error before any delta — try next provider in chain.
+            let nextIdx = curIdx + 1;
+            let nextRes = null;
+            let lastErr = null;
+            while (nextIdx < chain.length) {
+                const nextId = chain[nextIdx];
+                try {
+                    nextRes = await runChatDirect({ ...input, provider: nextId }, opts);
+                    break;
+                } catch (e2) {
+                    lastErr = e2;
+                    const retriable = e2?.status === 402 || e2?.status === 403 || e2?.status === 429 || e2?.status === 502 || e2?.status === 503 || e2?.status === 504 || e2?.status === 409;
+                    if (!retriable) { yield { error: e2.publicMessage || e2.message || earlyError }; return; }
+                    nextIdx++;
+                }
+            }
+            if (!nextRes) {
+                yield { error: earlyError + (lastErr ? ` (fallback also failed: ${lastErr.publicMessage || lastErr.message})` : '') };
+                return;
+            }
+            if (nextRes.kind !== 'stream') {
+                if (String(nextRes.content || '')) yield { delta: String(nextRes.content) };
+                yield { done: true, provider: nextRes.provider, model: nextRes.model, skill: nextRes.skill?.id || null, toolCalls: nextRes.toolCalls || [] };
+                return;
+            }
+            curIdx = nextIdx;
+            curRes = nextRes;
+        }
+    }
+    return { ...initialRes, events: eventsGen(), fallbackFrom: startIdx > 0 ? primaryId : undefined };
 }
 export async function runChat(input, opts = {}) {
     // Public wrapper with automatic availability-based failover across multiple custom endpoints + OpenCode first.
