@@ -1,8 +1,9 @@
 /* ai-settings.js — slide-over Settings panel shared by every page.
    Lets the owner paste AI provider API keys from inside the site: they are
-   saved through /api/ai/providers into the Cloudflare Durable Object and only
-   ever used server-side. The browser only sees masked previews after saving.
-   Also manages custom chat skills (create / edit / delete).
+   saved through /api/ai/providers and used only server-side (Cloudflare Durable
+   Object in Worker mode, ignored data/ai-settings.json in local Node mode).
+   The browser only sees masked previews after saving. Also manages custom
+   chat skills (create / edit / delete).
    Usage: <link css/ai-settings.css> + <script js/ai-settings.js> then
    window.PriceAlertSettings.open(). */
 (function () {
@@ -174,9 +175,9 @@
           <section class="ais-section" style="--d:.05s">
             <div class="ais-section-label"><span class="tag">01 // Active channel</span><span class="rule"></span></div>
             <div class="ais-note">
-              Keys are stored in your <b>Cloudflare Durable Object</b> and used only by the worker to call the AI provider.
-              After saving, the browser never receives the raw key again — just a masked preview like
-              <b>mis••••••••a1b2</b>. Chat requests are proxied through the same worker.
+              The built-in Demo needs no key. For live chat, add one AI provider key below, then click <b>Save key → Test → Use in chat</b>.
+              For web search, add a separate <b>Tavily Search</b> key; it is optional, and DuckDuckGo is used without it.
+              Keys stay server-side and the browser only receives a masked preview.
             </div>
             <div class="ais-active-row">
               <div class="ais-field">
@@ -243,7 +244,7 @@
         </div>
         <footer class="ais-foot">
           <span>Price-Alert · AI console</span>
-          <span>Keys stay on your Cloudflare worker</span>
+          <span>Keys stay server-side</span>
         </footer>
       </aside>`;
     wire();
@@ -334,7 +335,7 @@
         const data = await api('/api/ai/providers', { method: 'PUT', body: JSON.stringify(body) });
         applyState(data);
         delete state.pending[id];
-        flash(`${preset?.name || id} key saved — masked and stored on Cloudflare.`);
+        flash(`${preset?.name || id} key saved server-side — only a masked preview is returned.`);
         render();
       } catch (error) {
         flash(error.message, 'err');
@@ -397,7 +398,7 @@
         const data = await api(`/api/ai/providers/${encodeURIComponent(id)}`, { method: 'DELETE' });
         applyState(data);
         delete state.pending[id];
-        flash('Key removed from Cloudflare storage.');
+        flash('Key removed from server storage.');
         render();
       } catch (error) {
         flash(error.message, 'err');

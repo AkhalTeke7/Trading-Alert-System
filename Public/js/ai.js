@@ -345,7 +345,7 @@
       <div class="ai-hero-top">
         <div class="ai-hero-eyebrow"><span class="tick"></span>${esc(skill.name)} · ${esc(skill.tagline || 'dossier console')}</div>
         <h1>${headline}</h1>
-        <p class="ai-hero-sub">Full-screen AI console — pick a skill, ask, watch the answer stream in. Keys live on your Cloudflare worker, never in the browser.</p>
+        <p class="ai-hero-sub">Full-screen AI console — pick a skill, ask, watch the answer stream in. Keys stay server-side, never in the browser.</p>
       </div>
       <div class="ai-suggestions">
         ${suggestionsFor(skill.id).map((item, index) => `
