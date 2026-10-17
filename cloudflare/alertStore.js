@@ -81,28 +81,12 @@ export class AlertStore {
     }
 
     async appendTriggered(event) {
-        let events = [...(await this.getTriggered()), event].slice(-100);
-        // DO storage value limit (~128 KiB): keep htmlB64 only for the newest 10 Phone events
-        if (events.length > 10) {
-            const cutoff = events.length - 10;
-            events = events.map((e, i) => (i < cutoff && e.htmlB64 ? (({ htmlB64, ...rest }) => rest)(e) : e));
-        }
-        // Extra guard: if still oversized, drop htmlB64 from all but last event
-        try { await this.storage.put({ triggeredEvents: events }); }
-        catch {
-            const pruned = events.map((e, i) => (i < events.length - 1 && e.htmlB64 ? (({ htmlB64, ...rest }) => rest)(e) : e));
-            await this.storage.put({ triggeredEvents: pruned.slice(-50) });
-        }
+        const events = [...(await this.getTriggered()), event].slice(-100);
+        await this.storage.put({ triggeredEvents: events });
         return event;
     }
 
-    makeTriggered({ alertId, pair, target, note, channel, source, htmlB64 }) {
-        let html = htmlB64 || '';
-        if (!html && (channel === 'Phone' || channel === 'App') && pair) {
-            try { html = btoa(unescape(encodeURIComponent(renderMainChartHtml(pair, target, note)))); } catch {}
-            // Node env fallback if btoa missing
-            if (!html) try { html = Buffer.from(renderMainChartHtml(pair, target, note)).toString('base64'); } catch {}
-        }
+    makeTriggered({ alertId, pair, target, note, channel, source }) {
         return {
             id: crypto.randomUUID(),
             alertId: alertId || null,
@@ -112,7 +96,6 @@ export class AlertStore {
             channel: channel || '',
             source: source || 'crossing',
             triggeredAt: new Date().toISOString(),
-            ...(html ? { htmlB64: html } : {}),
         };
     }
 

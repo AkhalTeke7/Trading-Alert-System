@@ -17,9 +17,8 @@ import androidx.core.app.NotificationCompat
 object AlarmPlayer {
     @Volatile private var player: MediaPlayer? = null
 
-    fun ring(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null, htmlPath: String? = null) {
+    fun ring(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null) {
         stop()
-        // Vibrate in a repeating pattern.
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= 31) {
                 (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
@@ -34,7 +33,6 @@ object AlarmPlayer {
             }
         } catch (_: Exception) {}
 
-        // Loud alarm sound: system alarm tone, looping.
         try {
             val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
@@ -52,7 +50,7 @@ object AlarmPlayer {
             }
         } catch (_: Exception) {}
 
-        showNotification(ctx, event, imageBytes, imagePath, htmlPath)
+        showNotification(ctx, event, imageBytes, imagePath)
     }
 
     fun stop(ctx: Context? = null) {
@@ -71,27 +69,35 @@ object AlarmPlayer {
         } catch (_: Exception) {}
     }
 
-    private fun showNotification(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null, htmlPath: String? = null) {
+    fun updateImage(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray, imagePath: String) {
+        try { showNotification(ctx, event, imageBytes, imagePath) } catch (_: Exception) {}
+        try {
+            val intent = Intent("com.pricealert.sound.ALERT_IMAGE_READY").apply {
+                putExtra("eventId", event.id)
+                putExtra("imagePath", imagePath)
+                setPackage(ctx.packageName)
+            }
+            ctx.sendBroadcast(intent)
+        } catch (_: Exception) {}
+    }
+
+    private fun showNotification(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null) {
         val intent = Intent(ctx, AlertAlarmActivity::class.java).apply {
             putExtra("pair", event.pair)
             putExtra("target", event.target)
             putExtra("note", event.note)
             putExtra("imagePath", imagePath)
-            putExtra("htmlPath", htmlPath)
-            putExtra("htmlB64", event.htmlB64)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pi = PendingIntent.getActivity(
             ctx, event.id.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        // Dedicated stop action: silences the alarm instead of just opening the app.
         val stopPi = PendingIntent.getBroadcast(
             ctx, event.id.hashCode() + 1, Intent(ctx, StopReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        // Same PNG Telegram/Bale receive, shown big in the notification when available.
         val bigPicture = try {
             imageBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
         } catch (_: Exception) { null }

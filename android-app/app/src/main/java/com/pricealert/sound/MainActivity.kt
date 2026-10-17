@@ -315,5 +315,26 @@ class MainActivity : AppCompatActivity() {
         ) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+        promptBatteryExemptionIfNeeded()
+    }
+
+    private fun promptBatteryExemptionIfNeeded() {
+        try {
+            if (Build.VERSION.SDK_INT < 23) return
+            val pm = getSystemService(android.os.PowerManager::class.java) ?: return
+            if (pm.isIgnoringBatteryOptimizations(packageName)) return
+            // Don't nag every launch — once per install
+            val p = Prefs.prefs(this)
+            if (p.getBoolean("battery_prompt_done", false)) return
+            p.edit().putBoolean("battery_prompt_done", true).apply()
+            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = android.net.Uri.parse("package:$packageName")
+            }
+            // If OEM blocks the request intent, fall back to system settings
+            try { startActivity(intent) } catch (_: Exception) {
+                try { startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) } catch (_: Exception) {}
+            }
+            Toast.makeText(this, "Allow 'Unrestricted' battery for Price-Alert so polling isn't paused in background", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {}
     }
 }

@@ -8,16 +8,18 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.pricealert.sound.Prefs.monitoring
 import com.pricealert.sound.Prefs.pollSeconds
+import android.os.PowerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class AlertMonitorService : Service() {
     private var job: Job? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -29,24 +31,54 @@ class AlertMonitorService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             applicationContext.monitoring = false
+            job?.cancel()
             stopSelf()
             return START_NOT_STICKY
         }
         applicationContext.monitoring = true
+        // Don't leak multiple loops — restart cleanly
+        if (job?.isActive == true) return START_STICKY
         job?.cancel()
         job = scope.launch {
-            var failures = 0
             while (isActive) {
+                var woke: PowerManager.WakeLock? = null
                 try {
+                    try {
+                        val pm = getSystemService(POWER_SERVICE) as PowerManager
+                        woke = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PriceAlert:poll")
+                        woke.acquire(20_000L)
+                    } catch (_: Exception) {}
                     pollOnce()
-                    failures = 0
-                } catch (_: Exception) {
-                    failures++
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.w("PriceAlert", "pollOnce failed: ${e.message}")
+                } finally {
+                    try { if (woke?.isHeld == true) woke.release() } catch (_: Exception) {}
                 }
-                delay((applicationContext.pollSeconds.coerceIn(15, 300) * 1000L))
+                // Always sleep — even after failures — so the loop never dies.
+                // Coerce here (Prefs default 30s) and clamp Doze drift to 15-300s.
+                val secs = try { applicationContext.pollSeconds } catch (_: Exception) { 30 }
+                delay(secs.coerceIn(15, 300) * 1000L)
             }
         }
         return START_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // OEM task killers swipe-away the app — restart polling after 5s if still armed
+        try {
+            if (Prefs.prefs(this).getBoolean("monitoring", false)) {
+                val pi = android.app.PendingIntent.getService(
+                    this, 2,
+                    Intent(this, AlertMonitorService::class.java),
+                    android.app.PendingIntent.FLAG_ONE_SHOT or android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+                val am = getSystemService(ALARM_SERVICE) as android.app.AlarmManager
+                am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 5_000L, pi)
+            }
+        } catch (_: Exception) {}
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun pollOnce() {
@@ -57,82 +89,61 @@ class AlertMonitorService : Service() {
         val pw = p.getString("basic_pass", "") ?: ""
         if (url.isEmpty()) return
         val since = p.getString("last_seen", "") ?: ""
-        val events = Api.fetchTriggered(url, u, pw, since)
+        val events = try { Api.fetchTriggered(url, u, pw, since) } catch (_: Exception) { return }
         if (events.isEmpty()) return
         val seen = (p.getStringSet("seen_ids", emptySet()) ?: emptySet()).toMutableSet()
         val fresh = events.filter { it.id.isNotEmpty() && !seen.contains(it.id) }
-        // Advance the cursor even if all were seen (server may prune old events).
-        val newest = events.maxByOrNull { it.triggeredAt }?.triggeredAt
-        if (!newest.isNullOrEmpty()) p.edit().putString("last_seen", newest).apply()
         if (since.isEmpty()) {
-            // First sync: adopt the existing history silently. Ringing for every
-            // old event at once is an alarm storm, not an alert.
+            // first sync: adopt history silently, then set cursor
             for (e in events) if (e.id.isNotEmpty()) seen.add(e.id)
             p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
+            events.maxByOrNull { it.triggeredAt }?.triggeredAt?.let { p.edit().putString("last_seen", it).apply() }
             return
         }
         if (fresh.isEmpty()) {
-            p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
+            // still advance cursor so server can prune old events
+            events.maxByOrNull { it.triggeredAt }?.triggeredAt?.let { p.edit().putString("last_seen", it).apply() }
             return
         }
-        // Only ring for Phone (distinct channel) — ignore Telegram/Bale events
         val phoneFresh = fresh.filter { it.channel == "Phone" || it.channel == "App" || it.channel.isEmpty() }
         if (phoneFresh.isEmpty()) {
-            // mark Telegram/Bale as seen so we don't check them again every poll
             for (e in fresh) seen.add(e.id)
             p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
+            events.maxByOrNull { it.triggeredAt }?.triggeredAt?.let { p.edit().putString("last_seen", it).apply() }
             return
         }
-        // One alarm per poll: ring only the latest Phone event
         val ordered = phoneFresh.sortedBy { it.triggeredAt }
         for (e in ordered) seen.add(e.id)
         p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
+        // advance cursor AFTER marking seen — fixes lost-event race (was set before processing)
+        events.maxByOrNull { it.triggeredAt }?.triggeredAt?.let { p.edit().putString("last_seen", it).apply() }
         val latest = ordered.maxByOrNull { it.triggeredAt } ?: return
-        // Phone path: htmlB64 is rendered on-device in AlertAlarmActivity WebView
-        // (avoids Cloudflare Browser limits). Keep PNG fetch as fallback only if no html.
-        var bytes: ByteArray? = null
-        var path: String? = null
-        var htmlPath: String? = null
-        if (latest.htmlB64.isNotEmpty()) {
+        // Ring immediately — don't block poll loop on the 50s image download.
+        // Image is fetched async and swapped in AlarmActivity if it arrives later.
+        launchOnMain(latest, null, null)
+        // fetch PNG in background and update the already-ringing alarm
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             try {
-                val htmlBytes = android.util.Base64.decode(latest.htmlB64, android.util.Base64.DEFAULT)
-                val f = java.io.File(ctx.cacheDir, "alert_${latest.id}.html")
-                f.writeBytes(htmlBytes)
-                htmlPath = f.absolutePath
-                // also decode embedded fallback? no — WebView loads TradingView live 15m chart
-            } catch (_: Exception) {}
-        }
-        if (htmlPath == null) {
-            try {
-                val p2 = Prefs.prefs(ctx)
-                val url2 = p2.getString("server_url", "")?.trim()?.trimEnd('/') ?: ""
-                val u2 = p2.getString("basic_user", "") ?: ""
-                val pw2 = p2.getString("basic_pass", "") ?: ""
-                if (url2.isNotEmpty()) {
-                    val imgUrl = Api.alertImageUrl(url2, latest.pair, latest.target, latest.note)
-                    bytes = Api.downloadImage(imgUrl, u2, pw2)
-                    if (bytes != null) {
-                        val f = java.io.File(ctx.cacheDir, "alert_${latest.id}.png")
-                        f.writeBytes(bytes)
-                        path = f.absolutePath
-                    }
+                val imgUrl = Api.alertImageUrl(url, latest.pair, latest.target, latest.note)
+                val bytes = Api.downloadImage(imgUrl, u, pw)
+                if (bytes != null) {
+                    val f = java.io.File(ctx.cacheDir, "alert_${latest.id}.png")
+                    f.writeBytes(bytes)
+                    // update notification with big picture once downloaded
+                    AlarmPlayer.updateImage(ctx, latest, bytes, f.absolutePath)
                 }
             } catch (_: Exception) {}
         }
-        // Ring on the main thread's context: AlarmPlayer handles its own threading.
-        launchOnMain(latest, bytes, path, htmlPath)
     }
 
-    private fun launchOnMain(event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null, htmlPath: String? = null) {
+    private fun launchOnMain(event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null) {
         android.os.Handler(mainLooper).post {
-            AlarmPlayer.ring(this, event, imageBytes, imagePath, htmlPath)
+            AlarmPlayer.ring(this, event, imageBytes, imagePath)
             val alarmIntent = Intent(this, AlertAlarmActivity::class.java).apply {
                 putExtra("pair", event.pair)
                 putExtra("target", event.target)
                 putExtra("note", event.note)
                 putExtra("imagePath", imagePath)
-                putExtra("htmlPath", htmlPath)
-                putExtra("htmlB64", event.htmlB64)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             startActivity(alarmIntent)

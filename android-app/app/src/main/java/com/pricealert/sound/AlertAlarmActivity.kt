@@ -1,6 +1,5 @@
 package com.pricealert.sound
 
-import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -10,9 +9,6 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
@@ -21,9 +17,13 @@ import java.io.File
 import kotlin.concurrent.thread
 
 class AlertAlarmActivity : AppCompatActivity() {
-    private var alarmWebView: WebView? = null
+    private var imageView: ImageView? = null
+    private var imageHint: TextView? = null
+    private var currentPair: String = ""
+    private var currentTarget: String = ""
+    private var currentNote: String = ""
+    private var imageReceiver: android.content.BroadcastReceiver? = null
 
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_alarm)
@@ -31,73 +31,32 @@ class AlertAlarmActivity : AppCompatActivity() {
         val pair = intent.getStringExtra("pair") ?: "Price Alert"
         val target = intent.getStringExtra("target") ?: ""
         val note = intent.getStringExtra("note") ?: ""
+        currentPair = pair
+        currentTarget = target
+        currentNote = note
 
         findViewById<TextView>(R.id.alarmTitle).text = "Price Alert: $pair"
         findViewById<TextView>(R.id.alarmBody).text = "$target — ${note.ifEmpty { "triggered" }}"
 
-        val imageView = findViewById<ImageView>(R.id.alarmImage)
-        val webView = findViewById<WebView>(R.id.alarmWebView)
-        val imageHint = findViewById<TextView>(R.id.imageHint)
-        alarmWebView = webView
-
-        // Phone path: htmlB64 rendered on-device (avoids Cloudflare Browser limits).
-        // Telegram/Bale still use Cloudflare-rendered PNG (imagePath).
-        val htmlPath = intent.getStringExtra("htmlPath")
-        val htmlB64 = intent.getStringExtra("htmlB64")
-        val htmlBytes: ByteArray? = when {
-            !htmlPath.isNullOrEmpty() -> try { File(htmlPath).readBytes() } catch (_: Exception) { null }
-            !htmlB64.isNullOrEmpty() -> try { android.util.Base64.decode(htmlB64, android.util.Base64.DEFAULT) } catch (_: Exception) { null }
-            else -> null
-        }
-
-        if (htmlBytes != null && htmlBytes.isNotEmpty()) {
-            // Device-side HTML render — same source Telegram/Bale get as PNG on Cloudflare,
-            // but rendered locally so Phone never touches Cloudflare Browser.
-            val html = try { String(htmlBytes, Charsets.UTF_8) } catch (_: Exception) { null }
-            if (html != null && html.contains("<html", ignoreCase = true)) {
-                imageView.visibility = View.GONE
-                webView.visibility = View.VISIBLE
-                imageHint.text = "◇ LIVE 15m CHART · RENDERED ON DEVICE"
-                imageHint.visibility = View.VISIBLE
-                webView.settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    allowFileAccess = false
-                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                    useWideViewPort = true
-                    loadWithOverviewMode = true
-                    builtInZoomControls = false
-                }
-                webView.webViewClient = object : WebViewClient() {}
-                // Use base URL so TradingView widget (s3.tradingview.com) loads correctly
-                webView.loadDataWithBaseURL("https://price-alert.local/", html, "text/html", "utf-8", null)
-                findViewById<Button>(R.id.stopBtn).setOnClickListener {
-                    try { webView.stopLoading() } catch (_: Exception) {}
-                    AlarmPlayer.stop(this)
-                    getSystemService(NotificationManager::class.java).cancelAll()
-                    finish()
-                }
-                return
-            }
-        }
-
-        // Fallback: PNG (Telegram/Bale card) or local canvas card
-        webView.visibility = View.GONE
+        imageView = findViewById(R.id.alarmImage)
+        imageHint = findViewById(R.id.imageHint)
         val path = intent.getStringExtra("imagePath")
         val existingBmp = try {
             if (!path.isNullOrEmpty()) BitmapFactory.decodeFile(path) else null
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
 
         if (existingBmp != null) {
-            imageView.setImageBitmap(existingBmp)
-            imageView.visibility = View.VISIBLE
-            imageHint.text = "◇ SAME CARD AS TELEGRAM / BALE"
-            imageHint.visibility = View.VISIBLE
+            imageView?.setImageBitmap(existingBmp)
+            imageView?.visibility = View.VISIBLE
+            imageHint?.text = "◇ SAME CARD AS TELEGRAM / BALE"
+            imageHint?.visibility = View.VISIBLE
         } else {
-            imageView.setImageBitmap(renderLocalAlertCard(pair, target, note))
-            imageView.visibility = View.VISIBLE
-            imageHint.text = "◇ LOADING CHART CARD…"
-            imageHint.visibility = View.VISIBLE
+            imageView?.setImageBitmap(renderLocalAlertCard(pair, target, note))
+            imageView?.visibility = View.VISIBLE
+            imageHint?.text = "◇ LOADING CHART CARD FROM /api/alert-image…"
+            imageHint?.visibility = View.VISIBLE
 
             thread {
                 try {
@@ -106,28 +65,6 @@ class AlertAlarmActivity : AppCompatActivity() {
                     val u = p.getString("basic_user", "") ?: ""
                     val pw = p.getString("basic_pass", "") ?: ""
                     if (url.isNotEmpty()) {
-                        // Try htmlB64 polling first (device render), then PNG
-                        try {
-                            val events = Api.fetchTriggered(url, u, pw, "")
-                            val match = events.find { it.pair == pair && it.target == target && it.htmlB64.isNotEmpty() }
-                            if (match != null && match.htmlB64.isNotEmpty()) {
-                                val hb = android.util.Base64.decode(match.htmlB64, android.util.Base64.DEFAULT)
-                                val h = String(hb, Charsets.UTF_8)
-                                if (h.contains("<html", ignoreCase = true)) {
-                                    runOnUiThread {
-                                        if (!isDestroyed && !isFinishing) {
-                                            imageView.visibility = View.GONE
-                                            webView.visibility = View.VISIBLE
-                                            imageHint.text = "◇ LIVE 15m CHART · RENDERED ON DEVICE"
-                                            webView.settings.javaScriptEnabled = true
-                                            webView.settings.domStorageEnabled = true
-                                            webView.loadDataWithBaseURL("https://price-alert.local/", h, "text/html", "utf-8", null)
-                                        }
-                                    }
-                                    return@thread
-                                }
-                            }
-                        } catch (_: Exception) {}
                         val imgUrl = Api.alertImageUrl(url, pair, target, note)
                         val bytes = Api.downloadImage(imgUrl, u, pw)
                         if (bytes != null) {
@@ -137,10 +74,9 @@ class AlertAlarmActivity : AppCompatActivity() {
                             if (bmp != null) {
                                 runOnUiThread {
                                     if (!isDestroyed && !isFinishing) {
-                                        imageView.setImageBitmap(bmp)
-                                        imageView.visibility = View.VISIBLE
-                                        webView.visibility = View.GONE
-                                        imageHint.text = "◇ SAME CARD AS TELEGRAM / BALE"
+                                        imageView?.setImageBitmap(bmp)
+                                        imageView?.visibility = View.VISIBLE
+                                        imageHint?.text = "◇ SAME CARD AS TELEGRAM / BALE"
                                     }
                                 }
                                 return@thread
@@ -150,11 +86,34 @@ class AlertAlarmActivity : AppCompatActivity() {
                 } catch (_: Exception) {}
                 runOnUiThread {
                     if (!isDestroyed && !isFinishing) {
-                        val reason = Api.lastImageError.ifEmpty { "OFFLINE · LOCAL CARD" }
-                        imageHint.text = "◇ LOCAL CARD — $reason"
+                        val reason = Api.lastImageError.ifEmpty { "SERVER /api/alert-image UNREACHABLE" }
+                        imageHint?.text = "◇ LOCAL CARD — $reason"
                     }
                 }
             }
+        }
+
+        // Background download from AlertMonitorService (rings instantly, image arrives ~5-15s later)
+        imageReceiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                val p = intent?.getStringExtra("imagePath") ?: return
+                try {
+                    val bmp = BitmapFactory.decodeFile(p) ?: return
+                    runOnUiThread {
+                        if (!isDestroyed && !isFinishing) {
+                            imageView?.setImageBitmap(bmp)
+                            imageView?.visibility = View.VISIBLE
+                            imageHint?.text = "◇ SAME CARD AS TELEGRAM / BALE"
+                            imageHint?.visibility = View.VISIBLE
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+        try {
+            registerReceiver(imageReceiver, android.content.IntentFilter("com.pricealert.sound.ALERT_IMAGE_READY"), android.content.Context.RECEIVER_NOT_EXPORTED)
+        } catch (_: Exception) {
+            try { registerReceiver(imageReceiver, android.content.IntentFilter("com.pricealert.sound.ALERT_IMAGE_READY")) } catch (_: Exception) {}
         }
 
         findViewById<Button>(R.id.stopBtn).setOnClickListener {
@@ -228,8 +187,7 @@ class AlertAlarmActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        try { alarmWebView?.stopLoading() } catch (_: Exception) {}
-        try { alarmWebView?.destroy() } catch (_: Exception) {}
+        try { imageReceiver?.let { unregisterReceiver(it) } } catch (_: Exception) {}
         super.onDestroy()
     }
 }
