@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendar & Equity — Price-Alert</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/theme.css"><script src="./js/theme.js"></script>
+<style>
+.main.journal-main{display:flex;flex:1;min-height:0;overflow:hidden}
+.main.journal-main .content{flex:1;min-height:0;overflow-y:auto}
+.j-btn{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:10px 14px;border:1px solid var(--line);background:var(--bg);color:var(--bone);cursor:pointer;transition:border-color .2s,background .2s,color .2s}
+.j-btn:hover{border-color:var(--line-strong)}
+.j-btn.sm{padding:7px 10px;font-size:10px}
+.j-btn.red{background:var(--red);color:#fff;border-color:var(--red);letter-spacing:.1em}
+.j-btn.red:hover{filter:brightness(1.08)}
+.j-btn.red.active{outline:1px solid #fff;outline-offset:-2px}
+.j-analyze-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px;border:1px solid rgba(209,59,47,.28);background:rgba(209,59,47,.06)}
+.j-analyze-nav-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:6px;margin-right:4px}
+.j-analyze-nav-label i{width:6px;height:6px;background:var(--red);display:inline-block;border-radius:50%;animation:pulse 2s ease-in-out infinite}
+.j-panel{border:1px solid var(--line);background:var(--bg);padding:10px}
+.j-panel h4{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.j-equity{height:160px;border:1px solid var(--line);background:var(--bg);position:relative;overflow:hidden}
+.j-equity svg{width:100%;height:100%;display:block;shape-rendering:geometricPrecision}
+.j-equity svg text{ text-rendering:geometricPrecision; -webkit-font-smoothing:antialiased; }
+.j-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.j-cal-head{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:center;padding:4px 0}
+.j-cal-cell{border:1px solid var(--line);background:var(--bg);min-height:48px;padding:4px;display:flex;flex-direction:column;justify-content:space-between}
+.j-cal-cell.has{border-color:rgba(233,228,214,.22)}
+.j-cal-cell.win{background:rgba(59,196,122,.12);border-color:rgba(59,196,122,.25)}
+.j-cal-cell.loss{background:rgba(209,59,47,.10);border-color:rgba(209,59,47,.22)}
+.j-cal-cell.sel{outline:1px solid var(--bone);outline-offset:-1px;box-shadow:0 0 0 1px var(--bone)}
+.j-cal-cell.clickable{cursor:pointer}
+.j-cal-cell.clickable:hover{border-color:var(--line-strong)}
+.j-cal-cell k{font-family:var(--font-mono);font-size:9px;color:var(--muted)}
+.j-cal-cell v{font-family:var(--font-mono);font-size:10px;color:var(--bone);font-weight:600}
+.j-cal-nav{display:inline-flex;gap:4px;align-items:center;margin-left:8px}
+.j-cal-nav button{font-family:var(--font-mono);font-size:10px;padding:2px 6px;border:1px solid var(--line);background:var(--bg);color:var(--bone);cursor:pointer}
+.j-cal-nav button:hover{border-color:var(--line-strong)}
+.j-filter-bar{border:1px dashed var(--line);background:rgba(233,228,214,.03);padding:8px 10px;margin-bottom:12px;font-family:var(--font-mono);font-size:10px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.j-filter-bar b{color:var(--bone)}
+.j-grid{display:flex;flex-direction:column;gap:12px}
+.j-card{position:relative;display:flex;flex-direction:column;gap:0;background:var(--panel);background-image:radial-gradient(rgba(233,228,214,.07) 1px, transparent 1px);background-size:7px 7px;border:1px solid var(--line);padding:14px}
+.j-card::before,.j-card::after{content:"";position:absolute;width:10px;height:10px;border-color:var(--bone);border-style:solid;opacity:.55}
+.j-card::before{top:-1px;left:-1px;border-width:1px 0 0 1px} .j-card::after{right:-1px;bottom:-1px;border-width:0 1px 1px 0}
+.j-tag{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.j-pill{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border:1px solid var(--line);background:var(--bg);color:var(--muted)}
+.j-pill.win{color:var(--up);border-color:rgba(59,196,122,.35);background:rgba(59,196,122,.08)}
+.j-pill.loss{color:var(--red);border-color:rgba(209,59,47,.3);background:rgba(209,59,47,.08)}
+.j-pill.be{color:var(--bone);border-color:var(--line-strong)}
+.j-pill.strat{color:var(--bone);border-color:var(--line-strong);background:rgba(233,228,214,.06)}
+.j-shot-img img{width:100%;max-height:220px;object-fit:cover;display:block}
+.j-empty{border:1px dashed var(--line);background:rgba(233,228,214,.03);padding:28px;text-align:center}
+.j-empty h3{font-family:var(--font-serif);font-weight:400;font-size:22px}
+.main.journal-main .content{ max-width: 1180px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="left-header">
+    <div class="brand-icon"><i class="fa-solid fa-bolt"></i></div>
+    <span class="brand-name">Price-Alert</span>
+    <span class="divider"></span>
+    <p class="welcome-text">Journal / Analyze — Calendar & Equity</p>
+  </div>
+  <nav class="right-header">
+    <button type="button" class="paragraph" onclick="location.href='./journal.html'">Journal</button>
+    <button type="button" class="paragraph" onclick="location.href='./main.html'">Markets</button>
+  </nav>
+</header>
+<div class="main journal-main">
+  <div class="content">
+    <button class="j-btn sm" onclick="location.href='./journal.html'" style="margin-bottom:12px"><i class="ti ti-arrow-left" style="margin-right:6px"></i> Back to Journal</button>
+    <div class="section-label">
+      <span class="tag"><span class="orkhon">𐱅</span> · Analyze — Calendar & Equity</span>
+      <span class="rule"></span>
+      <span class="tag" style="color:var(--dim)" id="count-tag">— trades</span>
+    </div>
+    <nav class="j-analyze-nav" aria-label="Analyze pages">
+      <span class="j-analyze-nav-label"><i></i> Deep dive</span>
+      <button type="button" class="j-btn sm red" onclick="location.href='./analyze-overview.html'+location.search">Overview</button>
+      <button type="button" class="j-btn sm red" onclick="location.href='./analyze-strategy.html'+location.search">Strategy Lab</button>
+      <button type="button" class="j-btn sm red active">Calendar &amp; Equity</button>
+    </nav>
+    <div class="j-filter-bar" id="filter-bar"></div>
+    <div class="j-panel" style="margin-bottom:12px">
+      <h4>Calendar — PnL per day <span id="cal-month" style="font-size:9px;color:var(--dim)"></span> <span class="j-cal-nav"><button id="cal-prev" title="Prev month">‹</button><button id="cal-next" title="Next month">›</button><button id="cal-today" title="Jump to today">Today</button></span> <span id="cal-filter-note" style="font-size:9px;color:var(--muted);margin-left:auto"></span></h4>
+      <div class="j-cal" id="cal-grid"></div>
+      <p style="font-family:var(--font-mono);font-size:9px;color:var(--dim);margin-top:6px">Click a day with trades to filter dossiers below · click again or <a href="#" id="cal-clear" style="color:var(--bone)">Clear filter</a></p>
+    </div>
+    <div class="j-panel" style="margin-bottom:12px">
+      <h4>Equity curve <span id="an-eq-note" style="font-size:10px;color:var(--dim)"></span></h4>
+      <div class="j-equity" id="equity"><svg id="eq-svg" viewBox="0 0 800 140"></svg></div>
+    </div>
+    <div id="day-grid" class="j-grid"></div>
+    <p style="margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--dim)">Local only — filtered from <code>localStorage pa.journal.v1</code>. Calendar click filters dossiers on this page.</p>
+  </div>
+</div>
+<footer class="footer">
+  <div class="footer-content"><span>Market Pulse</span><span class="sep">/</span><span>Analyze</span><span class="sep">/</span><span>Calendar &amp; Equity</span></div>
+  <span class="footer-jp">𐰀 𐰴 𐰚 𐰀 𐰠 . 𐱅 𐰀 𐰚 𐰀</span>
+</footer>
+<script>
+const LS="pa.journal.v1";
+let trades=[];
+function numPnL(v){ const n=parseFloat(String(v??"").replace(/[^0-9.\-]/g,'')); return Number.isFinite(n)? n : 0; }
+function hasPnL(v){ return /-?\d/.test(String(v??"")); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(s){ try{ return new Date(s).toLocaleDateString('en-CA'); }catch{ return s; } }
+function load(){ try{ const r=localStorage.getItem(LS); if(r) trades=JSON.parse(r);}catch{} if(!Array.isArray(trades)) trades=[]; }
+function getFilters(){ const p=new URLSearchParams(location.search); return { pair:p.get('pair')||'', outcome:p.get('outcome')||'', strat:p.get('strat')||'', q:(p.get('q')||'').toLowerCase() }; }
+function baseList(){
+  const f=getFilters();
+  return trades.filter(t=>{
+    if(f.pair && t.pair!==f.pair) return false;
+    if(f.outcome && t.outcome!==f.outcome) return false;
+    if(f.strat && t.strategy!==f.strat) return false;
+    if(f.q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(t.strategy||"")).toLowerCase().includes(f.q)) return false;
+    return true;
+  });
+}
+let calY=null, calM=null, calDayFilter=null;
+function drawEquity(list){
+  const svg=document.getElementById('eq-svg'); svg.innerHTML="";
+  let cum=0; const pts=[0]; list.slice().reverse().forEach(t=>{ cum+= hasPnL(t.pnl)? numPnL(t.pnl):0; pts.push(cum); });
+  document.getElementById('an-eq-note').textContent = pts.length>1? `· net ${pts[pts.length-1].toFixed(2)} USD`:"";
+  if(pts.length<2){ svg.innerHTML=`<text x="10" y="20" fill="var(--dim)" font-family="JetBrains Mono" font-size="10">No PnL yet</text>`; return; }
+  const W=800,H=140, pad=10, min=Math.min(...pts,0), max=Math.max(...pts,0), span=Math.max(1, max-min);
+  const x = i=> pad + (i/(pts.length-1))*(W-pad*2), y = v=> pad + (1 - (v-min)/span)*(H-pad*2);
+  const d=pts.map((v,i)=> `${i?"L":"M"} ${x(i)} ${y(v)}`).join(" ");
+  const hi = pts[pts.length-1] >= pts[0];
+  svg.innerHTML=`<path d="M ${x(0)} ${y(0)} L ${x(pts.length-1)} ${y(0)}" stroke="rgba(233,228,214,.12)" stroke-width="1" fill="none"/><path d="${d}" fill="none" stroke="${hi?"#3bc47a":"#d13b2f"}" stroke-width="1.6"/><circle cx="${x(pts.length-1)}" cy="${y(pts[pts.length-1])}" r="3" fill="${hi?"#3bc47a":"#d13b2f"}" />`;
+}
+function drawCal(list){
+  const grid=document.getElementById('cal-grid'), label=document.getElementById('cal-month'), note=document.getElementById('cal-filter-note');
+  const now=new Date();
+  if(calY===null){ calY=now.getFullYear(); calM=now.getMonth(); }
+  const y=calY, m=calM;
+  label.textContent=new Date(y,m,1).toLocaleDateString('en-US',{month:'long', year:'numeric'});
+  if(note) note.textContent = calDayFilter ? `Filtering: ${calDayFilter} ✕` : "";
+  const first=new Date(y,m,1).getDay(), daysIn=new Date(y,m+1,0).getDate();
+  const off=(first+6)%7;
+  // cal reflects baseList (filters from URL), not day filter
+  const byDay={}; list.forEach(t=>{
+    const d=new Date(t.date); if(d.getFullYear()!==y || d.getMonth()!==m) return;
+    const k=d.getDate(); if(!byDay[k]) byDay[k]={sum:0,n:0}; byDay[k].sum+= hasPnL(t.pnl)? numPnL(t.pnl):0; byDay[k].n++;
+  });
+  let html=`<div class="j-cal-head">Mon</div><div class="j-cal-head">Tue</div><div class="j-cal-head">Wed</div><div class="j-cal-head">Thu</div><div class="j-cal-head">Fri</div><div class="j-cal-head">Sat</div><div class="j-cal-head">Sun</div>`;
+  for(let i=0;i<off;i++) html+=`<div class="j-cal-cell" style="opacity:.2"><k></k></div>`;
+  for(let d=1; d<=daysIn; d++){
+    const v=byDay[d];
+    const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSel = calDayFilter===iso;
+    const has = !!v;
+    const cls=v? (v.sum>0?"win": v.sum<0?"loss":"has") : "";
+    const sel = isSel ? " sel" : "";
+    const clickable = has ? " clickable" : "";
+    html+=`<div class="j-cal-cell ${cls}${sel}${clickable}" data-cal-day="${iso}" ${has?`title="${v.n} trade(s) — click to filter"`:""}><k>${d}</k>${v? `<v style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(0)}</v><span style="font-family:var(--font-mono);font-size:9px;color:var(--dim)">${v.n} tr</span>` : `<v style="color:var(--dim)">—</v>`}</div>`;
+  }
+  grid.innerHTML=html;
+}
+function renderDayGrid(list){
+  const el=document.getElementById('day-grid');
+  const view = calDayFilter ? list.filter(t=> (t.date||"")===calDayFilter) : list.slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
+  if(!view.length){
+    el.innerHTML = `<div class="j-empty"><h3>${calDayFilter? 'No dossiers for '+calDayFilter : 'No dossiers in filter'}</h3><p><a href="#" onclick="event.preventDefault(); calDayFilter=null; renderAll();" style="color:var(--bone)">Clear day filter</a></p></div>`;
+    return;
+  }
+  el.innerHTML = view.map((t,idx)=>{
+    const shots=(t.images||[]).slice(0,3);
+    const hasAny=shots.some(s=>s&&s.src);
+    let shotsHtml="";
+    if(hasAny){
+      shotsHtml=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0">`+ [0,1,2].map(i=>{
+        const im=shots[i]; const s=im?.src||""; return s? `<div style="border:1px solid var(--line);background:#0f0f0f;overflow:hidden"><img src="${esc(s)}" style="width:100%;max-height:160px;object-fit:cover;display:block" loading="lazy"></div>` : `<div style="border:1px dashed var(--line);display:grid;place-items:center;min-height:100px;color:var(--dim);font-family:var(--font-mono);font-size:10px">No image</div>`;
+      }).join("")+`</div>`;
+    }
+    return `<article class="j-card"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:10px"><span class="j-tag">${String(idx+1).padStart(2,'0')} // ${esc(t.pair)} · ${esc(t.dir)} · ${esc(fmtDate(t.date))}</span><span class="j-pill ${t.outcome==='WIN'?'win':t.outcome==='LOSS'?'loss':'be'}">${esc(t.outcome)}</span><span class="j-pill strat">${esc(t.strategy||"—")}</span><span style="margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--muted)">${esc(t.pnl||"")}</span></div>${shotsHtml}<div style="border:1px solid var(--line);background:var(--bg);padding:10px;margin-top:8px"><div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-bottom:4px">Notes</div><p style="font-family:var(--font-mono);font-size:11px;line-height:1.6;white-space:pre-wrap">${esc(t.notes||"—")}</p></div></article>`;
+  }).join("");
+}
+function renderAll(){
+  load();
+  const list=baseList();
+  const f=getFilters();
+  document.getElementById('count-tag').textContent=list.length+" trades";
+  document.getElementById('filter-bar').innerHTML = (!f.pair&&!f.outcome&&!f.strat&&!f.q) ? `<span>No filter — showing all <b>${list.length}</b> dossiers</span>` : `<span>Filtered:</span> ${f.pair?`<span>pair <b>${esc(f.pair)}</b></span>`:''} ${f.outcome?`<span>outcome <b>${esc(f.outcome)}</b></span>`:''} ${f.strat?`<span>strategy <b>${esc(f.strat)}</b></span>`:''} ${f.q?`<span>search <b>${esc(f.q)}</b></span>`:''} <span style="margin-left:auto"><a href="#" onclick="location.search='';return false" style="color:var(--bone)">Clear filters</a></span>`;
+  drawCal(list);
+  const sorted=list.slice().sort((a,b)=> new Date(b.date)-new Date(a.date));
+  const view = calDayFilter ? sorted.filter(t=> (t.date||"")===calDayFilter) : sorted;
+  drawEquity(view);
+  renderDayGrid(sorted);
+}
+document.getElementById('cal-prev')?.addEventListener('click',()=>{ if(calM===0){calY--;calM=11;}else calM--; renderAll(); });
+document.getElementById('cal-next')?.addEventListener('click',()=>{ if(calM===11){calY++;calM=0;}else calM++; renderAll(); });
+document.getElementById('cal-today')?.addEventListener('click',()=>{ const n=new Date(); calY=n.getFullYear(); calM=n.getMonth(); renderAll(); });
+document.getElementById('cal-clear')?.addEventListener('click',e=>{ e.preventDefault(); calDayFilter=null; renderAll(); });
+document.getElementById('cal-filter-note')?.addEventListener('click',()=>{ calDayFilter=null; renderAll(); });
+document.getElementById('cal-grid')?.addEventListener('click',e=>{
+  const cell=e.target.closest('[data-cal-day]'); if(!cell) return;
+  if(!cell.classList.contains('clickable') && !cell.classList.contains('sel')) return;
+  const iso=cell.getAttribute('data-cal-day');
+  calDayFilter = (calDayFilter===iso) ? null : iso;
+  renderAll();
+  if(calDayFilter) document.getElementById('day-grid')?.scrollIntoView({behavior:"smooth", block:"start"});
+});
+renderAll();
+</script>
+</body>
+</html>

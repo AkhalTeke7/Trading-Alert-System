@@ -14,11 +14,5 @@ TELEGRAM_WEBHOOK_SECRET=
 # Your numeric Telegram user ID, or a comma-separated allowlist of trusted users.
 TELEGRAM_ALLOWED_USER_IDS=
 
-# Journal — Drive (service account) — local Wrangler preview only (production uses wrangler secret put)
-# Service accounts have NO My Drive quota — use a Shared Drive (add service account as Manager).
-# Put JSON on ONE line or base64-encode; loadEnvFile truncates pretty-printed multi-line JSON to "{".
-# GOOGLE_DRIVE_SERVICE_ACCOUNT={"type":"service_account", ... one line ...}
-# GOOGLE_DRIVE_KEY_FILE is Node-only — on Workers use wrangler secret put instead.
-# GOOGLE_DRIVE_SHARED_DRIVE_ID=1AbC...your-shared-drive-id
-# JOURNAL_DRIVE_FILENAME=price-alert-journal.json
-# JOURNAL_PROVIDER=drive
+# Journal is local-only — browser localStorage + JSON export with compressed base64.
+# No cloud secrets needed.

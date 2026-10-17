@@ -47,80 +47,177 @@
 
   /* ---------------- markdown-lite (safe) ---------------- */
 
+  // full GFM-lite renderer — covers https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet
+  // headers, emphasis, links, images, tables, blockquotes, code, lists, task lists, HR
   function inlineMd(text) {
-    return esc(text)
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+    // escape first, then re-introduce markdown tags as HTML
+    let out = esc(text);
+    // inline code `code` — must run first so inner markdown is not parsed
+    out = out.replace(/`([^`]+?)`/g, (_, code) => `<code>${code}</code>`);
+    // images ![alt](url "title")
+    out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^&]*?)&quot;)?\)/g, (_, alt, rawUrl, title) => {
+      const url = rawUrl.trim();
+      if (!/^(https?:\/\/|\/|data:image\/)/.test(url)) return esc(alt);
+      return `<img src="${esc(url)}" alt="${esc(alt)}"${title ? ` title="${esc(title)}"` : ''} loading="lazy">`;
+    });
+    // links [text](url "title") — after images
+    out = out.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;([^&]*?)&quot;)?\)/g, (_, label, rawUrl, title) => {
+      const url = rawUrl.trim();
+      if (!/^(https?:\/\/|mailto:|\/|#)/.test(url)) return label;
+      return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer"${title ? ` title="${esc(title)}"` : ''}>${label}</a>`;
+    });
+    // autolink <https://example.com>
+    out = out.replace(/&lt;(https?:\/\/[^&]+)&gt;/g, (_, url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>`);
+    // bare URLs https://... (not already inside href="")
+    out = out.replace(/(?<!href=&quot;)(https?:\/\/[^\s<]+)/g, (m) => {
+      // avoid double-linking inside an already-created <a>
+      if (m.includes('</a>') || m.includes('<a')) return m;
+      return `<a href="${esc(m)}" target="_blank" rel="noopener noreferrer">${esc(m)}</a>`;
+    });
+    // strikethrough ~~text~~ (GFM)
+    out = out.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+    // bold+italic ***text*** and ___text___
+    out = out.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+    out = out.replace(/___([^_]+)___/g, '<strong><em>$1</em></strong>');
+    // bold **text** and __text__
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    // italic *text* and _text_ (avoid catching ** already handled)
+    out = out.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, (_, pre, t) => `${pre}<em>${t}</em>`);
+    out = out.replace(/(^|[^a-zA-Z0-9])_([^_\n]+)_(?![a-zA-Z0-9_])/g, (_, pre, t) => `${pre}<em>${t}</em>`);
+    // hard line break: two spaces at end -> <br>
+    // handled at block level, but also convert 2 trailing spaces here
+    return out;
   }
 
   function renderMarkdown(src) {
-    const lines = String(src ?? '').split('\n');
+    const lines = String(src ?? '').replace(/\r\n/g, '\n').split('\n');
     let html = '';
     let inCode = false;
+    let codeLang = '';
     let codeBuf = [];
     let listType = null;
     const closeList = () => {
-      if (listType) {
-        html += `</${listType}>`;
-        listType = null;
-      }
+      if (listType) { html += `</${listType}>`; listType = null; }
     };
-    for (const line of lines) {
-      if (inCode) {
-        if (/^```/.test(line)) {
-          html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
-          codeBuf = [];
-          inCode = false;
+    const isTableSep = s => /^\s*\|?[\s|:\-]+\|?[\s|:]*\s*$/.test(s) && s.includes('-') && s.includes('|');
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+
+      // fenced code block ```lang
+      if (/^```/.test(line)) {
+        if (inCode) {
+          html += `<pre><code${codeLang ? ` class="lang-${esc(codeLang)}"` : ''}>${esc(codeBuf.join('\n'))}</code></pre>`;
+          codeBuf = []; inCode = false; codeLang = '';
         } else {
-          codeBuf.push(line);
+          closeList();
+          inCode = true;
+          codeLang = line.replace(/^```\s*/, '').trim().slice(0, 20);
         }
         continue;
       }
-      if (/^```/.test(line)) {
+      if (inCode) { codeBuf.push(line); continue; }
+
+      if (/^\s*$/.test(line)) { closeList(); continue; }
+
+      // GFM table: header | sep | rows
+      if (line.includes('|') && i + 1 < lines.length && isTableSep(lines[i + 1])) {
         closeList();
-        inCode = true;
+        const headerCells = line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+        const alignRow = lines[i + 1].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+        const aligns = alignRow.map(c => {
+          const left = c.startsWith(':'), right = c.endsWith(':');
+          if (left && right) return 'center';
+          if (right) return 'right';
+          if (left) return 'left';
+          return '';
+        });
+        html += '<table><thead><tr>';
+        headerCells.forEach((c, idx) => {
+          html += `<th${aligns[idx] ? ` style="text-align:${aligns[idx]}"` : ''}>${inlineMd(c)}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        i += 1; // skip sep
+        // consume rows
+        while (i + 1 < lines.length && lines[i + 1].includes('|') && lines[i + 1].trim() !== '') {
+          i += 1;
+          const cells = lines[i].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+          html += '<tr>';
+          for (let k = 0; k < headerCells.length; k++) {
+            html += `<td${aligns[k] ? ` style="text-align:${aligns[k]}"` : ''}>${inlineMd(cells[k] || '')}</td>`;
+          }
+          html += '</tr>';
+        }
+        html += '</tbody></table>';
         continue;
       }
-      if (/^\s*$/.test(line)) {
+
+      // blockquote > text (collect consecutive)
+      if (/^\s*>\s?/.test(line)) {
         closeList();
+        const bqLines = [];
+        while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
+          bqLines.push(lines[i].replace(/^\s*>\s?/, ''));
+          i++;
+        }
+        i--; // compensate outer increment
+        // blockquotes can contain markdown — render inner as paragraphs
+        const inner = bqLines.join('\n').trim();
+        // simple: each non-empty line as paragraph
+        const bqHtml = inner.split(/\n{2,}/).map(block => `<p>${inlineMd(block.replace(/\n/g, '<br>'))}</p>`).join('');
+        html += `<blockquote>${bqHtml}</blockquote>`;
         continue;
       }
-      const heading = line.match(/^(#{1,4})\s+(.*)/);
+
+      // ATX headings # .. ######
+      const heading = line.match(/^(#{1,6})\s+(.*)/);
       if (heading) {
         closeList();
-        html += `<h3>${inlineMd(heading[2])}</h3>`;
+        const level = heading[1].length;
+        const text = heading[2].replace(/\s+#+\s*$/, '').trim();
+        html += `<h${level}>${inlineMd(text)}</h${level}>`;
         continue;
       }
-      const ul = line.match(/^\s*[-*]\s+(.*)/);
-      if (ul) {
-        if (listType !== 'ul') {
-          closeList();
-          html += '<ul>';
-          listType = 'ul';
-        }
-        html += `<li>${inlineMd(ul[1])}</li>`;
-        continue;
-      }
-      const ol = line.match(/^\s*\d+[.)]\s+(.*)/);
-      if (ol) {
-        if (listType !== 'ol') {
-          closeList();
-          html += '<ol>';
-          listType = 'ol';
-        }
-        html += `<li>${inlineMd(ol[1])}</li>`;
-        continue;
-      }
-      if (/^\s*---+\s*$/.test(line)) {
+
+      // horizontal rule --- *** ___
+      if (/^\s*([-*_])\s*(\1\s*){2,}\s*$/.test(line)) {
         closeList();
         html += '<hr>';
         continue;
       }
+
+      // task list - [x] / - [ ]
+      const task = line.match(/^\s*[-*+]\s+\[(x| )\]\s+(.*)/i);
+      if (task) {
+        if (listType !== 'ul') { closeList(); html += '<ul class="task-list">'; listType = 'ul'; }
+        const checked = task[1].toLowerCase() === 'x';
+        html += `<li class="task"><label><input type="checkbox" disabled${checked ? ' checked' : ''}> ${inlineMd(task[2])}</label></li>`;
+        continue;
+      }
+
+      // unordered list
+      const ul = line.match(/^\s*[-*+]\s+(.*)/);
+      if (ul) {
+        if (listType !== 'ul') { closeList(); html += '<ul>'; listType = 'ul'; }
+        html += `<li>${inlineMd(ul[1])}</li>`;
+        continue;
+      }
+
+      // ordered list 1.  1)
+      const ol = line.match(/^\s*\d+[.)]\s+(.*)/);
+      if (ol) {
+        if (listType !== 'ol') { closeList(); html += '<ol>'; listType = 'ol'; }
+        html += `<li>${inlineMd(ol[1])}</li>`;
+        continue;
+      }
+
+      // hard break: line ends with two spaces
+      const hardBreak = / {2}$/.test(line);
       closeList();
-      html += `<p>${inlineMd(line)}</p>`;
+      html += `<p>${inlineMd(line)}${hardBreak ? '<br>' : ''}</p>`;
     }
-    if (inCode && codeBuf.length) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
+    if (inCode && codeBuf.length) html += `<pre><code${codeLang ? ` class="lang-${esc(codeLang)}"` : ''}>${esc(codeBuf.join('\n'))}</code></pre>`;
     closeList();
     return html;
   }
@@ -204,18 +301,11 @@
   }
 
   function renderProviderBadge() {
-    const badge = $('#ai-provider-badge');
     const preset = state.providers.find(p => p.id === state.active.provider);
     const name = preset ? preset.name : (state.active.provider || 'demo');
     const model = state.active.model || preset?.defaultModel || '';
     const live = state.active.provider !== 'demo';
-    if (badge) {
-      badge.classList.toggle('live', live);
-      badge.innerHTML = `
-        <span class="dot"></span>
-        <span class="name">${esc(name)}${model ? ' · ' + esc(model) : ''}</span>
-        <span class="gear"><i class="ti ti-settings"></i></span>`;
-    }
+    // single provider display: the chip above the composer input (keep only this one)
     const modelChip = $('#ai-model-chip');
     if (modelChip) {
       modelChip.innerHTML = `<i class="ti ti-cpu"></i> ${esc(name)}${model ? ' · ' + esc(model) : ''} <i class="ti ti-settings" style="margin-left:2px"></i>`;

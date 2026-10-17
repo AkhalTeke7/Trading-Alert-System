@@ -42,6 +42,13 @@
 .j-analyze.open{display:block}
 .j-analyze-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .j-analyze h3{font-family:var(--font-serif);font-weight:400;font-size:20px;letter-spacing:-.01em}
+.j-btn.red{background:var(--red);color:#fff;border-color:var(--red);letter-spacing:.1em}
+.j-btn.red:hover{filter:brightness(1.08);border-color:var(--red);color:#fff}
+.j-analyze-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px;border:1px solid rgba(209,59,47,.28);background:rgba(209,59,47,.06)}
+.j-analyze-nav .j-btn.red{background:var(--red);color:#fff;border-color:var(--red);letter-spacing:.1em}
+.j-analyze-nav .j-btn.red:hover{filter:brightness(1.08);border-color:var(--red);color:#fff}
+.j-analyze-nav-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:6px;margin-right:4px}
+.j-analyze-nav-label i{width:6px;height:6px;background:var(--red);display:inline-block;border-radius:50%;animation:pulse 2s ease-in-out infinite}
 .j-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}
 @media(max-width:900px){ .j-kpis{grid-template-columns:repeat(3,1fr)} }
 .j-kpi{border:1px solid var(--line);background:rgba(233,228,214,.03);padding:10px}
@@ -168,11 +175,9 @@
 .j-lightbox.open{display:grid}
 .j-lightbox img{max-width:92vw;max-height:92vh;border:1px solid var(--line);background:#000}
 .j-lightbox .close-lb{position:absolute;top:16px;right:16px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);background:var(--bg);color:var(--bone);padding:8px 10px}
-.j-drive{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;color:var(--dim);border:1px solid var(--line);padding:6px 8px;background:rgba(233,228,214,.03);display:inline-flex;align-items:center;gap:6px}
-.j-drive.ok{color:var(--up);border-color:rgba(59,196,122,.25)}
-.j-drive.bad{color:var(--red)}
 .j-sync{border:1px solid var(--line);background:var(--panel);padding:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .j-sync .tag{white-space:nowrap}
+.j-sync-note{font-family:var(--font-mono);font-size:10px;color:var(--dim);letter-spacing:.04em;line-height:1.5}
 #import-file{display:none}
 </style>
 </head>
@@ -182,7 +187,7 @@
     <div class="brand-icon"><i class="fa-solid fa-bolt"></i></div>
     <span class="brand-name">Price-Alert</span>
     <span class="divider"></span>
-    <p class="welcome-text">Journal — image dossier</p>
+    <p class="welcome-text">Journal</p>
   </div>
   <nav class="right-header">
     <button type="button" class="paragraph" onclick="location.href='./main.html'">Markets</button>
@@ -193,9 +198,8 @@
   <div class="content">
     <button class="j-btn sm" onclick="location.href='./main.html'" style="margin-bottom:12px"><i class="ti ti-arrow-left" style="margin-right:6px"></i> Back to Main</button>
     <div class="section-label">
-      <span class="tag"><span class="orkhon">𐱅</span> · Journal · image based · 3 shots / trade</span>
+      <span class="tag"><span class="orkhon">𐱅</span> · Journal</span>
       <span class="rule"></span>
-      <span class="tag" style="color:var(--dim)">Desktop</span>
     </div>
     <div class="j-stratbar" id="stratbar">
       <span class="tag">Strategies</span>
@@ -206,15 +210,12 @@
       </div>
     </div>
     <div class="j-sync" id="sync-bar">
-      <span class="tag">Sync — Drive</span>
-      <span id="drive-status" class="j-drive">Drive: checking…</span>
-      <span id="drive-file-info" style="font-family:var(--font-mono);font-size:10px;color:var(--dim)"></span>
-      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="tag">Local Journal</span>
+      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="j-btn sm" id="btn-export">Export JSON</button>
         <input type="file" id="import-file" accept="application/json,.json">
         <label for="import-file" class="j-btn sm" style="display:inline-flex;align-items:center">Import JSON</label>
-        <button class="j-btn sm" id="btn-load-drive">Load from Drive</button>
-        <button class="j-btn primary sm" id="btn-save-drive">Save to Drive</button>
+        <span id="export-meta" style="font-family:var(--font-mono);font-size:10px;color:var(--dim)"></span>
       </div>
     </div>
     <p id="sync-msg" style="font-family:var(--font-mono);font-size:10px;color:var(--dim);min-height:1em;margin:-6px 0 10px"></p>
@@ -226,67 +227,18 @@
         <div class="j-stat"><k>Net (preview)</k><v id="st-pnl">—</v></div>
       </div>
       <div class="j-actions">
-        <button class="j-btn ghost" id="btn-analyze">Analyze ▾</button>
+        <button class="j-btn red" id="btn-analyze">Analyze ▾</button>
         <button class="j-btn" id="btn-clear">Clear</button>
         <button class="j-btn primary" id="btn-new">+ New trade</button>
       </div>
     </div>
     <div class="j-analyze" id="analyze">
-      <div class="j-analyze-head">
-        <h3>Analyze — detailed view</h3>
-        <span class="tag" style="color:var(--dim)">filtered · <span id="an-count">—</span> trades</span>
-      </div>
-      <div class="j-kpis">
-        <div class="j-kpi"><k>Profit factor</k><v id="an-pf">—</v></div>
-        <div class="j-kpi"><k>Avg win / Avg loss</k><v id="an-avg">—</v></div>
-        <div class="j-kpi"><k>Expectancy / trade</k><v id="an-exp">—</v></div>
-        <div class="j-kpi"><k>Best / Worst</k><v id="an-bw">—</v></div>
-        <div class="j-kpi"><k>Long / Short</k><v id="an-ls">—</v></div>
-        <div class="j-kpi"><k>Streak</k><v id="an-streak">—</v></div>
-      </div>
-      <div class="j-analyze-grid">
-        <!-- top row: charts -->
-        <div class="j-panel">
-          <h4>Win / Loss mix <span id="an-donut-sub" style="font-size:9px;color:var(--dim)"></span></h4>
-          <div class="j-donut-wrap">
-            <svg id="donut" class="j-donut" viewBox="0 0 42 42"></svg>
-            <div class="j-donut-legend" id="donut-legend"></div>
-          </div>
-        </div>
-        <div class="j-panel">
-          <h4>PnL distribution <span style="font-size:9px;color:var(--dim)">per trade</span></h4>
-          <div class="j-hist" id="hist"><svg id="hist-svg" viewBox="0 0 400 120" preserveAspectRatio="none"></svg></div>
-        </div>
-        <div class="j-panel">
-          <h4>By strategy <span id="an-strat-note" style="font-size:9px;color:var(--dim);letter-spacing:.06em"></span></h4>
-          <table class="j-table" id="tbl-strat"><thead><tr><th>Strategy</th><th>Trades</th><th>WR</th><th>PnL</th></tr></thead><tbody></tbody></table>
-        </div>
-        <div class="j-panel">
-          <h4>By pair</h4>
-          <table class="j-table" id="tbl-pair"><thead><tr><th>Pair</th><th>Trades</th><th>WR</th><th>PnL</th></tr></thead><tbody></tbody></table>
-        </div>
-        <div class="j-panel">
-          <h4>PnL by strategy <span style="font-size:9px;color:var(--dim)">bars</span></h4>
-          <div class="j-bars"><svg id="strat-bar-svg" viewBox="0 0 400 140" preserveAspectRatio="none"></svg></div>
-        </div>
-        <div class="j-panel">
-          <h4>Weekday edge</h4>
-          <div class="j-week" id="week-bars"></div>
-        </div>
-        <div class="j-panel">
-          <h4>PnL streaks <span style="font-size:9px;color:var(--dim)">green win / red loss</span></h4>
-          <div class="j-hist" style="height:90px;display:flex;align-items:center;gap:6px;padding:10px;overflow-x:auto" id="streak-row"></div>
-        </div>
-        <div class="j-panel">
-          <h4 style="gap:6px">Calendar — PnL per day <span id="cal-month" style="font-size:9px;color:var(--dim)"></span> <span class="j-cal-nav"><button id="cal-prev" title="Prev month">‹</button><button id="cal-next" title="Next month">›</button><button id="cal-today" title="Jump to today">Today</button></span> <span id="cal-filter-note" style="font-size:9px;color:var(--muted);margin-left:auto"></span></h4>
-          <div class="j-cal" id="cal-grid"></div>
-          <p style="font-family:var(--font-mono);font-size:9px;color:var(--dim);margin-top:6px">Click a day with trades to filter dossiers · click again or <a href="#" id="cal-clear" style="color:var(--bone)">Clear filter</a></p>
-        </div>
-        <div class="j-panel" style="grid-column:1 / -1">
-          <h4>Equity curve <span id="an-eq-note" style="font-size:9px;color:var(--dim)"></span></h4>
-          <div class="j-equity" id="equity"><svg id="eq-svg" viewBox="0 0 800 140" preserveAspectRatio="none"></svg></div>
-        </div>
-      </div>
+      <nav class="j-analyze-nav" id="analyze-nav" aria-label="Analyze pages">
+        <span class="j-analyze-nav-label"><i></i> Deep dive — choose a view</span>
+        <button type="button" class="j-btn sm red" data-analyze-page="overview" title="Open overview">Overview</button>
+        <button type="button" class="j-btn sm red" data-analyze-page="strategy" title="Open strategy lab">Strategy Lab</button>
+        <button type="button" class="j-btn sm red" data-analyze-page="calendar" title="Open calendar & equity">Calendar &amp; Equity</button>
+      </nav>
     </div>
     <div class="j-filters">
       <select id="f-pair"><option value="">All pairs</option><option>Gold / USD</option><option>EUR / USD</option><option>BTC / USD</option><option>GBP / USD</option><option>NASDAQ / USD</option><option>S&P 500 / USD</option></select>
@@ -296,7 +248,6 @@
       <span style="margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--dim);letter-spacing:.08em">images optional · click to enlarge</span>
     </div>
     <div class="j-grid" id="j-grid"></div>
-    <p style="margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--dim);letter-spacing:.06em">Images → Drive via <code style="color:var(--muted)">/api/journal/upload</code> + cached locally. Texts → <code style="color:var(--muted)">price-alert-journal.json</code> in Drive via <code style="color:var(--muted)">/api/journal/backup</code>. Import any backup JSON and pictures restore once Drive API is set. <span id="drive-hint"></span></p>
   </div>
 </div>
 <footer class="footer">
@@ -307,7 +258,7 @@
   <div class="j-modal-bg" id="modal-bg"></div>
   <div class="j-modal-box" role="dialog" aria-modal="true" aria-label="Trade">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
-      <span class="tag">New trade dossier · images optional — saved to Drive</span>
+      <span class="tag">New trade dossier · images optional — local only</span>
       <button class="j-btn sm" id="modal-x">✕ Close</button>
     </div>
     <div class="j-form">
@@ -322,11 +273,11 @@
     </div>
     <div style="margin-top:12px">
       <div class="j-upload-grid">
-        <div class="j-up"><label>01 — 1min chart</label><div class="prev" id="p0"><span>no image</span></div><input type="file" id="f0" accept="image/*"><label for="f0" class="j-file-btn">Choose file… (uploads to Drive)</label><input type="text" id="u0" placeholder="Or paste Drive / TradingView link"><div class="j-cap-input"><input id="c0" placeholder="Caption" maxlength="120"><span id="cc0">0/120</span></div><button class="j-btn sm" id="clr0" type="button">Clear image</button></div>
-        <div class="j-up"><label>02 — 15min chart</label><div class="prev" id="p1"><span>no image</span></div><input type="file" id="f1" accept="image/*"><label for="f1" class="j-file-btn">Choose file… (uploads to Drive)</label><input type="text" id="u1" placeholder="Or paste Drive / TradingView link"><div class="j-cap-input"><input id="c1" placeholder="Caption" maxlength="120"><span id="cc1">0/120</span></div><button class="j-btn sm" id="clr1" type="button">Clear image</button></div>
-        <div class="j-up"><label>03 — 1h chart</label><div class="prev" id="p2"><span>no image</span></div><input type="file" id="f2" accept="image/*"><label for="f2" class="j-file-btn">Choose file… (uploads to Drive)</label><input type="text" id="u2" placeholder="Or paste Drive / TradingView link"><div class="j-cap-input"><input id="c2" placeholder="Caption" maxlength="120"><span id="cc2">0/120</span></div><button class="j-btn sm" id="clr2" type="button">Clear image</button></div>
+        <div class="j-up"><label>01 — 1min chart</label><div class="prev" id="p0"><span>no image</span></div><input type="file" id="f0" accept="image/*"><label for="f0" class="j-file-btn">Choose file…</label><input type="text" id="u0" placeholder="Or paste image link (https://…)"><div class="j-cap-input"><input id="c0" placeholder="Caption" maxlength="120"><span id="cc0">0/120</span></div><button class="j-btn sm" id="clr0" type="button">Clear image</button></div>
+        <div class="j-up"><label>02 — 15min chart</label><div class="prev" id="p1"><span>no image</span></div><input type="file" id="f1" accept="image/*"><label for="f1" class="j-file-btn">Choose file…</label><input type="text" id="u1" placeholder="Or paste image link (https://…)"><div class="j-cap-input"><input id="c1" placeholder="Caption" maxlength="120"><span id="cc1">0/120</span></div><button class="j-btn sm" id="clr1" type="button">Clear image</button></div>
+        <div class="j-up"><label>03 — 1h chart</label><div class="prev" id="p2"><span>no image</span></div><input type="file" id="f2" accept="image/*"><label for="f2" class="j-file-btn">Choose file…</label><input type="text" id="u2" placeholder="Or paste image link (https://…)"><div class="j-cap-input"><input id="c2" placeholder="Caption" maxlength="120"><span id="cc2">0/120</span></div><button class="j-btn sm" id="clr2" type="button">Clear image</button></div>
       </div>
-      <p id="drive-upload-hint" style="font-family:var(--font-mono);font-size:10px;color:var(--dim);margin-top:8px">Files go to your Google Drive folder via API, then cached locally so next open doesn't re-download. You can still paste a TradingView snapshot link directly.</p>
+      <p style="font-family:var(--font-mono);font-size:10px;color:var(--dim);margin-top:8px">Images are stored locally. Choose a file or paste a link — exports embed them as compressed JPEG <code>data:</code> so the JSON is self-contained.</p>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       <button class="j-btn" id="m-cancel">Cancel</button>
@@ -337,150 +288,130 @@
 </div>
 <div class="j-lightbox" id="lightbox"><button class="close-lb" id="lb-x">✕ Close</button><img id="lb-img" alt=""></div>
 <script>
-const LS="pa.journal.v1", LS_STRAT="pa.strategies.v1", LS_CACHE="pa.journal.imgcache.v1";
+const LS="pa.journal.v1", LS_STRAT="pa.strategies.v1";
 const $ = s => document.querySelector(s);
 const grid=$("#j-grid"), fPair=$("#f-pair"), fOut=$("#f-outcome"), fStrat=$("#f-strat"), fSearch=$("#f-search");
-let trades=[]; let strategies=[]; let editId=null; let pendingImgs=[null,null,null]; // strings: data: or drive thumb or tv url
-let pendingUploading=[false,false,false];
-let imgCache={}; let driveConfigured=null;
-function loadCache(){ try{ imgCache=JSON.parse(localStorage.getItem(LS_CACHE)||"{}"); }catch{ imgCache={}; } if(!imgCache || typeof imgCache!=="object") imgCache={}; }
-function saveCache(){ try{ localStorage.setItem(LS_CACHE, JSON.stringify(imgCache)); }catch(e){ console.warn("cache quota",e); } }
-function extractDriveId(url){
-  let m=url.match(/\/d\/([a-zA-Z0-9_-]{10,})/); if(m) return m[1];
-  m=url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/); if(m) return m[1];
-  m=url.match(/thumbnail\?id=([a-zA-Z0-9_-]{10,})/); if(m) return m[1];
-  return null;
+let trades=[]; let strategies=[]; let editId=null; let pendingImgs=[null,null,null]; // strings: data: URL or https:// link
+function normalizeUrl(url){ return (url||"").trim(); }
+function cachedSrc(url){ return url||""; }
+function syncMsg(t, ok=false){ const el=$("#sync-msg"); if(!el) return; el.textContent=t; el.style.color= ok? "var(--up)": "var(--dim)"; if(t) setTimeout(()=>{ if(el.textContent===t) el.textContent=""; }, 4000); }
+// --- local image helpers — compress to JPEG data: URL to keep JSON small ---
+function loadImage(src){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>res(img);
+    img.onerror=()=>rej(new Error("load failed"));
+    img.src=src;
+  });
 }
-function normalizeDriveUrl(url){
-  const id=extractDriveId(url||"");
-  if(id) return "https://drive.google.com/thumbnail?id="+id+"&sz=w1200";
-  return (url||"").trim();
-}
-function driveThumbToProxy(url){
-  const id=extractDriveId(url||"");
-  if(id) return "/api/drive/thumb/"+id;
-  return url;
-}
-function normalizeUrl(url){
-  if(!url) return "";
-  url=url.trim();
-  if(url.includes("drive.google.com")) return normalizeDriveUrl(url);
-  return url;
-}
-function cachedSrc(url){
-  if(!url) return "";
-  if(url.startsWith("data:")) return url;
-  // if it's a drive thumb, prefer proxied thumb cached as data url if we have it
-  if(imgCache[url]) return imgCache[url];
-  return url;
-}
-async function fetchAndCache(url){
-  if(!url || url.startsWith("data:")) return url;
-  if(imgCache[url]) return imgCache[url];
-  // for drive thumbs, fetch via proxy (avoids CORS)
-  let fetchUrl=url;
-  if(url.includes("drive.google.com")) fetchUrl=driveThumbToProxy(url);
+async function compressDataUrl(dataUrl, maxW=1280, quality=0.62){
   try{
-    const res=await fetch(fetchUrl, {mode:"cors"});
-    if(!res.ok) return url;
-    const ct=res.headers.get("content-type")||"";
-    if(!ct.startsWith("image/") && !fetchUrl.includes("/api/drive/thumb")) return url;
-    const blob=await res.blob();
-    if(blob.size < 500) return url;
-    const data=await new Promise((res2,rej)=>{ const r=new FileReader(); r.onload=()=>res2(r.result); r.onerror=rej; r.readAsDataURL(blob); });
-    imgCache[url]=data; saveCache(); return data;
-  }catch{ return url; }
-}
-function syncMsg(t, ok=false){ const el=$("#sync-msg"); el.textContent=t; el.style.color= ok? "var(--up)": "var(--dim)"; if(t) setTimeout(()=>{ if(el.textContent===t) el.textContent=""; }, 4000); }
-async function checkDrive(){
-  try{
-    const r=await fetch("/api/drive/status");
-    const j=await r.json();
-    driveConfigured=!!j.configured;
-    const el=$("#drive-status");
-    const info=$("#drive-file-info");
-    if(driveConfigured){
-      el.textContent="Drive: connected ✓";
-      el.className="j-drive ok";
-      el.title="";
-      $("#drive-hint").textContent="Drive connected — uploads go straight to Drive via API.";
-      $("#drive-upload-hint").textContent="Drive connected — files upload straight to Drive via API, then cached locally.";
-      if(j.journal) info.textContent=`${j.journal.name} — ${new Date(j.journal.modifiedTime).toLocaleString()} — ${(j.journal.size/1024).toFixed(1)} KB`;
-      else info.textContent=`No ${j.journalName||"price-alert-journal.json"} yet — click Save to Drive.`;
-    } else {
-      el.textContent="Drive: not configured";
-      el.className="j-drive bad";
-      // show why — use diag from server
-      const d=j.diag||{};
-      let why = d.error || "set GOOGLE_DRIVE_SERVICE_ACCOUNT in .env";
-      if(d.error && d.error.startsWith("JSON parse")) why = d.error + (d.rawHead? ` — head: ${d.rawHead}…`:"");
-      el.title = `diag: ${JSON.stringify({hasEnv:d.hasEnv, rawLen:d.rawLen, hasClientEmail:d.hasClientEmail, hasPrivateKey:d.hasPrivateKey, error:d.error},null,0)}`;
-      info.innerHTML=`<span style="color:var(--red)">${esc(why)}</span> <a href="#" id="diag-link" style="color:var(--bone);text-decoration:underline">details</a>`;
-      const a=document.getElementById("diag-link");
-      if(a) a.addEventListener("click", async e=>{
-        e.preventDefault();
-        try{
-          const rr=await fetch("/api/drive/diag"); const jj=await rr.json();
-          alert("Drive diagnostics:\n"+JSON.stringify(jj,null,2)+"\n\nFix: in .env set GOOGLE_DRIVE_SERVICE_ACCOUNT to the full service-account JSON (or base64 of it), or GOOGLE_DRIVE_KEY_FILE=/path/to/key.json. Then restart npm start.");
-        }catch(err){ alert("diag fetch failed: "+err.message); }
-      });
-      $("#drive-hint").innerHTML=`Drive not configured — ${esc(why)}. Check <a href="#" onclick="fetch('/api/drive/diag').then(r=>r.json()).then(j=>alert(JSON.stringify(j,null,2)));return false" style="color:var(--bone);text-decoration:underline">diagnostics</a> or server console [drive].`;
-      $("#drive-upload-hint").textContent="Drive not configured — images saved locally as base64 until you fix .env and restart server.";
-    }
-  }catch(err){
-    $("#drive-status").textContent="Drive: unknown";
-    $("#drive-status").title=String(err);
+    if(!dataUrl.startsWith("data:")) return dataUrl;
+    // already JPEG and small enough? still re-encode to shrink
+    const img=await loadImage(dataUrl);
+    let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+    if(!w||!h) return dataUrl;
+    let nw=w, nh=h;
+    if(w>maxW){ nh=Math.round(h*maxW/w); nw=maxW; }
+    // also cap height to 1280 to avoid huge files
+    if(nh>1280){ nw=Math.round(nw*1280/nh); nh=1280; }
+    const canvas=document.createElement("canvas");
+    canvas.width=nw; canvas.height=nh;
+    const ctx=canvas.getContext("2d");
+    // for PNG with transparency, fill bone-like bg so JPEG not black
+    ctx.fillStyle="#0a0a0a";
+    ctx.fillRect(0,0,nw,nh);
+    ctx.drawImage(img,0,0,nw,nh);
+    // quality 0.62 is a good size/clarity tradeoff for charts
+    return canvas.toDataURL("image/jpeg", quality);
+  }catch{
+    return dataUrl;
   }
 }
-function buildBackupPayload(){
-  return { version: 1, exportedAt: new Date().toISOString(), strategies, trades };
+async function urlToCompressedDataUrl(url, maxW=1280, quality=0.62){
+  // try fetch -> blob -> dataUrl -> compress ; if CORS fails keep url
+  try{
+    const res=await fetch(url, { mode:"cors" });
+    if(!res.ok) return url;
+    const blob=await res.blob();
+    if(!blob.type.startsWith("image/")) return url;
+    const dataUrl=await new Promise((res2,rej)=>{ const r=new FileReader(); r.onload=()=>res2(r.result); r.onerror=rej; r.readAsDataURL(blob); });
+    return await compressDataUrl(dataUrl, maxW, quality);
+  }catch{
+    return url;
+  }
 }
+async function srcToCompressed(src){
+  if(!src) return src;
+  if(src.startsWith("data:")) return await compressDataUrl(src);
+  if(/^https?:\/\//i.test(src)) return await urlToCompressedDataUrl(src);
+  return src;
+}
+function buildBackupPayload(){
+  return { version: 2, exportedAt: new Date().toISOString(), strategies, trades };
+}
+// compressed payload: every image src becomes a JPEG data: URL (smaller). Falls back to original if CORS blocks.
+async function buildCompressedPayload(){
+  const outTrades = [];
+  for(const t of trades){
+    const imgs=[];
+    for(const im of (t.images||[])){
+      let src = im.src || "";
+      // numeric alternative: keep as base64 but also provide bytes length; we embed as data: JPEG to stay viewable.
+      // compress data: URLs or fetch remote https: -> JPEG
+      try{ src = await srcToCompressed(src); }catch{ /* keep original */ }
+      imgs.push({ src, cap: im.cap||"" });
+    }
+    outTrades.push({ ...t, images: imgs });
+  }
+  return { version: 2, exportedAt: new Date().toISOString(), strategies, trades: outTrades, note: "images embedded as compressed data:image/jpeg;base64 — local only" };
+}
+function bytesHuman(n){ if(n<1024) return n+" B"; if(n<1024*1024) return (n/1024).toFixed(1)+" KB"; return (n/1024/1024).toFixed(2)+" MB"; }
 function applyBackupPayload(payload, opts={}){
   if(!payload || typeof payload!=="object") throw new Error("Invalid backup");
   const s = Array.isArray(payload.strategies) ? payload.strategies.filter(x=> typeof x==="string" && x.trim()).map(x=>x.trim()) : null;
   const t = Array.isArray(payload.trades) ? payload.trades : (Array.isArray(payload) ? payload : null);
   if(!t) throw new Error("Backup missing trades array");
-  if(s && s.length) { strategies=s; _syncingFromDrive ? _origSaveStrat() : saveStrat(); }
-  trades=t.map(x=> ({...x, id: x.id || crypto.randomUUID()}));
-  _syncingFromDrive ? _origSave() : save();
-  renderStratUI(); render();
-  if(opts.warmCache) trades.forEach(tr=> (tr.images||[]).forEach(im=>{ if(im?.src && !im.src.startsWith("data:") && !imgCache[im.src]) fetchAndCache(im.src); }));
-  if(!opts.silent && driveConfigured && !_syncingFromDrive){
-    // imported file locally — push it to Drive so site ↔ Drive stay in sync
-    clearTimeout(_saveDriveTimer);
-    _saveDriveTimer=setTimeout(pushToDrive, 700);
+  // merge strategies: keep existing, add any new ones from import
+  if(s && s.length){
+    let addedStrat=0;
+    s.forEach(name=>{ if(!strategies.includes(name)){ strategies.push(name); addedStrat++; }});
+    if(addedStrat) saveStrat();
   }
-}
-async function uploadToDrive({ dataUrl, filename, mimeType }){
-  // dataUrl is base64, filename/mime from file input
-  const b64=dataUrl.includes(",")? dataUrl.split(",").pop(): dataUrl;
-  const res=await fetch("/api/journal/upload", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ data: b64, filename, mimeType })
+  // merge trades: add only dossiers whose id is not already present — never overwrite existing data
+  const existingIds = new Set(trades.map(x=>x.id));
+  let added=0, skipped=0;
+  const incoming = t.map(x=> ({...x, id: x.id || crypto.randomUUID()}));
+  incoming.forEach(item=>{
+    if(existingIds.has(item.id)){
+      skipped++;
+      return;
+    }
+    // also avoid exact duplicates when id was auto-generated (same content, different id) — optional: dedupe by content hash
+    trades.push(item);
+    existingIds.add(item.id);
+    added++;
   });
-  if(!res.ok){
-    const t=await res.text().catch(()=> "");
-    throw new Error("Drive upload failed "+res.status+": "+t.slice(0,300));
-  }
-  const j=await res.json();
-  // j.thumbnailLink is https://drive.google.com/thumbnail?id=...&sz=w1200 ; j.id is drive id
-  return j.thumbnailLink || ("https://drive.google.com/thumbnail?id="+j.id+"&sz=w1200");
+  // keep newest first for storage (render sorts anyway)
+  // no overwrite — existing trades stay untouched
+  if(added) save();
+  renderStratUI(); render();
+  return { added, skipped, totalIncoming: incoming.length };
 }
 function load(){
   try{ const r=localStorage.getItem(LS); if(r) trades=JSON.parse(r); }catch{} if(!Array.isArray(trades)) trades=[];
   try{ const r=localStorage.getItem(LS_STRAT); if(r) strategies=JSON.parse(r); }catch{} if(!Array.isArray(strategies)) strategies=[];
   if(!strategies.length) strategies=["BOS retest 15m","Breakout","Range","Liquidity sweep"];
-  loadCache(); migrate();
+  migrate();
 }
-function save(){ localStorage.setItem(LS, JSON.stringify(trades)); }
+function save(){ try{ localStorage.setItem(LS, JSON.stringify(trades)); }catch(e){ syncMsg("Local storage full — try Export (compressed) then clear old images. "+(e.message||"")); throw e; } }
 function saveStrat(){ localStorage.setItem(LS_STRAT, JSON.stringify(strategies)); }
 function migrate(){
   let changed=false;
   trades.forEach(t=>{
     if(t.entry!==undefined||t.sl!==undefined||t.tp!==undefined||t.size!==undefined){ delete t.entry; delete t.sl; delete t.tp; delete t.size; changed=true; }
     if(!t.strategy) { t.strategy = t.tags?.split(",")[0]?.trim() || strategies[0] || ""; changed=true; }
-    if(t.images && t.images.length){ t.images.forEach(im=>{ if(im.src && im.src.includes("drive.google.com") && !im.src.includes("thumbnail")){ const n=normalizeDriveUrl(im.src); if(n!==im.src){ im.src=n; changed=true; } } }); }
+    // leave old Drive URLs as-is; no Drive normalization needed. They'll either load or be replaced on next export.
   });
   if(changed) save();
 }
@@ -507,196 +438,15 @@ function filtered(){
     if(p && t.pair!==p) return false;
     if(o && t.outcome!==o) return false;
     if(st && t.strategy!==st) return false;
-    if(calDayFilter && (t.date||"")!==calDayFilter) return false;
     if(q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(t.strategy||"")).toLowerCase().includes(q)) return false;
     return true;
   });
 }
-function analyze(){
-  const list=filtered();
-  $("#an-count").textContent=list.length;
-  const wins=list.filter(t=>t.outcome==='WIN'), losses=list.filter(t=>t.outcome==='LOSS'), bes=list.filter(t=>t.outcome==='BE');
-  const sumWin=wins.reduce((s,t)=>s+(hasPnL(t.pnl)? numPnL(t.pnl):0),0);
-  const sumLoss=Math.abs(losses.reduce((s,t)=>s+(hasPnL(t.pnl)? numPnL(t.pnl):0),0));
-  const pf=sumLoss>0? (sumWin/sumLoss).toFixed(2) : sumWin>0? "∞" : "—";
-  $("#an-pf").textContent=pf;
-  const avgW=wins.length? (sumWin/wins.length).toFixed(2):"—", avgL=losses.length? (-(sumLoss/losses.length)).toFixed(2):"—";
-  $("#an-avg").textContent=avgW+" / "+avgL;
-  const net=list.reduce((s,t)=>s+(hasPnL(t.pnl)? numPnL(t.pnl):0),0);
-  const exp=list.length? (net/list.length).toFixed(2):"—";
-  $("#an-exp").textContent=exp+" USD";
-  const vals=list.filter(t=>hasPnL(t.pnl)).map(t=>numPnL(t.pnl));
-  const best=vals.length? Math.max(...vals).toFixed(2):"—", worst=vals.length? Math.min(...vals).toFixed(2):"—";
-  $("#an-bw").textContent=best+" / "+worst;
-  const longs=list.filter(t=>t.dir==="Long").length, shorts=list.filter(t=>t.dir==="Short").length;
-  $("#an-ls").textContent=longs+" / "+shorts;
-  let cur=0, bestW=0, worstL=0, last=null;
-  list.slice().reverse().forEach(t=>{
-    if(t.outcome!==last) last=t.outcome;
-    if(t.outcome==="WIN"){ cur = last==="WIN"? cur+1:1; bestW=Math.max(bestW,cur); }
-    if(t.outcome==="LOSS"){ cur = last==="LOSS"? cur+1:1; worstL=Math.max(worstL,cur); }
-  });
-  let streak="—"; if(list.length){ const f=list[0].outcome; let c=0; for(const t of list){ if(t.outcome===f) c++; else break; } streak=c+"× "+f; }
-  $("#an-streak").textContent=streak + (bestW? ` · best ${bestW}W / ${worstL}L`:"");
-  const byStrat={}; list.forEach(t=>{ const k=t.strategy||"(no strategy)"; (byStrat[k]=byStrat[k]||{n:0,w:0,sum:0}) .n++; if(t.outcome==="WIN") byStrat[k].w++; if(hasPnL(t.pnl)) byStrat[k].sum+=numPnL(t.pnl); });
-  const tbodyS=$("#tbl-strat tbody"); tbodyS.innerHTML=Object.entries(byStrat).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.n?Math.round(v.w/v.n*100)+"%":"—"}</td><td style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--dim)">No trades in filter</td></tr>`;
-  const byPair={}; list.forEach(t=>{ const k=t.pair; (byPair[k]=byPair[k]||{n:0,w:0,sum:0}).n++; if(t.outcome==="WIN") byPair[k].w++; if(hasPnL(t.pnl)) byPair[k].sum+=numPnL(t.pnl); });
-  const tbodyP=$("#tbl-pair tbody"); tbodyP.innerHTML=Object.entries(byPair).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.n?Math.round(v.w/v.n*100)+"%":"—"}</td><td style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--dim)">—</td></tr>`;
-  let cum=0; const pts=[0]; list.slice().reverse().forEach(t=>{ cum+= hasPnL(t.pnl)? numPnL(t.pnl):0; pts.push(cum); });
-  $("#an-eq-note").textContent = pts.length>1? `· net ${pts[pts.length-1].toFixed(2)} USD`:"";
-  drawEquity(pts);
-  drawDonut(wins.length, losses.length, bes.length, list.length);
-  drawHist(vals);
-  drawStratBars(byStrat);
-  drawWeek(list);
-  drawStreakSeq(list);
-  drawCal(list);
-}
-function drawEquity(pts){
-  const svg=$("#eq-svg"); svg.innerHTML="";
-  if(pts.length<2){ svg.innerHTML=`<text x="10" y="20" fill="var(--dim)" font-family="JetBrains Mono" font-size="10">No PnL yet — add PnL per trade</text>`; return; }
-  const W=800,H=140, pad=10, min=Math.min(...pts,0), max=Math.max(...pts,0), span=Math.max(1, max-min);
-  const x = i=> pad + (i/(pts.length-1))*(W-pad*2), y = v=> pad + (1 - (v-min)/span)*(H-pad*2);
-  const d=pts.map((v,i)=> `${i?"L":"M"} ${x(i)} ${y(v)}`).join(" ");
-  const hi = pts[pts.length-1] >= pts[0];
-  svg.innerHTML=`<path d="M ${x(0)} ${y(0)} L ${x(pts.length-1)} ${y(0)}" stroke="rgba(233,228,214,.12)" stroke-width="1" fill="none"/><path d="${d}" fill="none" stroke="${hi?"#3bc47a":"#d13b2f"}" stroke-width="1.6"/><circle cx="${x(pts.length-1)}" cy="${y(pts[pts.length-1])}" r="3" fill="${hi?"#3bc47a":"#d13b2f"}" />`;
-}
-function drawDonut(w,l,be,total){
-  const svg=$("#donut"), legend=$("#donut-legend"), sub=$("#an-donut-sub");
-  if(!total){ svg.innerHTML=`<circle cx="21" cy="21" r="15" fill="none" stroke="rgba(233,228,214,.08)" stroke-width="6"/><text x="21" y="23" text-anchor="middle" font-family="JetBrains Mono" font-size="5" fill="var(--dim)">—</text>`; legend.innerHTML=""; sub.textContent=""; return; }
-  sub.textContent=`${total} trades`;
-  const wp=w/total*100, lp=l/total*100, bp=be/total*100;
-  // donut via stroke-dasharray on 100 circumference
-  let off=0;
-  const seg=(pct,color)=> pct<0.5? "" : `<circle cx="21" cy="21" r="15.915" fill="none" stroke="${color}" stroke-width="3.5" stroke-dasharray="${pct.toFixed(2)} ${ (100-pct).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)"/>`;
-  // trick: need sequential offsets
-  let html=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(233,228,214,.08)" stroke-width="3.5"/>`;
-  if(wp>0){ html+=seg(wp,"#3bc47a"); off+=wp; }
-  if(lp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#d13b2f" stroke-width="3.5" stroke-dasharray="${lp.toFixed(2)} ${(100-lp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)"/>`; off+=lp; }
-  if(bp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#e9e4d6" stroke-width="3.5" stroke-dasharray="${bp.toFixed(2)} ${(100-bp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)" opacity=".55"/>`; }
-  html+=`<circle cx="21" cy="21" r="10" fill="var(--bg)"/><text x="21" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="4.5" fill="var(--bone)">${Math.round(wp)}% WR</text>`;
-  svg.innerHTML=html;
-  legend.innerHTML=`<span><i style="background:#3bc47a"></i>WIN ${w} · ${wp.toFixed(0)}%</span><span><i style="background:#d13b2f"></i>LOSS ${l} · ${lp.toFixed(0)}%</span><span><i style="background:var(--bone);opacity:.6"></i>BE ${be} · ${bp.toFixed(0)}%</span>`;
-}
-function drawHist(vals){
-  const svg=$("#hist-svg"); svg.innerHTML="";
-  if(!vals.length){ svg.innerHTML=`<text x="10" y="60" font-family="JetBrains Mono" font-size="9" fill="var(--dim)">No PnL</text>`; return; }
-  const bins=8, min=Math.min(...vals), max=Math.max(...vals), span=Math.max(1,max-min), step=span/bins;
-  const counts=new Array(bins).fill(0);
-  vals.forEach(v=>{ let idx=Math.floor((v-min)/step); if(idx>=bins) idx=bins-1; counts[idx]++; });
-  const mx=Math.max(...counts,1), W=400,H=120, pad=8, bw=(W-pad*2)/bins - 4;
-  counts.forEach((c,i)=>{
-    const h= (c/mx)*(H-28), x=pad + i*((W-pad*2)/bins)+2, y=H-18-h;
-    const midVal=min+step*(i+0.5);
-    const color= midVal>=0? "#3bc47a":"#d13b2f";
-    svg.innerHTML+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${color}" opacity=".85" stroke="rgba(233,228,214,.12)" stroke-width="1"/><text x="${x+bw/2}" y="${y-3}" text-anchor="middle" font-family="JetBrains Mono" font-size="7" fill="var(--muted)">${c||""}</text><text x="${x+bw/2}" y="${H-6}" text-anchor="middle" font-family="JetBrains Mono" font-size="6" fill="var(--dim)">${(min+step*i).toFixed(0)}</text>`;
-  });
-  // zero line
-  const zeroFrac=(0-min)/span;
-  if(zeroFrac>0 && zeroFrac<1){
-    const zx=pad+zeroFrac*(W-pad*2);
-    svg.innerHTML+=`<line x1="${zx}" y1="8" x2="${zx}" y2="${H-18}" stroke="var(--bone)" stroke-width="0.7" stroke-dasharray="3 3" opacity=".5"/>`;
-  }
-}
-function drawStratBars(byStrat){
-  const svg=$("#strat-bar-svg"); svg.innerHTML="";
-  const entries=Object.entries(byStrat).sort((a,b)=> b[1].sum - a[1].sum);
-  if(!entries.length){ svg.innerHTML=`<text x="10" y="20" font-family="JetBrains Mono" font-size="9" fill="var(--dim)">No data</text>`; return; }
-  const maxAbs=Math.max(...entries.map(([,v])=>Math.abs(v.sum)),1);
-  const W=400,H=140, rowH= H / entries.length, padL=90;
-  entries.forEach(([k,v],i)=>{
-    const y= i*rowH + 8, barW= Math.abs(v.sum)/maxAbs * (W - padL - 24), isPos=v.sum>=0;
-    const x= isPos? padL : padL - barW; // negative goes left? simpler: all from padL
-    const bx=padL, bw=barW;
-    const color=isPos? "#3bc47a":"#d13b2f";
-    // label
-    svg.innerHTML+=`<text x="6" y="${y+rowH/2+3}" font-family="JetBrains Mono" font-size="7" fill="var(--muted)">${esc(k).slice(0,16)}</text>`;
-    svg.innerHTML+=`<rect x="${bx}" y="${y+2}" width="${W-padL-12}" height="${rowH-6}" fill="rgba(233,228,214,.06)" stroke="rgba(233,228,214,.08)" stroke-width="1"/>`;
-    svg.innerHTML+=`<rect x="${bx}" y="${y+2}" width="${bw}" height="${rowH-6}" fill="${color}" opacity=".9"/>`;
-    svg.innerHTML+=`<text x="${bx+bw+4}" y="${y+rowH/2+3}" font-family="JetBrains Mono" font-size="7" fill="var(--bone)">${v.sum>=0?"+":""}${v.sum.toFixed(0)}</text>`;
-  });
-}
-function drawWeek(list){
-  const el=$("#week-bars"); el.innerHTML="";
-  const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-  const map={0:6,1:0,2:1,3:2,4:3,5:4,6:5};
-  const g={}; list.forEach(t=>{ const d=new Date(t.date); if(isNaN(d)) return; const idx=map[d.getDay()]; const pnl=hasPnL(t.pnl)? numPnL(t.pnl):0; if(!g[idx]) g[idx]={sum:0,n:0}; g[idx].sum+=pnl; g[idx].n++; });
-  const sums=Object.values(g).map(x=>Math.abs(x.sum));
-  const mx=Math.max(...sums,1);
-  days.forEach((name,i)=>{
-    const v=g[i];
-    const sum=v? v.sum:0, n=v? v.n:0;
-    const h= v? Math.max(4, Math.abs(sum)/mx*54) : 2;
-    const cls=sum>0?"": sum<0?"loss": "be";
-    const pnlTxt=n? (sum>=0?"+":"")+sum.toFixed(0):"—";
-    el.innerHTML+=`<div class="j-week-col"><div class="j-week-candle"><div class="j-week-wick ${cls}"></div><div class="j-week-bar ${cls}" style="height:${h}px" title="${name}: ${pnlTxt} · ${n} tr"></div></div><k>${name}</k><v>${pnlTxt}</v><span class="j-week-n">${n||0} tr</span></div>`;
-  });
-}
-function drawStreakSeq(list){
-  const el=$("#streak-row"); el.innerHTML="";
-  if(!list.length){ el.innerHTML=`<span style="font-family:var(--font-mono);font-size:10px;color:var(--dim)">—</span>`; return; }
-  // build streaks chronologically
-  const chrono=list.slice().reverse();
-  let seq=[]; chrono.forEach(t=>{
-    const c=t.outcome==="WIN"?"W": t.outcome==="LOSS"?"L":"B";
-    if(seq.length && seq[seq.length-1].c===c) seq[seq.length-1].n++;
-    else seq.push({c,n:1});
-  });
-  // cap to last 20 streaks
-  seq=seq.slice(-20);
-  const mx=Math.max(...seq.map(s=>s.n),1);
-  seq.forEach(s=>{
-    const w= 18 + s.n/mx*48, color=s.c==="W"?"#3bc47a":s.c==="L"?"#d13b2f":"var(--bone)";
-    el.innerHTML+=`<div style="min-width:${w}px;height:28px;background:${color};opacity:${s.c==="B"?.45:.9};border:1px solid rgba(233,228,214,.12);display:grid;place-items:center;font-family:var(--font-mono);font-size:10px;color:${s.c==="B"?"var(--bg)":"#fff"};padding:0 6px">${s.c}×${s.n}</div>`;
-  });
-}
-let calY=null, calM=null, calDayFilter=null; // YYYY-MM-DD or null
-function tradesForCal(){
-  const q=(fSearch.value||"").toLowerCase(), p=fPair.value, o=fOut.value, st=fStrat.value;
-  return trades.filter(t=>{
-    if(p && t.pair!==p) return false;
-    if(o && t.outcome!==o) return false;
-    if(st && t.strategy!==st) return false;
-    if(q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(t.strategy||"")).toLowerCase().includes(q)) return false;
-    return true;
-  });
-}
-function drawCal(_ignored){
-  const grid=$("#cal-grid"), label=$("#cal-month"), note=$("#cal-filter-note");
-  const now=new Date();
-  if(calY===null){ calY=now.getFullYear(); calM=now.getMonth(); }
-  const y=calY, m=calM;
-  label.textContent=new Date(y,m,1).toLocaleDateString('en-US',{month:'long', year:'numeric'});
-  if(note) note.textContent = calDayFilter ? `Filtering: ${calDayFilter} ✕` : "";
-  const first=new Date(y,m,1).getDay(), daysIn=new Date(y,m+1,0).getDate();
-  const off=(first+6)%7;
-  // calendar reflects the current pair/outcome/strategy/search filters, but NOT the day filter — so you can see all days to switch
-  const calBase = tradesForCal();
-  const byDay={}; calBase.forEach(t=>{
-    const d=new Date(t.date); if(d.getFullYear()!==y || d.getMonth()!==m) return;
-    const k=d.getDate(); if(!byDay[k]) byDay[k]={sum:0,n:0}; byDay[k].sum+= hasPnL(t.pnl)? numPnL(t.pnl):0; byDay[k].n++;
-  });
-  let html=`<div class="j-cal-head">Mon</div><div class="j-cal-head">Tue</div><div class="j-cal-head">Wed</div><div class="j-cal-head">Thu</div><div class="j-cal-head">Fri</div><div class="j-cal-head">Sat</div><div class="j-cal-head">Sun</div>`;
-  for(let i=0;i<off;i++) html+=`<div class="j-cal-cell" style="opacity:.2"><k></k></div>`;
-  for(let d=1; d<=daysIn; d++){
-    const v=byDay[d];
-    const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isSel = calDayFilter===iso;
-    const has = !!v;
-    const cls=v? (v.sum>0?"win": v.sum<0?"loss":"has") : "";
-    const sel = isSel ? " sel" : "";
-    const clickable = has ? " clickable" : "";
-    html+=`<div class="j-cal-cell ${cls}${sel}${clickable}" data-cal-day="${iso}" ${has?`title="${v.n} trade(s) — click to filter"`:""}><k>${d}</k>${v? `<v style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(0)}</v><span style="font-family:var(--font-mono);font-size:9px;color:var(--dim)">${v.n} tr</span>` : `<v style="color:var(--dim)">—</v>`}</div>`;
-  }
-  grid.innerHTML=html;
-}
-function calSet(y,m){ calY=y; calM=m; if(calM<0){calY--; calM=11;} if(calM>11){calY++; calM=0;} analyze(); }
-function clearCalFilter(e){ if(e) e.preventDefault(); calDayFilter=null; render(); analyze(); }
 function render(){
   stats(); renderStratUI();
   const list=filtered();
   if(!list.length){
-    grid.innerHTML = `<div class="j-empty"><h3>No dossiers yet</h3><p>Click <b style="color:var(--bone)">+ New trade</b> — text only or add 1min · 15min · 1h images (Drive / TradingView link supported)</p><p style="margin-top:10px"><button class="j-btn primary" onclick="document.getElementById('btn-new').click()">+ New trade</button></p></div>`;
+    grid.innerHTML = `<div class="j-empty"><h3>No dossiers yet</h3><p style="margin-top:10px"><button class="j-btn primary" onclick="document.getElementById('btn-new').click()">+ New trade</button></p></div>`;
     if($("#analyze").classList.contains("open")) analyze();
     return;
   }
@@ -743,12 +493,9 @@ function render(){
     </article>`;
   }).join("");
   if($("#analyze").classList.contains("open")) analyze();
-  list.forEach(t=> (t.images||[]).forEach(im=>{
-    if(im?.src && !im.src.startsWith("data:") && !imgCache[im.src]) fetchAndCache(im.src);
-  }));
 }
 function openModal(id=null){
-  editId=id; pendingImgs=[null,null,null]; pendingUploading=[false,false,false];
+  editId=id; pendingImgs=[null,null,null];
   $("#m-err").textContent="";
   renderStratUI();
   [0,1,2].forEach(i=>{ $("#p"+i).innerHTML="<span>no image</span>"; $("#f"+i).value=""; $("#u"+i).value=""; $("#c"+i).value=""; $("#cc"+i).textContent="0/120"; });
@@ -756,7 +503,7 @@ function openModal(id=null){
     const t=trades.find(x=>x.id===id); if(!t) return;
     $("#m-pair").value=t.pair; $("#m-date").value=t.date||""; $("#m-dir").value=t.dir; $("#m-out").value=t.outcome; $("#m-strat").value=t.strategy||strategies[0]||"";
     $("#m-pnl").value=t.pnl||""; $("#m-tags").value=t.tags||""; $("#m-notes").value=t.notes||"";
-    (t.images||[]).slice(0,3).forEach((im,i)=>{ if(im?.src){ const disp=cachedSrc(im.src); $("#p"+i).innerHTML=`<img src="${disp}">`; $("#u"+i).value=im.src.startsWith("data:")?"":im.src; $("#c"+i).value=im.cap||""; $("#cc"+i).textContent=(im.cap||"").length+"/120"; pendingImgs[i]=im.src; }});
+    (t.images||[]).slice(0,3).forEach((im,i)=>{ if(im?.src){ $("#p"+i).innerHTML=`<img src="${esc(im.src)}">`; $("#u"+i).value=im.src.startsWith("data:")?"":im.src; $("#c"+i).value=im.cap||""; $("#cc"+i).textContent=(im.cap||"").length+"/120"; pendingImgs[i]=im.src; }});
   } else {
     $("#m-date").value = new Date().toISOString().slice(0,10);
     $("#m-strat").value = strategies[0]||"";
@@ -768,43 +515,25 @@ function fileToData(f){ return new Promise((res,rej)=>{ const r=new FileReader()
 [0,1,2].forEach(i=>{
   $("#f"+i).addEventListener("change", async e=>{
     const f=e.target.files[0]; if(!f) return;
-    const dataUrl=await fileToData(f);
-    // immediate preview
+    const raw=await fileToData(f);
+    // compress immediately so localStorage stays small; keep preview
+    let dataUrl=raw;
+    try{ dataUrl=await compressDataUrl(raw); }catch{}
     pendingImgs[i]=dataUrl;
-    $("#p"+i).innerHTML=`<img src="${dataUrl}"><span class="up-badge">${driveConfigured ? "uploading to Drive…" : "stored locally"}</span>`;
+    $("#p"+i).innerHTML=`<img src="${dataUrl}"><span class="up-badge" style="color:var(--up);border-color:rgba(59,196,122,.25)">local · compressed</span>`;
     $("#u"+i).value="";
-    // if Drive is configured, upload in background and replace src with drive thumbnail
-    if(driveConfigured){
-      pendingUploading[i]=true;
-      try{
-        const thumb=await uploadToDrive({ dataUrl, filename: f.name||`chart-${i}.jpg`, mimeType: f.type||"image/jpeg" });
-        pendingImgs[i]=thumb;
-        $("#p"+i).innerHTML=`<img src="${cachedSrc(thumb)}"><span class="up-badge" style="color:var(--up);border-color:rgba(59,196,122,.35)">Drive ✓ cached</span>`;
-        // warm local cache for next time — fetch thumb via proxy into data url
-        fetchAndCache(thumb);
-      }catch(err){
-        $("#m-err").textContent="Drive upload failed — saved locally. "+(err.message||"");
-        // keep dataUrl, will be saved as base64 fallback
-        pendingImgs[i]=dataUrl;
-        $("#p"+i).innerHTML=`<img src="${dataUrl}"><span class="up-badge" style="color:var(--red)">local only</span>`;
-      }finally{ pendingUploading[i]=false; }
-    } else {
-      // no drive — keep base64
-    }
+    const origKB=(raw.length/1024).toFixed(0), compKB=(dataUrl.length/1024).toFixed(0);
+    if(raw!==dataUrl) $("#m-err").textContent=`Image compressed ${origKB}KB → ${compKB}KB (JPEG)`;
   });
-  $("#u"+i).addEventListener("change", async e=>{
+  $("#u"+i).addEventListener("change", e=>{
     let v=normalizeUrl(e.target.value.trim());
     e.target.value=v;
     if(!v){ pendingImgs[i]=null; $("#p"+i).innerHTML="<span>no image</span>"; return; }
     pendingImgs[i]=v;
-    const disp=cachedSrc(v);
-    $("#p"+i).innerHTML=`<img src="${disp}" onerror="this.parentElement.innerHTML='<span style=&quot;color:var(--red)&quot;>load failed — check sharing / link</span>'">`;
-    fetchAndCache(v).then(cached=>{
-      if(cached && cached!==v && pendingImgs[i]===v) $("#p"+i).innerHTML=`<img src="${cached}">`;
-    });
+    $("#p"+i).innerHTML=`<img src="${esc(v)}" onerror="this.parentElement.innerHTML='<span style=&quot;color:var(--red)&quot;>load failed — check link / CORS</span>'">`;
   });
   $("#c"+i).addEventListener("input", e=>{ $("#cc"+i).textContent=e.target.value.length+"/120"; });
-  $("#clr"+i).addEventListener("click", ()=>{ pendingImgs[i]=null; pendingUploading[i]=false; $("#p"+i).innerHTML="<span>no image</span>"; $("#f"+i).value=""; $("#u"+i).value=""; $("#c"+i).value=""; $("#cc"+i).textContent="0/120"; });
+  $("#clr"+i).addEventListener("click", ()=>{ pendingImgs[i]=null; $("#p"+i).innerHTML="<span>no image</span>"; $("#f"+i).value=""; $("#u"+i).value=""; $("#c"+i).value=""; $("#cc"+i).textContent="0/120"; });
 });
 $("#btn-new").addEventListener("click",()=>openModal(null));
 $("#modal-x").addEventListener("click",closeModal);
@@ -812,7 +541,6 @@ $("#m-cancel").addEventListener("click",closeModal);
 $("#modal-bg").addEventListener("click",closeModal);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); closeLb(); }});
 $("#m-save").addEventListener("click", async ()=>{
-  if(pendingUploading.some(Boolean)){ $("#m-err").textContent="Still uploading to Drive — wait a moment…"; return; }
   const pair=$("#m-pair").value, date=$("#m-date").value, dir=$("#m-dir").value, outcome=$("#m-out").value, strategy=$("#m-strat").value;
   const pnl=$("#m-pnl").value.trim(), tags=$("#m-tags").value.trim(), notes=$("#m-notes").value.trim();
   if(!strategy){ $("#m-err").textContent="Pick a strategy — or add one above."; return; }
@@ -835,14 +563,14 @@ $("#m-save").addEventListener("click", async ()=>{
   const payload={ pair, date: date || new Date().toISOString().slice(0,10), dir, outcome, strategy, pnl, tags, notes, images: compact.slice(0,6) };
   if(editId){ const idx=trades.findIndex(x=>x.id===editId); if(idx>=0) trades[idx]={ ...trades[idx], ...payload }; }
   else trades.unshift({ id: crypto.randomUUID(), ...payload, createdAt: new Date().toISOString() });
-  compact.forEach(im=>{ if(im.src && !im.src.startsWith("data:") && !imgCache[im.src]) fetchAndCache(im.src); });
-  save(); closeModal(); render();
+  try{ save(); }catch(e){ return; }
+  closeModal(); render();
 });
 grid.addEventListener("click", e=>{
   const del=e.target.closest("[data-del]"); if(del){ const id=del.getAttribute("data-del"); if(confirm("Delete dossier?")){ trades=trades.filter(t=>t.id!==id); save(); render(); } return; }
   const dup=e.target.closest("[data-dup]"); if(dup){ const t=trades.find(x=>x.id===dup.getAttribute("data-dup")); if(t){ const c={...t, id:crypto.randomUUID(), date:new Date().toISOString().slice(0,10), createdAt:new Date().toISOString()}; trades.unshift(c); save(); render(); } return; }
   const ed=e.target.closest("[data-ed]"); if(ed){ openModal(ed.getAttribute("data-ed")); return; }
-  const an=e.target.closest("[data-an]"); if(an){ const t=trades.find(x=>x.id===an.getAttribute("data-an")); if(t){ fStrat.value=t.strategy||""; fPair.value=""; fOut.value=""; $("#analyze").classList.add("open"); $("#btn-analyze").textContent="Analyze ▴"; render(); analyze(); document.getElementById("analyze").scrollIntoView({behavior:"smooth"}); } return; }
+  const an=e.target.closest("[data-an]"); if(an){ const t=trades.find(x=>x.id===an.getAttribute("data-an")); if(t){ const qs=new URLSearchParams({ pair:"", outcome:"", strat: t.strategy||"", q:"" }).toString(); location.href="./analyze-strategy.html?"+qs; } return; }
   const view=e.target.closest("[data-view]"); if(view){ const t=trades.find(x=>x.id===view.getAttribute("data-view")); const i=Number(view.getAttribute("data-si")); const im=t?.images?.[i]; if(im?.src) openLb(cachedSrc(im.src)); return; }
   const img=e.target.closest(".j-shot-img"); if(img){ const s=img.getAttribute("data-img"); if(s) openLb(s); }
 });
@@ -850,27 +578,19 @@ function openLb(src){ $("#lb-img").src=src; $("#lightbox").classList.add("open")
 function closeLb(){ $("#lightbox").classList.remove("open"); $("#lb-img").src=""; }
 $("#lb-x").addEventListener("click",closeLb);
 $("#lightbox").addEventListener("click",e=>{ if(e.target.id==="lightbox") closeLb(); });
-$("#f-pair").addEventListener("change",()=>{ render(); if($("#analyze").classList.contains("open")) analyze(); });
-$("#f-outcome").addEventListener("change",()=>{ render(); if($("#analyze").classList.contains("open")) analyze(); });
-$("#f-strat").addEventListener("change",()=>{ render(); if($("#analyze").classList.contains("open")) analyze(); });
-$("#f-search").addEventListener("input",()=>{ render(); if($("#analyze").classList.contains("open")) analyze(); });
-$("#btn-analyze").addEventListener("click",()=>{ const a=$("#analyze"); const open=a.classList.toggle("open"); $("#btn-analyze").textContent=open?"Analyze ▴":"Analyze ▾"; if(open) analyze(); });
-// calendar nav + day filter
-$("#cal-prev")?.addEventListener("click",()=>{ if(calM===0){calY--;calM=11;}else calM--; analyze(); });
-$("#cal-next")?.addEventListener("click",()=>{ if(calM===11){calY++;calM=0;}else calM++; analyze(); });
-$("#cal-today")?.addEventListener("click",()=>{ const n=new Date(); calY=n.getFullYear(); calM=n.getMonth(); analyze(); });
-$("#cal-clear")?.addEventListener("click",clearCalFilter);
-$("#cal-filter-note")?.addEventListener("click",clearCalFilter);
-$("#cal-grid")?.addEventListener("click",e=>{
-  const cell=e.target.closest("[data-cal-day]");
-  if(!cell) return;
-  // only days with trades are clickable
-  if(!cell.classList.contains("clickable") && !cell.classList.contains("sel")) return;
-  const iso=cell.getAttribute("data-cal-day");
-  calDayFilter = (calDayFilter===iso) ? null : iso;
-  render();
-  if($("#analyze").classList.contains("open")) analyze(); else drawCal();
-  if(calDayFilter) document.getElementById("j-grid")?.scrollIntoView({behavior:"smooth", block:"start"});
+$("#f-pair").addEventListener("change",()=>render());
+$("#f-outcome").addEventListener("change",()=>render());
+$("#f-strat").addEventListener("change",()=>render());
+$("#f-search").addEventListener("input",()=>render());
+$("#btn-analyze").addEventListener("click",()=>{ const a=$("#analyze"); const open=a.classList.toggle("open"); $("#btn-analyze").textContent=open?"Analyze ▴":"Analyze ▾"; });
+$("#analyze-nav")?.addEventListener("click", e=>{
+  const b=e.target.closest("[data-analyze-page]"); if(!b) return;
+  const p=b.getAttribute("data-analyze-page");
+  // keep current filters in the URL so the detail page reflects the same filtered view
+  const qs=new URLSearchParams({ pair: fPair.value||"", outcome: fOut.value||"", strat: fStrat.value||"", q: fSearch.value||"" }).toString();
+  if(p==="overview") location.href="./analyze-overview.html?"+qs;
+  else if(p==="strategy") location.href="./analyze-strategy.html?"+qs;
+  else if(p==="calendar") location.href="./analyze-calendar.html?"+qs;
 });
 $("#btn-clear").addEventListener("click",()=>{ if(confirm("Clear all dossiers (preview storage)?")){ trades=[]; save(); render(); }});
 $("#strat-add").addEventListener("click",()=>{
@@ -885,138 +605,67 @@ $("#strat-chips").addEventListener("click",e=>{
   if(!confirm(`Remove strategy "${name}"? Trades using it will keep the name.`)) return;
   strategies=strategies.filter(s=>s!==name); saveStrat(); renderStratUI(); render();
 });
-$("#btn-export").addEventListener("click",()=>{
-  const blob=new Blob([JSON.stringify(buildBackupPayload(),null,2)],{type:"application/json"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="price-alert-journal.json"; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-  syncMsg("Exported price-alert-journal.json", true);
-});
+// Local-only export — single button, always compressed JPEG base64 (no cloud)
+async function doExport(compress=true){
+  const btn = document.querySelector("#btn-export");
+  const origText = btn ? btn.textContent : "";
+  if(btn){ btn.textContent="Exporting…"; btn.disabled=true; }
+  try{
+    const payload = compress ? await buildCompressedPayload() : buildBackupPayload();
+    const jsonStr = JSON.stringify(payload, null, 2);
+    const blob=new Blob([jsonStr],{type:"application/json"});
+    // update meta badge with sizes
+    const plainStr = JSON.stringify(buildBackupPayload());
+    const plainBytes = new Blob([plainStr]).size;
+    const compBytes = blob.size;
+    const metaEl=$("#export-meta");
+    if(metaEl){
+      // count images that got compressed vs left as link
+      let imgCount=0, dataCount=0;
+      (payload.trades||[]).forEach(t=> (t.images||[]).forEach(im=>{ imgCount++; if((im.src||"").startsWith("data:")) dataCount++; }));
+      metaEl.textContent = `${payload.trades.length} trades · ${imgCount} images (${dataCount} embedded) · ${bytesHuman(compBytes)}${plainBytes!==compBytes?` (plain ${bytesHuman(plainBytes)})`:""}`;
+    }
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="price-alert-journal.json"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    syncMsg(`Exported price-alert-journal.json — ${bytesHuman(compBytes)}${compress?" (images compressed to JPEG base64)":""} ✓`, true);
+  }catch(err){
+    syncMsg("Export failed: "+(err.message||err));
+  }finally{
+    if(btn){ btn.textContent=origText; btn.disabled=false; }
+  }
+}
+$("#btn-export").addEventListener("click",()=> doExport(true));
+$("#btn-export-compressed")?.addEventListener("click",()=> doExport(true));
+
 $("#import-file").addEventListener("change", async e=>{
   const f=e.target.files[0]; if(!f) return;
   try{
     const text=await f.text(); const payload=JSON.parse(text);
-    if(confirm(`Import ${Array.isArray(payload.trades)?payload.trades.length:0} trades`+(payload.strategies?` + ${payload.strategies.length} strategies`:"")+` from ${f.name}? This will overwrite local dossiers.`)){
-      applyBackupPayload(payload, {warmCache:true});
-      syncMsg("Imported "+f.name+" — "+trades.length+" dossiers", true);
-      checkDrive();
+    const n = Array.isArray(payload.trades)? payload.trades.length : Array.isArray(payload)? payload.length : 0;
+    const sCount = Array.isArray(payload.strategies)? payload.strategies.length : 0;
+    if(confirm(`Import ${n} trades`+(sCount?` + ${sCount} strategies`:"")+` from ${f.name}? New dossiers will be added — existing ones stay.`)){
+      const res = applyBackupPayload(payload);
+      syncMsg(`Import: +${res.added} new · ${res.skipped} skipped (already have) · ${trades.length} total ✓`, true);
+      const metaEl=$("#export-meta");
+      if(metaEl) metaEl.textContent = `${trades.length} trades · +${res.added} added`;
     }
   }catch(err){ syncMsg("Import failed: "+(err.message||err)); }
   e.target.value="";
 });
-$("#btn-save-drive").addEventListener("click", async ()=>{
-  if(!driveConfigured){ syncMsg("Drive not configured — set GOOGLE_DRIVE_SERVICE_ACCOUNT in .env"); return; }
-  const btn=$("#btn-save-drive"); btn.textContent="Saving…"; btn.disabled=true;
-  try{
-    const r=await fetch("/api/journal/backup",{method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(buildBackupPayload())});
-    if(!r.ok) throw new Error((await r.text()).slice(0,300));
-    const j=await r.json();
-    syncMsg("Saved to Drive: "+(j.name||"price-alert-journal.json")+" ✓", true);
-    checkDrive();
-  }catch(err){ syncMsg("Save to Drive failed: "+(err.message||err)); }
-  finally{ btn.textContent="Save to Drive"; btn.disabled=false; }
-});
-$("#btn-load-drive").addEventListener("click", async ()=>{
-  if(!driveConfigured){ syncMsg("Drive not configured — cannot load."); return; }
-  const btn=$("#btn-load-drive"); btn.textContent="Loading…"; btn.disabled=true;
-  try{
-    const r=await fetch("/api/journal/backup");
-    if(!r.ok) throw new Error((await r.text()).slice(0,400));
-    const payload=await r.json();
-    const n=Array.isArray(payload.trades)? payload.trades.length : 0;
-    if(!confirm(`Load ${n} trades from Drive backup? This will overwrite local dossiers.`)) { btn.textContent="Load from Drive"; btn.disabled=false; return; }
-    applyBackupPayload(payload, {warmCache:true});
-    syncMsg("Loaded "+n+" dossiers from Drive ✓ — pictures will appear once cached", true);
-  }catch(err){ syncMsg("Load from Drive failed: "+(err.message||err)); }
-  finally{ btn.textContent="Load from Drive"; btn.disabled=false; }
-});
-let _syncingFromDrive=false;
-let _driveSyncInFlight=false;
-// auto-save to Drive on every dossier mutation (create/edit/delete/strategy change) — debounced
-const _origSave=save;
-let _saveDriveTimer=null;
-async function pushToDrive(){
-  if(!driveConfigured || _syncingFromDrive || _driveSyncInFlight) return;
-  _driveSyncInFlight=true;
-  try{
-    const r=await fetch("/api/journal/backup",{method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(buildBackupPayload())});
-    if(!r.ok){
-      const t=await r.text().catch(()=> "");
-      console.warn("[drive push] failed", r.status, t.slice(0,300));
-      if(r.status===507) syncMsg("Drive quota — add Shared Drive (GOOGLE_DRIVE_SHARED_DRIVE_ID). Set in .env / wrangler secret.", false);
-    } else {
-      checkDrive();
-    }
-  }catch(e){ console.warn("[drive push] error", e); }
-  finally{ _driveSyncInFlight=false; }
-}
-function saveAndBackup(){
-  _origSave();
-  if(!driveConfigured || _syncingFromDrive) return;
-  clearTimeout(_saveDriveTimer);
-  _saveDriveTimer=setTimeout(pushToDrive, 700);
-}
-save = saveAndBackup;
-const _origSaveStrat=saveStrat;
-function saveStratAndBackup(){ _origSaveStrat(); saveAndBackup(); }
-saveStrat = saveStratAndBackup;
-
-let _lastPulledHash="";
-async function pullFromDrive({ silent=false, force=false }={}){
-  if(!driveConfigured) return null;
-  if(_driveSyncInFlight) return null;
-  try{
-    const r=await fetch("/api/journal/backup", { headers: { "Cache-Control":"no-store" }});
-    if(r.status===404){ if(!silent) syncMsg("No Drive backup yet — first save will create it."); return null; }
-    if(!r.ok){ const t=await r.text().catch(()=> ""); throw new Error(t.slice(0,400) || r.statusText); }
-    const payload=await r.json();
-    if(!payload || (!payload.trades && !Array.isArray(payload))) return null;
-    const remoteTrades = Array.isArray(payload.trades) ? payload.trades : [];
-    const remoteHash = JSON.stringify(remoteTrades.map(t=>t.id).sort()) + "|" + (payload.strategies||[]).join("|") + "|" + (payload.exportedAt||"");
-    if(force){
-      _syncingFromDrive=true;
-      try{ applyBackupPayload(payload, {warmCache:true, silent:true}); } finally{ _syncingFromDrive=false; }
-      _lastPulledHash=remoteHash;
-      if(!silent) syncMsg("Synced "+remoteTrades.length+" trades from Drive ✓", true);
-      return payload;
-    }
-    // first load: local empty -> adopt remote (even if silent)
-    if(!trades.length && remoteTrades.length){
-      _syncingFromDrive=true;
-      try{ applyBackupPayload(payload, {warmCache:true, silent:true}); } finally{ _syncingFromDrive=false; }
-      _lastPulledHash=remoteHash;
-      syncMsg("Loaded "+remoteTrades.length+" trades from Drive ✓", true);
-      return payload;
-    }
-    // silent live poll: if remote changed (including deletions) adopt it — last-write-wins
-    if(remoteHash !== _lastPulledHash){
-      const localHash = JSON.stringify(trades.map(t=>t.id).sort()) + "|" + strategies.join("|");
-      const remoteIds = remoteHash.split("|")[0];
-      if(remoteHash !== localHash){
-        // if silent poll and remote differs, auto-adopt (covers deletes/edits from other tab/device)
-        if(silent){
-          _syncingFromDrive=true;
-          try{ applyBackupPayload(payload, {warmCache:true, silent:true}); } finally{ _syncingFromDrive=false; }
-          _lastPulledHash=remoteHash;
-          syncMsg("Drive synced — "+remoteTrades.length+" trades", true);
-          return payload;
-        }
-        // non-silent but not forced: tell user
-        syncMsg("Drive has "+remoteTrades.length+" trades, local has "+trades.length+" — click Load from Drive to sync, or Save to push local.", false);
-      }
-      _lastPulledHash=remoteHash;
-    }
-    return payload;
-  }catch(e){
-    if(!silent) syncMsg("Drive sync failed: "+(e.message||e), false);
-    return null;
-  }
-}
 
 load(); renderStratUI(); render();
-checkDrive().then(()=> pullFromDrive({silent:true}));
-// live mirror: poll Drive in background + on tab focus so site ↔ Drive stay in sync without manual buttons
-setInterval(()=>{ if(driveConfigured && document.visibilityState==='visible') pullFromDrive({silent:true}); }, 30000);
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && driveConfigured) pullFromDrive({silent:true}); });
+(function refreshMeta(){
+  const metaEl=$("#export-meta");
+  if(metaEl){
+    let imgCount=0, dataCount=0;
+    trades.forEach(t=> (t.images||[]).forEach(im=>{ imgCount++; if((im.src||"").startsWith("data:")) dataCount++; }));
+    // estimate JSON size quickly
+    try{
+      const sz=new Blob([JSON.stringify({strategies,trades})]).size;
+      metaEl.textContent = `${trades.length} trades · ${imgCount} images (${dataCount} embedded) · ~${bytesHuman(sz)} local`;
+    }catch{ metaEl.textContent=`${trades.length} trades`; }
+  }
+})();
 </script>
 </body>
 </html>

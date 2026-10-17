@@ -146,6 +146,10 @@
   }
 
   function render() {
+    const prevBody = root.querySelector('.ais-body');
+    const savedTop = prevBody ? prevBody.scrollTop : 0;
+    const hadOpen = !!root.querySelector('.ais-drawer.open');
+    const savedFocusId = document.activeElement && document.activeElement.id ? document.activeElement.id : null;
     const editing = state.editingSkillId
       ? state.skills.find(skill => skill.id === state.editingSkillId)
       : null;
@@ -243,6 +247,43 @@
         </footer>
       </aside>`;
     wire();
+    const newBody = root.querySelector('.ais-body');
+    if (newBody) {
+      newBody.scrollTop = savedTop;
+      if (state.openProvider) {
+        const card = newBody.querySelector(`[data-provider="${state.openProvider}"]`);
+        if (card) {
+          const cardTop = card.offsetTop;
+          const cardBottom = cardTop + card.offsetHeight;
+          if (cardTop < newBody.scrollTop || cardBottom > newBody.scrollTop + newBody.clientHeight) {
+            card.scrollIntoView({ block: 'nearest' });
+          }
+        }
+      }
+    }
+    if (hadOpen) {
+      root.querySelector('.ais-backdrop')?.classList.add('open');
+      root.querySelector('.ais-drawer')?.classList.add('open');
+    }
+    // restore focus without scrolling the page to top
+    if (savedFocusId) {
+      const toFocus = document.getElementById(savedFocusId);
+      if (toFocus && typeof toFocus.focus === 'function') {
+        try { toFocus.focus({ preventScroll: true }); } catch { toFocus.focus(); }
+        if (toFocus.setSelectionRange && toFocus.value != null) {
+          const len = toFocus.value.length;
+          try { toFocus.setSelectionRange(len, len); } catch {}
+        }
+      }
+    } else if (document.activeElement === document.body) {
+      // focus was on a provider key/model input (no id) — restore via pending provider field
+      // keep drawer focus inside without jumping to window top
+      const fallback = newBody && newBody.querySelector('input:focus, select:focus');
+      if (!fallback && state.openProvider) {
+        const field = newBody && newBody.querySelector(`[data-provider="${state.openProvider}"][data-field]`);
+        if (field) { try { field.focus({ preventScroll: true }); } catch { field.focus(); } }
+      }
+    }
   }
 
   function providerDraft(id) {

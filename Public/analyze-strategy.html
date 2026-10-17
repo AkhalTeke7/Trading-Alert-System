@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strategy Lab — Price-Alert</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/theme.css"><script src="./js/theme.js"></script>
+<style>
+.main.journal-main{display:flex;flex:1;min-height:0;overflow:hidden}
+.main.journal-main .content{flex:1;min-height:0;overflow-y:auto}
+.j-btn{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:10px 14px;border:1px solid var(--line);background:var(--bg);color:var(--bone);cursor:pointer;transition:border-color .2s,background .2s,color .2s}
+.j-btn.primary{background:var(--bone);color:var(--bg);border-color:var(--bone)}
+.j-btn:hover{border-color:var(--line-strong)} .j-btn.primary:hover{filter:brightness(1.06)}
+.j-btn.sm{padding:7px 10px;font-size:10px}
+.j-btn.red{background:var(--red);color:#fff;border-color:var(--red);letter-spacing:.1em}
+.j-btn.red:hover{filter:brightness(1.08)}
+.j-btn.red.active{outline:1px solid #fff;outline-offset:-2px}
+.j-analyze-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px;border:1px solid rgba(209,59,47,.28);background:rgba(209,59,47,.06)}
+.j-analyze-nav-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:6px;margin-right:4px}
+.j-analyze-nav-label i{width:6px;height:6px;background:var(--red);display:inline-block;border-radius:50%;animation:pulse 2s ease-in-out infinite}
+.j-panel{border:1px solid var(--line);background:var(--bg);padding:10px}
+.j-panel h4{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.j-table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11.5px}
+.j-table th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);font-weight:500}
+.j-table td{padding:7px 6px;border-bottom:1px solid rgba(233,228,214,.07);color:var(--bone)}
+.j-bars{height:160px;border:1px solid var(--line);background:var(--bg);padding:8px 8px 0;position:relative}
+.j-bars svg{width:100%;height:100%;display:block;shape-rendering:geometricPrecision}
+.j-bars svg text{ text-rendering:geometricPrecision; -webkit-font-smoothing:antialiased; }
+.j-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){ .j-grid2{grid-template-columns:1fr} }
+.j-filter-bar{border:1px dashed var(--line);background:rgba(233,228,214,.03);padding:8px 10px;margin-bottom:12px;font-family:var(--font-mono);font-size:10px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.j-filter-bar b{color:var(--bone)}
+.main.journal-main .content{ max-width: 1180px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="left-header">
+    <div class="brand-icon"><i class="fa-solid fa-bolt"></i></div>
+    <span class="brand-name">Price-Alert</span>
+    <span class="divider"></span>
+    <p class="welcome-text">Journal / Analyze — Strategy Lab</p>
+  </div>
+  <nav class="right-header">
+    <button type="button" class="paragraph" onclick="location.href='./journal.html'">Journal</button>
+    <button type="button" class="paragraph" onclick="location.href='./main.html'">Markets</button>
+  </nav>
+</header>
+<div class="main journal-main">
+  <div class="content">
+    <button class="j-btn sm" onclick="location.href='./journal.html'" style="margin-bottom:12px"><i class="ti ti-arrow-left" style="margin-right:6px"></i> Back to Journal</button>
+    <div class="section-label">
+      <span class="tag"><span class="orkhon">𐱅</span> · Analyze — Strategy Lab</span>
+      <span class="rule"></span>
+      <span class="tag" style="color:var(--dim)" id="count-tag">— trades</span>
+    </div>
+    <nav class="j-analyze-nav" aria-label="Analyze pages">
+      <span class="j-analyze-nav-label"><i></i> Deep dive</span>
+      <button type="button" class="j-btn sm red" onclick="location.href='./analyze-overview.html'+location.search">Overview</button>
+      <button type="button" class="j-btn sm red active">Strategy Lab</button>
+      <button type="button" class="j-btn sm red" onclick="location.href='./analyze-calendar.html'+location.search">Calendar &amp; Equity</button>
+    </nav>
+    <div class="j-filter-bar" id="filter-bar"></div>
+    <div class="j-grid2">
+      <div class="j-panel">
+        <h4>By strategy</h4>
+        <table class="j-table" id="tbl-strat"><thead><tr><th>Strategy</th><th>Trades</th><th>WR</th><th>PnL</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="j-panel">
+        <h4>By pair</h4>
+        <table class="j-table" id="tbl-pair"><thead><tr><th>Pair</th><th>Trades</th><th>WR</th><th>PnL</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="j-panel">
+        <h4>PnL by strategy <span style="font-size:10px;color:var(--dim)">bars</span></h4>
+        <div class="j-bars"><svg id="strat-bar-svg" viewBox="0 0 400 140"></svg></div>
+      </div>
+      <div class="j-panel">
+        <h4>Weekday edge</h4>
+        <style>
+          .j-week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:132px;padding:10px 6px 0;background:var(--bg);border:1px solid var(--line);position:relative}
+          .j-week::before{content:"";position:absolute;left:6px;right:6px;bottom:36px;height:1px;background:rgba(233,228,214,.08);pointer-events:none}
+          .j-week-col{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+          .j-week-candle{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:78px;width:100%}
+          .j-week-wick{width:1px;height:8px;background:var(--up);opacity:.55;margin-bottom:1px;flex-shrink:0}
+          .j-week-wick.loss{background:var(--red)}
+          .j-week-wick.be{background:var(--bone)}
+          .j-week-bar{width:14px;max-width:44%;min-height:3px;background:var(--up);border:1px solid rgba(59,196,122,.4);border-radius:1px;transition:height .25s ease}
+          .j-week-bar.loss{background:var(--red);border-color:rgba(209,59,47,.35)}
+          .j-week-bar.be{background:var(--bone);opacity:.45;border-color:var(--line)}
+          .j-week-col k{font-family:var(--font-mono);font-size:10px;color:var(--dim);letter-spacing:.08em}
+          .j-week-col v{font-family:var(--font-mono);font-size:11px;color:var(--bone)}
+          .j-week-col .j-week-n{font-family:var(--font-mono);font-size:10px;color:var(--dim)}
+        </style>
+        <div class="j-week" id="week-bars"></div>
+      </div>
+      <div class="j-panel">
+        <h4>PnL streaks <span style="font-size:9px;color:var(--dim)">green win / red loss</span></h4>
+        <div style="height:90px;display:flex;align-items:center;gap:6px;padding:10px;overflow-x:auto;border:1px solid var(--line);background:var(--bg)" id="streak-row"></div>
+      </div>
+    </div>
+    <p style="margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--dim)">Local only — filtered from <code>localStorage pa.journal.v1</code>.</p>
+  </div>
+</div>
+<footer class="footer">
+  <div class="footer-content"><span>Market Pulse</span><span class="sep">/</span><span>Analyze</span><span class="sep">/</span><span>Strategy Lab</span></div>
+  <span class="footer-jp">𐰀 𐰴 𐰚 𐰀 𐰠 . 𐱅 𐰀 𐰚 𐰀</span>
+</footer>
+<script>
+const LS="pa.journal.v1";
+let trades=[];
+function numPnL(v){ const n=parseFloat(String(v??"").replace(/[^0-9.\-]/g,'')); return Number.isFinite(n)? n : 0; }
+function hasPnL(v){ return /-?\d/.test(String(v??"")); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function load(){ try{ const r=localStorage.getItem(LS); if(r) trades=JSON.parse(r);}catch{} if(!Array.isArray(trades)) trades=[]; }
+function getFilters(){ const p=new URLSearchParams(location.search); return { pair:p.get('pair')||'', outcome:p.get('outcome')||'', strat:p.get('strat')||'', q:(p.get('q')||'').toLowerCase() }; }
+function filtered(){
+  const f=getFilters();
+  return trades.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).filter(t=>{
+    if(f.pair && t.pair!==f.pair) return false;
+    if(f.outcome && t.outcome!==f.outcome) return false;
+    if(f.strat && t.strategy!==f.strat) return false;
+    if(f.q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(t.strategy||"")).toLowerCase().includes(f.q)) return false;
+    return true;
+  });
+}
+function drawStratBars(byStrat){
+  const svg=document.getElementById('strat-bar-svg'); svg.innerHTML="";
+  const entries=Object.entries(byStrat).sort((a,b)=> b[1].sum - a[1].sum);
+  if(!entries.length){ svg.innerHTML=`<text x="10" y="20" font-family="JetBrains Mono" font-size="9" fill="var(--dim)">No data</text>`; return; }
+  const maxAbs=Math.max(...entries.map(([,v])=>Math.abs(v.sum)),1);
+  const W=400,H=140, rowH= H / entries.length, padL=90;
+  entries.forEach(([k,v],i)=>{
+    const y= i*rowH + 8, barW= Math.abs(v.sum)/maxAbs * (W - padL - 24);
+    const bx=padL; const color=v.sum>=0? "#3bc47a":"#d13b2f";
+    svg.innerHTML+=`<text x="6" y="${y+rowH/2+3}" font-family="JetBrains Mono" font-size="8" fill="var(--muted)">${esc(k).slice(0,16)}</text>`;
+    svg.innerHTML+=`<rect x="${bx}" y="${y+2}" width="${W-padL-12}" height="${rowH-6}" fill="rgba(233,228,214,.06)" stroke="rgba(233,228,214,.08)" stroke-width="1"/>`;
+    svg.innerHTML+=`<rect x="${bx}" y="${y+2}" width="${barW}" height="${rowH-6}" fill="${color}" opacity=".9"/>`;
+    svg.innerHTML+=`<text x="${bx+barW+4}" y="${y+rowH/2+3}" font-family="JetBrains Mono" font-size="8" fill="var(--bone)">${v.sum>=0?"+":""}${v.sum.toFixed(0)}</text>`;
+  });
+}
+function drawWeek(list){
+  const el=document.getElementById('week-bars'); el.innerHTML="";
+  const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const map={0:6,1:0,2:1,3:2,4:3,5:4,6:5};
+  const g={}; list.forEach(t=>{ const d=new Date(t.date); if(isNaN(d)) return; const idx=map[d.getDay()]; const pnl=hasPnL(t.pnl)? numPnL(t.pnl):0; if(!g[idx]) g[idx]={sum:0,n:0}; g[idx].sum+=pnl; g[idx].n++; });
+  const sums=Object.values(g).map(x=>Math.abs(x.sum));
+  const mx=Math.max(...sums,1);
+  days.forEach((name,i)=>{
+    const v=g[i]; const sum=v? v.sum:0, n=v? v.n:0;
+    const h= v? Math.max(4, Math.abs(sum)/mx*54) : 2;
+    const cls=sum>0?"": sum<0?"loss": "be";
+    const pnlTxt=n? (sum>=0?"+":"")+sum.toFixed(0):"—";
+    el.innerHTML+=`<div class="j-week-col"><div class="j-week-candle"><div class="j-week-wick ${cls}"></div><div class="j-week-bar ${cls}" style="height:${h}px" title="${name}: ${pnlTxt} · ${n} tr"></div></div><k>${name}</k><v>${pnlTxt}</v><span class="j-week-n">${n||0} tr</span></div>`;
+  });
+}
+function drawStreakSeq(list){
+  const el=document.getElementById('streak-row'); el.innerHTML="";
+  if(!list.length){ el.innerHTML=`<span style="font-family:var(--font-mono);font-size:10px;color:var(--dim)">—</span>`; return; }
+  const chrono=list.slice().reverse();
+  let seq=[]; chrono.forEach(t=>{
+    const c=t.outcome==="WIN"?"W": t.outcome==="LOSS"?"L":"B";
+    if(seq.length && seq[seq.length-1].c===c) seq[seq.length-1].n++;
+    else seq.push({c,n:1});
+  });
+  seq=seq.slice(-20);
+  const mx=Math.max(...seq.map(s=>s.n),1);
+  seq.forEach(s=>{
+    const w= 18 + s.n/mx*48, color=s.c==="W"?"#3bc47a":s.c==="L"?"#d13b2f":"var(--bone)";
+    el.innerHTML+=`<div style="min-width:${w}px;height:28px;background:${color};opacity:${s.c==="B"?.45:.9};border:1px solid rgba(233,228,214,.12);display:grid;place-items:center;font-family:var(--font-mono);font-size:10px;color:${s.c==="B"?"var(--bg)":"#fff"};padding:0 6px">${s.c}×${s.n}</div>`;
+  });
+}
+function render(){
+  load();
+  const list=filtered();
+  const f=getFilters();
+  document.getElementById('count-tag').textContent=list.length+" trades";
+  document.getElementById('filter-bar').innerHTML = (!f.pair&&!f.outcome&&!f.strat&&!f.q) ? `<span>No filter — showing all <b>${list.length}</b> dossiers</span>` : `<span>Filtered:</span> ${f.pair?`<span>pair <b>${esc(f.pair)}</b></span>`:''} ${f.outcome?`<span>outcome <b>${esc(f.outcome)}</b></span>`:''} ${f.strat?`<span>strategy <b>${esc(f.strat)}</b></span>`:''} ${f.q?`<span>search <b>${esc(f.q)}</b></span>`:''} <span style="margin-left:auto"><a href="#" onclick="location.search='';return false" style="color:var(--bone)">Clear filters</a></span>`;
+  const byStrat={}; list.forEach(t=>{ const k=t.strategy||"(no strategy)"; (byStrat[k]=byStrat[k]||{n:0,w:0,sum:0}) .n++; if(t.outcome==="WIN") byStrat[k].w++; if(hasPnL(t.pnl)) byStrat[k].sum+=numPnL(t.pnl); });
+  const tbodyS=document.querySelector('#tbl-strat tbody'); tbodyS.innerHTML=Object.entries(byStrat).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.n?Math.round(v.w/v.n*100)+"%":"—"}</td><td style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--dim)">No trades in filter</td></tr>`;
+  const byPair={}; list.forEach(t=>{ const k=t.pair; (byPair[k]=byPair[k]||{n:0,w:0,sum:0}).n++; if(t.outcome==="WIN") byPair[k].w++; if(hasPnL(t.pnl)) byPair[k].sum+=numPnL(t.pnl); });
+  const tbodyP=document.querySelector('#tbl-pair tbody'); tbodyP.innerHTML=Object.entries(byPair).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.n?Math.round(v.w/v.n*100)+"%":"—"}</td><td style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--dim)">—</td></tr>`;
+  drawStratBars(byStrat);
+  drawWeek(list);
+  drawStreakSeq(list);
+}
+render();
+</script>
+</body>
+</html>

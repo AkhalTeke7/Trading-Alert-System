@@ -9,12 +9,23 @@
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .ai-main {
   display: flex;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+.ai-right {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -203,6 +214,7 @@
 }
 
 .ai-rail-foot {
+  margin-top: auto;
   border-top: 1px solid var(--line);
   padding: 14px;
   display: flex;
@@ -448,7 +460,7 @@
 
 .ai-suggestions {
   position: relative;
-  width: min(920px, 100%);
+  width: min(1040px, 100%);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
@@ -548,7 +560,7 @@
 }
 
 .ai-thread-inner {
-  width: min(880px, 100%);
+  width: min(1040px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -623,12 +635,15 @@
 .msg-body {
   position: relative;
   min-width: 0;
-  max-width: min(720px, 86%);
+  max-width: none;
+  width: 100%;
   padding: 14px 18px;
   border: 1px solid var(--line);
   background: rgba(16, 16, 16, 0.85);
   backdrop-filter: blur(8px);
 }
+.msg-assistant { flex: 1; min-width: 0; }
+.msg-user { max-width: min(760px, 88%); }
 
 .msg-user .msg-body {
   background: rgba(233, 228, 214, 0.07);
@@ -718,14 +733,22 @@
 
 .msg-text h1,
 .msg-text h2,
-.msg-text h3 {
+.msg-text h3,
+.msg-text h4,
+.msg-text h5,
+.msg-text h6 {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 15px;
   letter-spacing: 0.02em;
   margin: 14px 0 8px;
   color: var(--bone);
+  line-height: 1.25;
 }
+.msg-text h1 { font-size: 22px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.msg-text h2 { font-size: 19px; border-bottom: 1px solid rgba(233,228,214,.08); padding-bottom: 5px; }
+.msg-text h3 { font-size: 15px; }
+.msg-text h4 { font-size: 14px; color: var(--muted); }
+.msg-text h5, .msg-text h6 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
 
 .msg-text strong {
   font-weight: 600;
@@ -795,6 +818,49 @@
   border-top: 1px solid var(--line);
   margin: 14px 0;
 }
+
+/* GFM extras — https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet */
+.msg-text a { color: var(--bone); text-decoration: underline; text-decoration-color: rgba(209,59,47,.6); text-underline-offset: 3px; }
+.msg-text a:hover { color: var(--red); text-decoration-color: var(--red); }
+.msg-text del { color: var(--dim); text-decoration: line-through; }
+.msg-text img { max-width: 100%; height: auto; border: 1px solid var(--line); display: block; margin: 10px 0; }
+.msg-text blockquote {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-left: 2px solid var(--red);
+  background: rgba(233,228,214,.05);
+  color: var(--muted);
+}
+.msg-text blockquote p { margin: 0; color: var(--muted); }
+.msg-text blockquote p + p { margin-top: 8px; }
+.msg-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+  display: block;
+  overflow-x: auto;
+}
+.msg-text thead th {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: rgba(233,228,214,.06);
+}
+.msg-text th, .msg-text td {
+  border: 1px solid var(--line);
+  padding: 7px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+.msg-text tbody td { color: var(--bone); }
+.msg-text tbody tr:nth-child(even) { background: rgba(233,228,214,.03); }
+.msg-text ul.task-list { list-style: none; padding-left: 0; }
+.msg-text li.task { display: flex; gap: 0; }
+.msg-text li.task label { display: inline-flex; align-items: center; gap: 8px; }
+.msg-text li.task input[type="checkbox"] { accent-color: var(--red); width: 13px; height: 13px; }
 
 /* streaming caret */
 .ai-caret {
@@ -1001,7 +1067,7 @@
 }
 
 .ai-composer-wrap {
-  width: min(880px, 100%);
+  width: min(1040px, 100%);
   margin: 0 auto;
 }
 

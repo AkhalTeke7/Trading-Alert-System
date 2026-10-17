@@ -14,10 +14,9 @@
  *  1) banner + prereqs (Node >=22, npm, wrangler)
  *  2) npm ci (unless --skip-install)
  *  3) create .env / .dev.vars from examples if missing
- *  4) validate Drive (JSON parse, base64, pretty-print truncation, KEY_FILE) — same logic as js/drive.mjs
- *  5) shared-drive hint + diagnostics
- *  6) npm test / npm run check:cloudflare
- *  7) optional wrangler deploy
+ *  4) journal is local-only (no Drive validation — export JSON embeds compressed base64)
+ *  5) npm test / npm run check:cloudflare
+ *  6) optional wrangler deploy
  *  No secrets are printed or committed.
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -61,8 +60,8 @@ function banner(){
   log(paint(C.bone, '  ██████  ██████  ██ ██      █████   █████ ███████ ██      █████   ██████     ██   '));
   log(paint(C.bone, '  ██      ██   ██ ██ ██      ██            ██   ██ ██      ██      ██   ██    ██   '));
   log(paint(C.bone, '  ██      ██   ██ ██  ██████ ███████       ██   ██ ███████ ███████ ██   ██    ██   '));
-  log(paint(C.muted, '  · DOSSIER  ·  MARKETS  ·  JOURNAL  ·  ALERTS  ·  DRIVE LIVE MIRROR  ·  CLOUDFLARE ·'));
-  log(paint(C.dim, '  automated setup  •  node 22+  •  drive-only  •  pluggable providers'));
+  log(paint(C.muted, '  · DOSSIER  ·  MARKETS  ·  JOURNAL  ·  ALERTS  ·  LOCAL JOURNAL  ·  CLOUDFLARE ·'));
+  log(paint(C.dim, '  automated setup  •  node 22+  •  local journal  •  compressed export'));
   log('');
 }
 function usage(){
@@ -72,7 +71,7 @@ function usage(){
   log('  --local              local Node only — skip Cloudflare checks');
   log('  --skip-install       skip npm ci');
   log('  --skip-tests         skip npm test');
-  log('  --skip-drive         skip Drive validation');
+  log('  --skip-drive         (no-op — journal is local only)');
   log('  --help, -h           this help');
   log('');
   log(paint(C.muted, 'npm shortcuts:') + '  npm run setup  •  npm run setup:deploy  •  npm run setup:local');
@@ -151,7 +150,7 @@ function ensureEnvFile(example, target){
   return true;
 }
 
-// ── Drive validation (mirrors js/drive.mjs) ──
+// ── (no Drive validation — journal is local only; kept as no-ops for --help compat) ──
 function stripQuotes(s){
   let r=s.trim();
   if(r.charCodeAt(0)===0xFEFF) r=r.slice(1);
@@ -199,76 +198,8 @@ function extractFromEnvText(text, key){
   return text.slice(s,e).trim();
 }
 function validateDrive(){
-  if(opt.skipDrive){ log(paint(C.muted,'· Drive check skipped (--skip-drive)')); return { ok:null }; }
-  hr();
-  log(paint(C.bone,'Drive — live mirror (Shared Drive required for service accounts)'));
-  const envPath = resolve(ROOT,'.env');
-  const envText = fileExists(envPath) ? readText(envPath) : '';
-  const envFileHas = !!envText;
-
-  // read raw from process.env-like: parse .env ourselves if process.env not yet loaded
-  // prefer actual .env file content for diagnostics (loadEnvFile truncates pretty-printed JSON to "{")
-  let raw = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT || process.env.GOOGLE_DRIVE_CREDENTIALS || '';
-  // if running via node --env-file-if-exists, process.env already truncated; recover from file
-  const directFromFile = envFileHas ? (extractFromEnvText(envText,'GOOGLE_DRIVE_SERVICE_ACCOUNT') || extractFromEnvText(envText,'GOOGLE_DRIVE_CREDENTIALS') || '') : '';
-  if(directFromFile && (!raw || raw.length < 30 || raw.trim()==='{')) raw = directFromFile;
-  const keyFile = process.env.GOOGLE_DRIVE_KEY_FILE || (envFileHas ? (extractFromEnvText(envText,'GOOGLE_DRIVE_KEY_FILE')||'') : '');
-  const sharedId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID || process.env.GOOGLE_DRIVE_FOLDER_ID || (envFileHas ? (extractFromEnvText(envText,'GOOGLE_DRIVE_SHARED_DRIVE_ID')||extractFromEnvText(envText,'GOOGLE_DRIVE_FOLDER_ID')||'') : '');
-  const keyFileExists = keyFile ? fileExists(resolve(ROOT, keyFile)) || existsSync(keyFile) : false;
-
-  if(keyFile){
-    log(`  ${keyFileExists?paint(C.up,'✓'):paint(C.red,'✗')} GOOGLE_DRIVE_KEY_FILE=${keyFile} ${keyFileExists?paint(C.muted,'(found)'):paint(C.red,'(not found)')} `);
-    if(keyFileExists){
-      try{
-        const j=JSON.parse(readFileSync(existsSync(keyFile)?keyFile:resolve(ROOT,keyFile),'utf8'));
-        const ok=!!(j.client_email && j.private_key);
-        log(`    ${ok?paint(C.up,'✓'):paint(C.red,'✗')} key JSON ${ok?paint(C.muted, j.client_email.slice(0,6)+'***'):paint(C.red,'missing client_email/private_key')} `);
-        if(ok && !sharedId) log(paint(C.amber,'  → set GOOGLE_DRIVE_SHARED_DRIVE_ID — service accounts have NO My Drive quota (drive.create 403)'));
-        if(ok) return { ok:true, via:'keyFile' };
-      }catch(e){ log(paint(C.red,`    ✗ key JSON parse: ${e.message.slice(0,120)}`)); }
-    }
-  }
-
-  if(!raw){
-    log(paint(C.amber,'  · GOOGLE_DRIVE_SERVICE_ACCOUNT not set'));
-    log(paint(C.muted,'    Set one of:'));
-    log(paint(C.muted,'      GOOGLE_DRIVE_KEY_FILE=C:\\keys\\drive-key.json   (most reliable)'));
-    log(paint(C.muted,'      GOOGLE_DRIVE_SERVICE_ACCOUNT={...one line...}'));
-    log(paint(C.muted,'      GOOGLE_DRIVE_SERVICE_ACCOUNT=<base64 of JSON>'));
-    if(!sharedId) log(paint(C.muted,'    + GOOGLE_DRIVE_SHARED_DRIVE_ID=<shared-drive-id>  (required — My Drive quota 403)'));
-    return { ok:false, reason:'empty' };
-  }
-
-  const stripped = stripQuotes(raw);
-  const looksTruncated = stripped.length < 50 && stripped.trim().startsWith('{');
-  if(looksTruncated){
-    log(paint(C.red,`  ✗ looks truncated (len ${stripped.length}) — pretty-printed multi-line JSON in .env gets cut to "{"`));
-    log(paint(C.muted,'    Fix: use GOOGLE_DRIVE_KEY_FILE or make it ONE line / base64.'));
-    return { ok:false, reason:'truncated', len: stripped.length };
-  }
-
-  // try parse variants
-  const variants = [stripped];
-  if(!stripped.trim().startsWith('{')){
-    try{ const dec=Buffer.from(stripped.trim(),'base64').toString('utf8').trim(); if(dec.startsWith('{')) variants.push(dec); }catch{}
-  }
-  variants.push(stripped.replace(/""/g,'"'));
-  let lastErr='';
-  for(const cand of variants){
-    try{
-      const j=JSON.parse(cand);
-      const hasEmail=!!j.client_email, hasKey=!!j.private_key;
-      log(`  ${hasEmail&&hasKey?paint(C.up,'✓'):paint(C.red,'✗')} service-account JSON ${hasEmail&&hasKey?paint(C.muted, j.client_email.slice(0,6)+'***'):paint(C.red,'missing client_email/private_key')} ${variants.length>1&&cand!==stripped?paint(C.muted,'(via base64 variant)'):''}`);
-      if(!hasEmail||!hasKey) return { ok:false, reason:'missing fields' };
-      if(!sharedId) log(paint(C.amber,'  → add GOOGLE_DRIVE_SHARED_DRIVE_ID (Shared Drive ID) — else drive.create 403 quota'));
-      else log(paint(C.up,'✓')+` GOOGLE_DRIVE_SHARED_DRIVE_ID=${sharedId.slice(0,8)}***`);
-      return { ok:true, via: cand!==stripped ? 'base64' : 'inline' };
-    }catch(e){ lastErr=e.message; }
-  }
-  log(paint(C.red,`  ✗ JSON parse: ${lastErr.slice(0,140)}`));
-  log(paint(C.muted,`    head: ${JSON.stringify(stripped.slice(0,80))}`));
-  log(paint(C.muted,'    Fix: .env → one line, or base64, or KEY_FILE. Then restart.'));
-  return { ok:false, reason:'json', err:lastErr };
+  log(paint(C.muted,'· Journal is local-only — no Drive (export JSON embeds compressed base64)'));
+  return { ok:true, via:'local' };
 }
 
 // ── main ──
@@ -290,7 +221,7 @@ async function main(){
   const createdEnv = ensureEnvFile('.env.example','.env');
   const createdDevVars = ensureEnvFile('.dev.vars.example','.dev.vars');
   if(createdEnv || createdDevVars){
-    log(paint(C.amber,'  → open .env / .dev.vars and fill secrets (see README Setup — Journal Drive).'));
+    log(paint(C.amber,'  → open .env / .dev.vars and fill secrets (Telegram/Bale tokens). Journal needs no cloud.'));
     if(!opt.yes){
       const go = await ask('Continue anyway? (Y/n)', 'Y');
       if(go.toLowerCase()==='n'){ log(paint(C.muted,'Aborted — edit env files then rerun.')); process.exit(0); }
@@ -309,12 +240,7 @@ async function main(){
     log(paint(C.up,'✓ installed'));
   }
 
-  const driveRes = validateDrive();
-  // offer to create keys folder hint
-  if(driveRes && driveRes.ok===false && !opt.yes){
-    const hint = driveRes.reason==='truncated' ? 'Use GOOGLE_DRIVE_KEY_FILE to avoid .env truncation?' : 'Set up Drive now?';
-    log(paint(C.muted,`  Tip: ${hint} See README “Setup — Journal Drive” + GET /api/drive/diag after start.`));
-  }
+  validateDrive();
 
   if(!opt.local){
     hr();
@@ -357,10 +283,8 @@ async function main(){
   log(`  ${paint(C.cyan,'Preview:')} npx wrangler dev --ip 0.0.0.0  ${paint(C.dim,'→ http://localhost:8787')} `);
   if(!opt.deploy) log(`  ${paint(C.cyan,'Deploy:')}  npm run deploy:cloudflare  ${paint(C.dim,'or node scripts/setup.mjs --deploy')} `);
   log('');
-  log(paint(C.muted,'  Drive: set GOOGLE_DRIVE_* in .env (Node) and wrangler secret put (Workers).'));
-  log(paint(C.muted,'         badge Drive: connected ✓ → GET /api/drive/diag + /api/drive/status'));
+  log(paint(C.muted,'  Journal: local only — Export JSON embeds images as data:image/jpeg;base64 (compressed).'));
   log(paint(C.muted,'  Secrets: npx wrangler secret put DASHBOARD_USER / DASHBOARD_PASSWORD / TELEGRAM_* / BALE_*'));
-  log(paint(C.muted,'  More APIs: js/journalProviders.mjs — add provider then JOURNAL_PROVIDER=my'));
   log('');
   log(paint(C.bone,'  Add GIFs:') + paint(C.muted,' Pictures/markets-draw-to-alert.gif etc. — see README Preview → How to add GIFs'));
   hr();

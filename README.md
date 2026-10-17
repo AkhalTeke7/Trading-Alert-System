@@ -20,13 +20,12 @@
 </p>
 
 <p align="center" style="max-width:720px; margin: 16px auto 0; color:#8b877b; line-height:1.7">
-  Price alerts for <b style="color:#e9e4d6">Gold/USD · EUR/USD · GBP/USD · BTC/USD · NASDAQ & S&P 500</b> (cash CFDs via <code>OANDA:NAS100USD / OANDA:SPX500USD</code>) with Telegram / Bale / App image notifications — plus a desktop <b style="color:#e9e4d6">Journal dossier</b> that lives on <b style="color:#e9e4d6">Google Drive</b> and stays in sync with the site at all times. Every trade, every delete — mirrored live.
+  Price alerts for <b style="color:#e9e4d6">Gold/USD · EUR/USD · GBP/USD · BTC/USD · NASDAQ & S&P 500</b> (cash CFDs via <code>OANDA:NAS100USD / OANDA:SPX500USD</code>) with Telegram / Bale / App image notifications — plus a desktop <b style="color:#e9e4d6">Journal dossier</b> that stays <b style="color:#e9e4d6">local</b> (browser <code>localStorage</code>) — export the whole journal as a single JSON with images embedded as compressed <code>data:image/jpeg;base64</code>.
 </p>
 
 <p align="center">
   <a href="CLOUDFLARE.md"><b>☁︎ Deploy on Cloudflare →</b></a> &nbsp;·&nbsp;
-  <a href="#-journal--drive-live-mirror">Journal Drive Sync</a> &nbsp;·&nbsp;
-  <a href="#-adding-another-api">Add another API</a>
+  <a href="#-journal--local-export">Journal — Local Export</a>
 </p>
 
 ---
@@ -40,9 +39,8 @@
 - [Design & Animations](#-design--animations) — every motion, in detail
 - [Architecture](#-architecture)
 - [Quick start](#-quick-start)
-- [Journal — Drive live mirror](#-journal--drive-live-mirror)
+- [Journal — Local export](#-journal--local-export)
 - [Cloudflare Workers](#-cloudflare-workers)
-- [Adding another API](#-adding-another-api)
 - [Project structure](#-project-structure) · [Scripts](#-scripts) · [Troubleshooting](#-troubleshooting)
 
 ---
@@ -85,7 +83,7 @@
 
 <img src="Pictures/03-journal-trade.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="Journal trade card — 01 GOLD/USD LONG WIN, 1min / 15min / 1h charts, caption 0/120" />
 
-<sub><code>01 — 1min · 02 — 15min · 03 — 1h</code> · Drive thumb + <code>0/120</code> caption</sub>
+<sub><code>01 — 1min · 02 — 15min · 03 — 1h</code> · local preview + <code>0/120</code> caption</sub>
 
 </td>
 </tr>
@@ -94,7 +92,7 @@
 <p align="center">
   <img src="Pictures/04-journal-form.png" width="100%" style="border:1px solid rgba(233,228,214,.14); border-radius:6px" alt="New Trade form — pair, date, direction, outcome, strategy, PnL, tags, notes, 3 image slots" />
   <br/>
-  <sub style="color:#8b877b; font-family: JetBrains Mono, monospace; font-size:11px; letter-spacing:.08em">04 — JOURNAL FORM · pair / date / direction / outcome / strategy / PnL · tags · notes · 3 slots  <code>Choose file… (Uploads to Drive)</code> or paste Drive / TradingView link</sub>
+  <sub style="color:#8b877b; font-family: JetBrains Mono, monospace; font-size:11px; letter-spacing:.08em">04 — JOURNAL FORM · pair / date / direction / outcome / strategy / PnL · tags · notes · 3 slots  <code>Choose file…</code> or paste image link</sub>
 </p>
 
 <p align="center">
@@ -161,12 +159,12 @@ GitHub auto-plays GIFs. Keep the `.png` fallbacks — bump `?v=2` if a GIF doesn
 
 ### <span style="font-family: Fraunces">—</span> What it is
 
-A **single-owner, self-hosted trading desk** — not a multi-tenant SaaS. One dashboard, one Durable Object, one Drive backup. Built to feel like a printed dossier: bone paper on near-black, hairline rules, mono labels, a tiny red tick on the brand mark, and every interaction animated just enough to feel alive.
+A **single-owner, self-hosted trading desk** — not a multi-tenant SaaS. One dashboard, one Durable Object, local journal. Built to feel like a printed dossier: bone paper on near-black, hairline rules, mono labels, a tiny red tick on the brand mark, and every interaction animated just enough to feel alive.
 
 | Surface | What lives there |
 |---|---|
 | **`main.html` — Markets** | Up to 6 TradingView Advanced Charts (75% chart, `0×0` hidden widgets), pair selector per chart, draw-to-alert overlay, channel `All (Both)` + inline `0/500` note |
-| **`journal.html` — Journal** | 3 shots per trade `01·1min / 02·15min / 03·1h` (Drive file or TradingView link + `0/120` caption), strategies, text-only allowed, Analyze dashboards, switchable calendar |
+| **`journal.html` — Journal** | 3 shots per trade `01·1min / 02·15min / 03·1h` (local file or image link + `0/120` caption), strategies, text-only allowed, Analyze dashboards, switchable calendar — export/import JSON with images as compressed `data:image/jpeg;base64` |
 | **`news.html`** | Same-origin `GET /api/events` → `chartevents-reuters.tradingview.com/events` (fallback `events.json`) |
 | **`Alert/alert.html`** | Create / edit / delete alerts (validated `pair/target/channel/note`, max 100) |
 
@@ -191,12 +189,12 @@ A **single-owner, self-hosted trading desk** — not a multi-tenant SaaS. One da
 <td width="33%">
 
 #### Journal — Dossier
-- **3-slot upload** `Choose file…` (dossier `j-file-btn` style, `input[type=file] display:none` + label) + Drive/TradingView link + `j-cap-input` bone line mono `0/120`
-- **Drive live mirror** · every create/edit/**delete** debounced 700ms `POST /api/journal/backup` → Shared Drive `price-alert-journal.json`; on open + 30s poll + `visibilitychange` pull → site ↔ Drive in sync at all times
+- **3-slot upload** `Choose file…` (dossier `j-file-btn` style, `input[type=file] display:none` + label) + image link + `j-cap-input` bone line mono `0/120` — images auto-compressed to JPEG on pick
+- **Local only** · `localStorage` `pa.journal.v1` / `pa.strategies.v1`; no cloud. **Export JSON** embeds every image as compressed `data:image/jpeg;base64` (numeric bytes alternative is base64) so the file is self-contained; **Import JSON** restores everything locally.
 - **Strategies** `pa.strategies.v1` (`BOS retest 15m, Breakout, Range, Liquidity sweep` defaults) — chips bar, filter, per-trade select
 - **Filters** pair / outcome / strategy / search + calendar day
 - **Pairs** `Gold / EUR / BTC / GBP / NASDAQ / S&P 500` → `OANDA:XAUUSD, FX_IDC:EURUSD, BITSTAMP:BTCUSD, OANDA:NAS100USD, OANDA:SPX500USD`
-- **Images** optional (text-only needs notes), titles `1min / 15min / 1h`, thumbnail `https://drive.google.com/thumbnail?id=ID&sz=w1200` proxied `GET /api/drive/thumb/:id` + `pa.journal.imgcache.v1` `dataURL` cache
+- **Images** optional (text-only needs notes), titles `1min / 15min / 1h`; exports compress to `1280px` JPEG `q=0.62` via `canvas.toDataURL`
 
 </td>
 <td width="33%">
@@ -321,14 +319,13 @@ flowchart LR
   W -- scanner.tradingview.com --> P[Prices]
   W -- Playwright / Browser Rendering --> C[Alert card PNG 1200×675]
   C -- Telegram / Bale --> T[(Chat)]
-  U -- /api/journal/* --> D[(Google Drive<br/>Shared Drive<br/>price-alert-journal.json<br/>+ thumbnails)]
-  U -.-> L[(localStorage<br/>pa.journal.v1<br/>pa.strategies.v1<br/>pa.journal.imgcache.v1)]
-  D <-.-> |"GET/POST /api/journal/backup<br/>poll 30s + visibilitychange<br/>push 700ms debounce"| U
+  U -.-> L[(localStorage<br/>pa.journal.v1<br/>pa.strategies.v1)]
+  U -- Export JSON<br/>data:image/jpeg;base64 --> F[(price-alert-journal.json<br/>images compressed 1280px JPEG q=0.62)]
 ```
 
 * **Assets:** only `Public/` is uploaded — `.env`, `data/`, backend `js/`, secrets never become public assets.
 * **Alerts:** Durable Object `AlertStore` on Workers (SQLite, `personal-dashboard` singleton, `* * * * *` cron every minute, 100 alert cap, 5 per-tick, checkpointed delivery, at-least-once). Node uses `data/alerts.json` + `setInterval 10s`.
-* **Journal:** Drive-only via `js/drive.mjs` (Node `crypto` + WebCrypto fallback for Workers, `GOOGLE_DRIVE_*` from `process.env` or `env` bindings, quota-aware `supportsAllDrives` + `parents:[sharedDriveId]`), provider-pluggable via `js/journalProviders.mjs` (`JOURNAL_PROVIDER`).
+* **Journal:** **local-only** — `localStorage` + export JSON that embeds images as compressed `data:image/jpeg;base64` (via `canvas.toDataURL("image/jpeg", 0.62)`, max 1280px). No cloud / no Drive. Import restores locally; old backups with Drive links still import.
 * **AI console:** shared adapters/rules in `js/aiCore.js` (providers, skills, key masking, demo channel, **data-tool loop + web search**) — `/api/ai/*` on the Durable Object (`aiSettings` record) and on Node (`data/ai-settings.json`, gitignored). Keys are saved from the site UI, stored server-side, only ever returned masked, and chat is proxied through the same runtime — the model calls your own functions (`get_prices`, `list_alerts`, `list_triggered`, `journal_summary`, `get_events`, `web_search`, `get_time`) and reasons over their real outputs.
 
 ---
@@ -349,14 +346,14 @@ node scripts/setup.mjs --local --skip-drive --skip-tests
 node scripts/setup.mjs --deploy   # implies --yes
 ```
 
-What it does: checks **Node ≥22**, creates `.env` / `.dev.vars` from examples if missing, validates Drive JSON (one-line / base64 / `GOOGLE_DRIVE_KEY_FILE`, catches `.env` truncation → len hint), reminds about **Shared Drive** quota fix, runs `npm test` + `wrangler deploy --dry-run`, optionally `wrangler deploy`. Secrets never printed or committed.
+What it does: checks **Node ≥22**, creates `.env` / `.dev.vars` from examples if missing, runs `npm test` + `wrangler deploy --dry-run`, optionally `wrangler deploy`. Secrets never printed or committed.
 
 **Manual (step-by-step) — same result**
 
 ```sh
 npm ci
 npm test
-cp .env.example .env        # fill bot tokens + Drive (see next section)
+cp .env.example .env        # fill bot tokens (no cloud needed)
 npm start                   # http://localhost:3000  → main.html / journal.html
 npm run prices              # print current provider response
 npm run telegram            # bot alone (ALERTS_API_URL override)
@@ -375,90 +372,22 @@ Then set `wrangler secret put DASHBOARD_USER / DASHBOARD_PASSWORD / TELEGRAM_BOT
 
 ---
 
-### <span style="font-family: Fraunces">◈</span> Journal — Drive live mirror
+### <span style="font-family: Fraunces">◈</span> Journal — Local export
 
-> Drive is the only cloud provider — and it stays **in sync at all times** (every trade + every delete). Pluggable for more APIs.
+> **No cloud / no Drive.** Everything stays in the browser (`localStorage` `pa.journal.v1` + `pa.strategies.v1`). The whole journal is portable as one JSON file — images are embedded inside it as compressed `data:image/jpeg;base64`.
 
-**What syncs:** every create, edit, **delete**, duplicate, strategy add/remove, clear → `localStorage` (`pa.journal.v1`, `pa.strategies.v1`) + debounced `700ms` `POST /api/journal/backup` → Shared Drive `price-alert-journal.json` (overwrite). Images `POST /api/journal/upload` → Drive file `anyone reader` + `thumbnailLink https://drive.google.com/thumbnail?id=ID&sz=w1200` → `GET /api/drive/thumb/:id` proxy + `pa.journal.imgcache.v1` `dataURL` cache so next open doesn't re-download.
+**How it works:**
 
-**What pulls:** on open `checkDrive()` → `pullFromDrive({silent:true})`; `setInterval 30s` (when tab visible) + `visibilitychange` → silent `GET /api/journal/backup` hash-compare → auto-`applyBackupPayload({silent:true})` (last-write-wins). Delete a trade on device A → device B sees it gone within 30s or on focus. Manual `Save to Drive` / `Load from Drive` still exist; `Export/Import JSON` is offline.
-
-<details>
-<summary><b>Local Node — Drive setup (Shared Drive required)</b></summary>
-
-Service accounts have **no My Drive quota** — must use a Shared Drive.
-
-1. **Google Cloud** → create project → enable **Google Drive API** → **IAM → Service Accounts → Create → Keys → JSON** (download).
-2. **Shared Drive** → `drive.google.com` → **Shared drives → New** (e.g. `Price-Alert`) → **Manage members → Add** service-account email `...@...iam.gserviceaccount.com` as **Manager** → open drive → copy ID from `https://drive.google.com/drive/folders/<ID>`.
-3. **Env** in `.env` (see `.env.example`):
-   ```ini
-   # most reliable — avoids .env line-break truncation
-   GOOGLE_DRIVE_KEY_FILE=C:\keys\drive-key.json
-   # or paste whole JSON on ONE line, or base64-encode it
-   GOOGLE_DRIVE_SERVICE_ACCOUNT={"type":"service_account", ... one line ...}
-   GOOGLE_DRIVE_SHARED_DRIVE_ID=1AbC...your-shared-drive-id
-   # optional
-   JOURNAL_DRIVE_FILENAME=price-alert-journal.json
-   JOURNAL_PROVIDER=drive
-   ```
-   Pretty-printed multi-line JSON in `.env` is truncated to `{` by `loadEnvFile` — the server auto-recovers by re-reading `.env` directly (balances braces), but one-line / `KEY_FILE` is preferred.
-4. `npm start` → `http://127.0.0.1:3000/journal.html` → **Drive: connected ✓**. Diagnose: `GET /api/drive/diag` / `GET /api/drive/status`.
-
-</details>
-
-<details>
-<summary><b>Cloudflare Workers — Drive setup (Wrangler secrets)</b></summary>
-
-Same `js/drive.mjs` (reads `env.*` bindings, WebCrypto JWT fallback).
-
-```sh
-npx wrangler secret put GOOGLE_DRIVE_SERVICE_ACCOUNT
-# paste JSON one-line or base64 — generate base64 to avoid quoting:
-# node -e "console.log(require('fs').readFileSync('C:\\keys\\drive-key.json','utf8').toString('base64'))"
-npx wrangler secret put GOOGLE_DRIVE_SHARED_DRIVE_ID
-# optional: wrangler secret put JOURNAL_DRIVE_FILENAME / JOURNAL_PROVIDER
-```
-
-For `npm run dev:cloudflare` put the same vars in `.dev.vars` (copy `.dev.vars.example` — git-ignored, preview only). Then `npm run deploy:cloudflare` → open Journal → **Drive: connected ✓**; check `GET /api/drive/diag`.
-
-</details>
+- **On pick** — choosing a file in *+ New trade* reads it as `data:` then re-encodes on a `<canvas>` to **JPEG `q=0.62`, max 1280px** (long side) so `localStorage` stays small. You see `local · compressed` and the `KB → KB` saving.
+- **Export JSON** — `Export JSON` (same as `Export JSON (compressed images)`) builds a fresh payload where every `images[].src` is re-compressed if needed: `data:` → JPEG, `https://` → fetched then JPEG (if CORS blocks, the link is kept as-is). The file is `price-alert-journal.json` `{ version:2, exportedAt, strategies, trades }` — a second button shows sizes `plain vs compressed` and a meta badge `N trades · M images (K embedded) · X KB`.
+- **Import JSON** — pick the same file on any browser/device → overwrites `localStorage` and re-renders. Accepts both the new `data:` form and old backups that contain Drive thumbnail links — no migration needed.
+- **Numeric alternative** — the "numeric format" you asked for is the base64 bytes themselves (every `data:image/jpeg;base64,AAAA…` is just bytes as text). They compress well because the JPEG step already shrinks them ~3–6× vs PNG.
 
 ---
 
 ### <span style="font-family: Fraunces">☁︎</span> Cloudflare Workers
 
-Full deploy = Worker (`cloudflare/worker.js`) + `Public/` assets + Durable Object `AlertStore` (SQLite, `personal-dashboard`, `* * * * *` cron) + Browser Rendering (card PNG) + Telegram webhook. Only `Public/` becomes assets. See **`CLOUDFLARE.md`** for prerequisites, `wrangler login`, `deploy:cloudflare` (first deploy returns 503 until `DASHBOARD_USER/PASSWORD` secrets), Telegram `BALE_*`/`TELEGRAM_*` secrets, `TELEGRAM_WEBHOOK_SECRET + TELEGRAM_ALLOWED_USER_IDS` + `npm run telegram:webhook`, verification, data/retries/limits, and `npm run dev:cloudflare` (`http://localhost:8787`, `curl /cdn-cgi/local/scheduled`).
-
----
-
-### <span style="font-family: Fraunces">＋</span> Adding another API
-
-Journal is **Drive-only** but provider-pluggable — no rewrite to add more. Create `js/myProvider.mjs`:
-
-```js
-export function isConfigured(env) { return true; }
-export function getDriveDiagnostics(env) { return {}; }
-export async function uploadToDrive({ buffer, filename, mimeType }, env) { return { id, thumbnailLink }; }
-export async function upsertJournalJson(jsonString, env) { return { id, name }; }
-export async function getJournalJson(env) { return { id, json, modifiedTime }; }
-export async function journalFileInfo(env) { return { id, name, modifiedTime, size }; }
-export function getJournalName(env) { return 'price-alert-journal.json'; }
-export function isQuotaError(msg) { return false; }
-export function getDriveConfigHelp(env) { return { hint: '...' }; }
-```
-
-Register in `js/journalProviders.mjs`:
-
-```js
-import * as drive from './drive.mjs';
-import * as my from './myProvider.mjs';
-export const providers = {
-  drive: { id:'drive', isConfigured:(e)=>drive.isDriveConfigured(e), diagnostics:(e)=>drive.getDriveDiagnostics(e), upload:(a,e)=>drive.uploadToDrive(a,e), putJson:(s,e)=>drive.upsertJournalJson(s,e), getJson:(e)=>drive.getJournalJson(e), findInfo:(e)=>drive.journalFileInfo(e), journalName:(e)=>drive.getJournalName(e), configHelp:()=>drive.getDriveConfigHelp(), isQuotaError:(m)=>drive.isQuotaError(m) },
-  my:    { id:'my',    isConfigured:(e)=>my.isConfigured(e),       upload:(a,e)=>my.upload(a,e),           putJson:(s,e)=>my.putJson(s,e),           getJson:(e)=>my.getJson(e),       findInfo:(e)=>my.findInfo(e),       journalName:(e)=>my.getJournalName(e), configHelp:(e)=>my.getConfigHelp(e), isQuotaError:(m)=>my.isQuotaError(m) },
-};
-```
-
-Set `JOURNAL_PROVIDER=my` in `.env` (Node) or `wrangler secret put JOURNAL_PROVIDER` (Workers) — `js/server.js` and `cloudflare/worker.js` both go through `getProvider(null, env)`.
+Full deploy = Worker (`cloudflare/worker.js`) + `Public/` assets + Durable Object `AlertStore` (SQLite, `personal-dashboard`, `* * * * *` cron) + Browser Rendering (card PNG) + Telegram webhook. Only `Public/` becomes assets. See **`CLOUDFLARE.md`** for prerequisites, `wrangler login`, `deploy:cloudflare` (first deploy returns 503 until `DASHBOARD_USER/PASSWORD` secrets), Telegram `BALE_*`/`TELEGRAM_*` secrets, `TELEGRAM_WEBHOOK_SECRET + TELEGRAM_ALLOWED_USER_IDS` + `npm run telegram:webhook`, verification, data/retries/limits, and `npm run dev:cloudflare` (`http://localhost:8787`, `curl /cdn-cgi/local/scheduled`). Journal stays local — no Worker secrets needed for it.
 
 ---
 
@@ -468,7 +397,7 @@ Set `JOURNAL_PROVIDER=my` in `.env` (Node) or `wrangler secret put JOURNAL_PROVI
 Public/
   main.html            markets — 6 draw-to-alert TradingView charts
   ai.html              AI console — full-screen chat, skills, settings drawer
-  journal.html         dossier — strategies, Analyze, switchable calendar, live Drive sync
+  journal.html         dossier — strategies, Analyze, switchable calendar, compressed export
   news.html            Reuters events proxy
   Alert/alert.html     alerts CRUD
   css/style.css        dossier theme, 75% flex, scroll layout, pa-*, j-*
@@ -478,13 +407,11 @@ Public/
   js/ai.js             chat client — skills, SSE streaming, threads, hero
   js/ai-settings.js    settings drawer shared by main.html + ai.html
 cloudflare/
-  worker.js            fetch + /api/journal/* /api/drive/* /api/ai/*
+  worker.js            fetch + /api/prices /events /ai/*
   alertStore.js        Durable Object — alerts + Telegram + aiSettings + cron
 js/
-  server.js            Node server — /api/prices /alerts /events /drive/* /journal/* /ai/*
+  server.js            Node server — /api/prices /alerts /events /ai/*
   aiCore.js            AI providers (Mistral/OpenAI/Anthropic/Groq/Gemini/custom), skills, key masking
-  drive.mjs            service-account JWT (Node crypto + WebCrypto), Shared Drive, quota-aware
-  journalProviders.mjs provider registry (drive — add more here)
   alertModel.js        allowedPairs, pairToSymbol OANDA CFDs, getAlertInput All→Both
   fetchPrice.js        scanner.tradingview.com tickers
   telegramBot.js / telegram.mjs  bot conversation + polling/webhook
@@ -492,7 +419,7 @@ js/
   fcmV1.js             FCM HTTP v1
 ```
 
-`localStorage` keys: `pa.journal.v1` (trades), `pa.strategies.v1`, `pa.journal.imgcache.v1` `{url:dataURL}`, `pa.charts.v1` (string array max 6), `pa.ai.v1` (AI console threads + active skill). Drive thumb `https://drive.google.com/thumbnail?id=ID&sz=w1200` via `GET /api/drive/thumb/:id`.
+`localStorage` keys: `pa.journal.v1` (trades), `pa.strategies.v1`, `pa.charts.v1` (string array max 6), `pa.ai.v1` (AI console threads + active skill). Journal images are stored as `data:image/jpeg;base64` inside `pa.journal.v1` (compressed to 1280px `q=0.62` on save).
 
 ### Scripts
 
@@ -511,13 +438,13 @@ js/
 
 | Symptom | Fix |
 |---|---|
-| `JSON parse: Expected property name … head: ""` | `.env` JSON truncated — use `GOOGLE_DRIVE_KEY_FILE=C:\keys\drive-key.json` or make `GOOGLE_DRIVE_SERVICE_ACCOUNT` one line / base64 |
-| `drive create 403: Service Accounts do not have storage quota` | Service account has no My Drive — create Shared Drive, add service account as **Manager**, set `GOOGLE_DRIVE_SHARED_DRIVE_ID` (local) / `wrangler secret put GOOGLE_DRIVE_SHARED_DRIVE_ID` (Workers) |
-| `Drive: not configured` badge | `GET /api/drive/diag` shows `hasEnv/rawLen/hasClientEmail/hasPrivateKey/error`; ensure service JSON + `loadEnvFile` recovery; restart `npm start` |
-| Journal deletes not syncing | Check browser console `[drive push]` — 507 means quota; otherwise wait 700ms debounce + 30s poll, or tab `visibilitychange` |
+| `Export failed` / `QuotaExceededError` | `localStorage` ~5–10 MB limit — use `Export JSON` to save, then delete old dossiers or re-export; images are already JPEG-compressed, but huge `data:` still counts toward the quota |
+| Images pasted as link don't embed | Remote host must allow `fetch(..., {mode:"cors"})` — if CORS blocks, the link is kept as-is in the JSON; re-export after the image is reachable, or pick the file locally |
+| Import overwrote everything | Import is overwrite by design — it replaces `pa.journal.v1` / `pa.strategies.v1`; keep the exported `.json` as backup |
+| Price / Telegram not firing | Check `npm run prices`, `.env` bot tokens, and `wrangler secret put` on Workers; see `CLOUDFLARE.md` verification |
 
 ---
 
 <p align="center" style="color:#5b584f; font-family: JetBrains Mono, monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase">
-  Built for one desk · Deployed on Cloudflare · Synced on Drive · Styled like paper
+  Built for one desk · Deployed on Cloudflare · Local journal · Styled like paper
 </p>

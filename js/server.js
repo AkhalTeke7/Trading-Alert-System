@@ -8,9 +8,7 @@ import { renderAlertCard } from './alertCard.js';
 import { fileURLToPath } from 'node:url';
 import getPrices from './fetchPrice.js';
 import { alertSender, startTelegramBot } from './telegram.mjs';
-import { getAccessToken, isDriveConfigured, uploadToDrive, upsertJournalJson, getJournalJson, journalFileInfo, JOURNAL_NAME, getDriveDiagnostics, isQuotaError, getDriveConfigHelp } from './drive.mjs';
-// providers registry — to add another API, create js/<myProvider>.mjs with same interface and register in js/journalProviders.mjs
-import { getProvider } from './journalProviders.mjs';
+// local-only journal — images are embedded as compressed JPEG base64 in JSON exports; no Drive
 // AI console core — same adapters/rules as the Cloudflare worker (cloudflare/alertStore.js)
 import {
     PROVIDERS, listSkills, maskKey,
@@ -313,12 +311,8 @@ function aiExecutors(settings) {
         getPrices,
         getAlerts: async () => storedAlerts,
         getTriggered: async () => triggeredEvents,
-        getJournal: async () => {
-            const journal = getProvider(null, null);
-            if (!journal.isConfigured(null)) return null;
-            const data = await journal.getJson(null);
-            return data?.json ? JSON.parse(data.json) : null;
-        },
+        // journal is local-only (browser localStorage) — no server copy without Drive
+        getJournal: async () => null,
         searchApiKey: String(settings.providers?.tavily?.apiKey || ''),
     });
 }
@@ -710,129 +704,7 @@ const server = createServer(async (request, response) => {
         return;
     }
 
-    // --- Journal Drive: status / upload / thumb proxy / json backup ---
-    if (request.method === 'GET' && pathname === '/api/drive/status') {
-        let journal = null;
-        let diag = null;
-        try { diag = getDriveDiagnostics(); } catch {}
-        if (isDriveConfigured()) { try { journal = await journalFileInfo(); } catch (e) { diag = diag || {}; diag.journalErr = e.message; } }
-        sendJson(response, 200, { configured: isDriveConfigured(), diag, journal: journal ? { id: journal.id, name: journal.name, modifiedTime: journal.modifiedTime, size: journal.size } : null, journalName: JOURNAL_NAME });
-        return;
-    }
-    if (request.method === 'GET' && pathname === '/api/drive/diag') {
-        sendJson(response, 200, getDriveDiagnostics());
-        return;
-    }
-    // --- Journal — Drive-only (provider pluggable via JOURNAL_PROVIDER env / secrets) ---
-    if (request.method === 'POST' && pathname === '/api/journal/backup') {
-        if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) { sendJson(response, 403, { error: 'Cross-origin requests are not allowed' }); return; }
-        const journal = getProvider(null);
-        if(!journal.isConfigured()){
-          const help = journal.configHelp();
-          sendJson(response, 503, { error: 'Drive not configured', help: help.hint, driveError: getDriveDiagnostics()?.error || 'Set GOOGLE_DRIVE_SERVICE_ACCOUNT / KEY_FILE (and GOOGLE_DRIVE_SHARED_DRIVE_ID for service accounts) and restart.' });
-          return;
-        }
-        try{
-          const body = await readJson(request, 20 * 1024 * 1024);
-          const jsonStr = JSON.stringify(body, null, 2);
-          if (jsonStr.length > 18 * 1024 * 1024) throw new Error('Backup too large (max 18MB)');
-          const file = await journal.putJson(jsonStr);
-          sendJson(response, 201, { ok: true, ...file, provider: journal.id });
-        }catch(e){
-          const msg=String(e.message||'');
-          if(isQuotaError(msg)){
-            sendJson(response, 507, { error: 'Drive quota', driveError: msg.slice(0,600), help: getDriveConfigHelp().hint + ' Or add more API: set JOURNAL_PROVIDER and implement js/<provider>.mjs.' });
-            return;
-          }
-          sendJson(response, 500, { error: e.message || 'Backup failed' });
-        }
-        return;
-    }
-    if (request.method === 'GET' && pathname === '/api/journal/backup') {
-        const journal = getProvider(null);
-        if(!journal.isConfigured()){ sendJson(response, 503, { error: 'Drive not configured', help: getDriveConfigHelp().hint }); return; }
-        try{
-          const data = await journal.getJson();
-          if(!data){ sendJson(response, 404, { error: 'No backup in Drive yet — save one first.' }); return; }
-          response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-          response.end(data.json);
-        }catch(e){ sendJson(response, 502, { error: e.message }); }
-        return;
-    }
-    // also allow importing a file object: POST /api/journal/restore {json: "..."} just validates
-    if (request.method === 'POST' && pathname === '/api/journal/restore') {
-        if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) { sendJson(response, 403, { error: 'Cross-origin requests are not allowed' }); return; }
-        try {
-            const body = await readJson(request, 20 * 1024 * 1024);
-            const payload = body.json ? JSON.parse(typeof body.json === 'string' ? body.json : JSON.stringify(body.json)) : body;
-            if (!payload || (typeof payload !== 'object')) throw new Error('Invalid JSON');
-            sendJson(response, 200, { ok: true, trades: Array.isArray(payload.trades) ? payload.trades.length : 0, strategies: Array.isArray(payload.strategies) ? payload.strategies.length : 0 });
-        } catch (e) { sendJson(response, 400, { error: e.message }); }
-        return;
-    }
-    if (request.method === 'POST' && pathname === '/api/journal/upload') {
-        if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) {
-            sendJson(response, 403, { error: 'Cross-origin requests are not allowed' });
-            return;
-        }
-        try {
-            const ct = String(request.headers['content-type'] || '');
-            let buffer, filename = 'journal.jpg', mimeType = 'image/jpeg';
-            if (ct.includes('application/json')) {
-                const body = await readJson(request, 15 * 1024 * 1024);
-                filename = String(body.filename || filename).slice(0, 120).replace(/[\\/]/g, '_');
-                mimeType = String(body.mimeType || mimeType).slice(0, 120);
-                const data = String(body.data || body.dataUrl || '');
-                const b64 = data.includes(',') ? data.split(',').pop() : data;
-                if (!b64) throw new Error('Missing image data');
-                buffer = Buffer.from(b64, 'base64');
-            } else {
-                // raw binary — filename from query
-                filename = String(requestUrl.searchParams.get('filename') || filename).slice(0, 120).replace(/[\\/]/g, '_');
-                mimeType = String(request.headers['content-type'] || mimeType).split(';')[0].trim() || mimeType;
-                buffer = await readBodyBuffer(request, 12 * 1024 * 1024);
-            }
-            if (!buffer || buffer.length < 100) throw new Error('Empty image');
-            if (buffer.length > 10 * 1024 * 1024) throw new Error('Image too large (max 10MB)');
-            if (!mimeType.startsWith('image/')) mimeType = 'image/jpeg';
-            const safeName = `${Date.now()}_${filename}`;
-            const journal = getProvider(null);
-            if(!journal.isConfigured()){
-              sendJson(response, 503, { error: 'Drive not configured', help: getDriveConfigHelp().hint });
-              return;
-            }
-            try{
-              const file = await journal.upload({ buffer, filename: safeName, mimeType });
-              sendJson(response, 201, { ...file, provider: journal.id });
-            }catch(e){
-              if(isQuotaError(String(e.message||''))){
-                sendJson(response, 507, { error: 'Drive quota — add Shared Drive', driveError: String(e.message).slice(0,600), help: getDriveConfigHelp().hint });
-                return;
-              }
-              throw e;
-            }
-        } catch (e) {
-            console.error('journal upload failed', e.message || e);
-            sendJson(response, 500, { error: e.message || 'Upload failed' });
-        }
-        return;
-    }
-    if (request.method === 'GET' && pathname.startsWith('/api/drive/thumb/')) {
-        const id = pathname.slice('/api/drive/thumb/'.length).trim();
-        if (!id || !/^[a-zA-Z0-9_-]{10,}$/.test(id)) { sendJson(response, 400, { error: 'Bad id' }); return; }
-        try {
-            const token = await getAccessToken();
-            if (!token) { sendJson(response, 503, { error: 'Drive not configured' }); return; }
-            const upstream = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`, { headers: { Authorization: `Bearer ${token}` } });
-            if (!upstream.ok) { sendJson(response, upstream.status, { error: `Drive ${upstream.status}` }); return; }
-            const ct = upstream.headers.get('content-type') || 'image/jpeg';
-            const len = upstream.headers.get('content-length');
-            response.writeHead(200, { 'Content-Type': ct, ...(len ? { 'Content-Length': len } : {}), 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
-            const buf = Buffer.from(await upstream.arrayBuffer());
-            response.end(buf);
-        } catch (e) { sendJson(response, 502, { error: e.message }); }
-        return;
-    }
+    // Journal is local-only (browser localStorage + JSON export with compressed base64). No server Drive routes.
 
     if (pathname === '/api/alert-card' && request.method === 'GET') {
         const pair = (requestUrl.searchParams.get('pair') || 'Gold / USD').slice(0, 50);

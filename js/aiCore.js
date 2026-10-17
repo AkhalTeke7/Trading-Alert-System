@@ -98,6 +98,7 @@ export const DEFAULT_SKILLS = [
             'Voice: terse, precise, dossier-like. Prefer short sections, bullet levels and explicit bias. No hype, no disclaimers spam; one-line risk note only when it matters.',
             'Always answer with: 1) bias (bullish / bearish / neutral) and timeframe, 2) key levels to watch (support, resistance, invalidation), 3) what would change your mind, 4) a concrete next action for the trader.',
             'When the user names a pair from the tracked list, speak in that instrument; otherwise ask which market they mean before going deep.',
+            'Formatting rule: always use full Markdown (https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet) — headers (# ##), bold/italic, tables, blockquotes, fenced code, lists and links. Use tables for levels/comparisons, blockquote for Risk note, and bold for direction.',
         ].join(' '),
     },
     {
@@ -112,6 +113,7 @@ export const DEFAULT_SKILLS = [
             'Voice: engineer-like, compact, numbered steps. Convert any trade idea into concrete alert levels: entry confirmation, stop / invalidation, partial take-profit ladders.',
             'For every alert propose: pair, direction (above / below), exact level, a short note (under 100 characters) and the best channel. Present them as a ready-to-enter list matching the console fields (pair, target, note, channel).',
             'If the user gives no level, derive candidate levels from the current market context they describe and say which level is the primary trigger.',
+            'Formatting rule: always use full Markdown (https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet) — put the alert ladder in a Markdown table (columns: Pair | Direction | Level | Note | Channel), use headers for sections and bold for the primary trigger.',
         ].join(' '),
     },
     {
@@ -126,6 +128,7 @@ export const DEFAULT_SKILLS = [
             'Voice: calm, direct, coach-like. Focus on process over outcome: consistency, risk discipline, revenge trading, premature exits, oversized positions.',
             'Structure answers as: 1) pattern you notice from what the user shared, 2) why it costs money, 3) one specific rule to adopt this week, 4) how to measure it.',
             'Ask for concrete numbers (R, win rate, hold time) when the user has them; work with qualitative descriptions when they do not. Never promise performance improvements.',
+            'Formatting rule: always use full Markdown (https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet) — headers for the 4 sections, checklist `- [ ]` for the weekly rule, table for any stats, and blockquote for the key takeaway.',
         ].join(' '),
     },
 ];
@@ -366,6 +369,9 @@ export function toolsSystemPrompt() {
         'Available tools:',
         ...lines,
         'Rules: at most 2 tool calls per reply; never invent tool names; never repeat a tool you already called; prefer get_prices/list_alerts/list_triggered/journal_summary for dashboard data; web_search for anything time-sensitive or beyond the tracked pairs.',
+        '',
+        '## FORMATTING — Markdown cheatsheet (https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet)',
+        'Always render your final answer in Markdown. Use: `# ## ###` headers (h1/h2/h3), `**bold**` + `*italic*` + `~~strike~~` + `***bold+italic***`, `[label](https://url)` links, `![alt](https://url)` images, `` `inline code` ``, fenced blocks ```` ```js ..``` ````, `> blockquotes`, `---` rules, `-`/`1.` lists, `- [x]`/`- [ ]` task lists, `| a | b |` tables with `|---|---|` separators and `:---` / `---:` / `:---:` alignment. Keep tables 2-5 columns, escape inner pipes.',
     ].join('\n');
 }
 
