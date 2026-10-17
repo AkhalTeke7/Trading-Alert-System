@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="description" content="Sign in to your Price-Alert trading dashboard.">
+  <title>Sign in · Price-Alert</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/login.css">
+  <script>
+    (() => {
+      try {
+        const theme = localStorage.getItem('pa.theme');
+        if (['day', 'dawn'].includes(theme)) document.documentElement.dataset.theme = theme;
+      } catch {}
+    })();
+  </script>
+</head>
+<body>
+  <main class="login-shell">
+    <div class="scene" aria-hidden="true">
+      <div class="scene-image"></div>
+      <div class="scene-grid"></div>
+      <div class="scene-caption"><span>MARKET OUTLOOK</span><span>01 — 03</span></div>
+      <div class="scene-note"><span class="live-dot"></span> YOUR EDGE, IN FOCUS</div>
+    </div>
+
+    <section class="login-panel" aria-labelledby="welcome-title">
+      <a class="brand" href="./login.html" aria-label="Price-Alert sign in">
+        <span class="brand-mark"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 1.5 4.8 10h4.5l-.8 8.5 6.7-9h-4.5l.8-8Z"/></svg></span>
+        <span>PRICE<span class="brand-dash">—</span>ALERT</span>
+      </a>
+
+      <div class="panel-content">
+        <div class="eyebrow"><span class="rune">𐱅</span> PRIVATE DASHBOARD <span class="eyebrow-line"></span></div>
+        <h1 id="welcome-title">Welcome<br><em>back.</em></h1>
+        <p class="intro">Sign in to pick up where the market left off.</p>
+
+        <form id="login-form" autocomplete="on">
+          <label class="field-label" for="username">USERNAME</label>
+          <div class="input-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-3.4 3-5.2 7-5.2s6.4 1.8 7 5.2"/></svg>
+            <input id="username" name="username" type="text" placeholder="Your dashboard username" autocomplete="username" required autofocus>
+          </div>
+
+          <div class="password-heading">
+            <label class="field-label" for="password">PASSWORD</label>
+            <button class="text-action" type="button" id="forgot" aria-label="Password help">Need help?</button>
+          </div>
+          <div class="input-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10" rx="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+            <button class="show-password" type="button" id="toggle-password" aria-label="Show password">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            </button>
+          </div>
+
+          <div class="form-meta">
+            <label class="remember"><input type="checkbox" id="remember"><span class="checkmark" aria-hidden="true"></span><span>Remember this device</span></label>
+            <span class="secure-label"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg> ENCRYPTED</span>
+          </div>
+
+          <p class="form-message" id="form-message" role="alert" aria-live="polite"></p>
+          <button class="submit-button" type="submit">
+            <span class="submit-label">Sign in</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 10h12m-5-5 5 5-5 5"/></svg>
+          </button>
+        </form>
+
+        <div class="panel-foot">
+          <span class="foot-rule"></span>
+          <p>AUTHORIZED ACCESS ONLY <span>·</span> YOUR ACCOUNT IS PROTECTED</p>
+        </div>
+      </div>
+
+      <footer class="bottom-bar"><span>PRICE-ALERT <span class="footer-sep">/</span> TRADING INTELLIGENCE</span><span class="footer-rune">𐰀 𐰴 𐰚 𐰀</span></footer>
+    </section>
+  </main>
+  <script src="./js/login.js" defer></script>
+</body>
+</html>

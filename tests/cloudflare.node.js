@@ -36,9 +36,61 @@ test('dashboard fails closed without credentials and challenges unauthenticated 
     const response = await worker.fetch(request('/api/alerts'), credentials);
     assert.equal(response.status, 401);
     assert.match(response.headers.get('WWW-Authenticate'), /Basic/);
-    assert.equal((await worker.fetch(new Request('https://alerts.example/', {
+    const redirected = await worker.fetch(new Request('https://alerts.example/', {
         headers: { Authorization: 'Basic !!!invalid' },
-    }), credentials)).status, 401);
+    }), credentials);
+    assert.equal(redirected.status, 302);
+    assert.match(redirected.headers.get('Location'), /login\.html/);
+});
+
+test('login verifies dashboard credentials, issues a signed session, and logout clears it', async () => {
+    const assets = { fetch: async request => new Response(`asset:${new URL(request.url).pathname}`) };
+    const env = { ...credentials, ASSETS: assets };
+    const loginPage = await worker.fetch(request('/login.html'), env);
+    assert.equal(loginPage.status, 200);
+    assert.match(await loginPage.text(), /asset:\/login\.html/);
+
+    const invalid = await worker.fetch(request('/api/login', 'POST', { username: 'tester', password: 'wrong' }), env);
+    assert.equal(invalid.status, 401);
+    const loginRequest = new Request('https://alerts.example/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://alerts.example' },
+        body: JSON.stringify({ username: 'tester', password: 'test-only-password', remember: true }),
+    });
+    const login = await worker.fetch(loginRequest, env);
+    assert.equal(login.status, 200);
+    const cookie = login.headers.get('Set-Cookie');
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /SameSite=Lax/);
+    assert.match(cookie, /Max-Age=2592000/);
+    assert.match(cookie, /Secure/);
+
+    const dashboardRequest = new Request('https://alerts.example/', { headers: { Cookie: cookie.split(';')[0] } });
+    const dashboard = await worker.fetch(dashboardRequest, env);
+    assert.equal(dashboard.status, 200);
+    assert.match(await dashboard.text(), /asset:\/main\.html/);
+    const signedInPage = await worker.fetch(new Request('https://alerts.example/login.html?next=/alerts', {
+        headers: { Cookie: cookie.split(';')[0] },
+    }), env);
+    assert.equal(signedInPage.status, 302);
+    assert.equal(signedInPage.headers.get('Location'), 'https://alerts.example/alerts');
+    const unapprovedAsset = await worker.fetch(request('/css/style.css'), env);
+    assert.equal(unapprovedAsset.status, 302);
+
+    const crossOriginLogin = await worker.fetch(new Request('https://alerts.example/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' },
+        body: JSON.stringify({ username: 'tester', password: 'test-only-password' }),
+    }), env);
+    assert.equal(crossOriginLogin.status, 403);
+
+    const logout = await worker.fetch(new Request('https://alerts.example/api/logout', {
+        method: 'POST', headers: { Origin: 'https://alerts.example', Cookie: cookie.split(';')[0] },
+    }), env);
+    assert.equal(logout.status, 200);
+    assert.match(logout.headers.get('Set-Cookie'), /Max-Age=0/);
+    const afterLogout = await worker.fetch(new Request('https://alerts.example/', {
+        headers: { Cookie: logout.headers.get('Set-Cookie').split(';')[0] },
+    }), env);
+    assert.equal(afterLogout.status, 302);
 });
 
 test('HTTPS same-origin saves work; cross-origin writes are denied', async () => {
@@ -102,7 +154,7 @@ test('alerts persist across object restarts; modify preserves identity; delete r
 
 test('validation and body limits reject bad writes without fetching prices', async () => {
     const store = setup({ getPrices: () => { throw new Error('should not run'); } });
-    for (const body of [{ ...input, target: -1 }, { ...input, channel: 'Email' }, { ...input, note: 'a'.repeat(501) }]) {
+    for (const body of [{ ...input, target: -1, targetInputValue: '-1' }, { ...input, channel: 'Email' }, { ...input, note: 'a'.repeat(501) }]) {
         assert.equal((await store.fetch(request('/api/alerts', 'POST', body))).status, 400);
     }
     const oversized = await store.fetch(request('/api/alerts', 'POST', { note: 'a'.repeat(10_001) }));
