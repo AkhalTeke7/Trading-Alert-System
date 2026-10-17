@@ -10,7 +10,9 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/theme.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+    <script src="./js/theme.js"></script>
 </head>
 <body>
 
@@ -24,6 +26,7 @@
             <p class="welcome-text">Welcome to Alerting System</p>
         </div>
         <nav class="right-header">
+            <div id="theme-switch"></div>
             <button type="button" class="paragraph">Settings</button>
             <button type="button" class="aboutme paragraph">About</button>
             
@@ -77,6 +80,8 @@
     document.querySelector(".news").addEventListener("click", function () {
         window.location = "./news.html";
     });
+    // re-render TradingView charts when theme switches
+    window.addEventListener('pa:theme', ()=>{ if(typeof rebuildDOM==='function'){ PA_ORDER.forEach((_,i)=> injectChartScript(i)); } });
     document.querySelector(".journal")?.addEventListener("click", function () {
         window.location = "./journal.html";
     });
@@ -162,7 +167,12 @@ function injectChartScript(idx){
   const s = document.createElement('script');
   s.type='text/javascript'; s.async=true;
   s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  s.textContent = JSON.stringify({ autosize:true, symbol:m.Tv, interval:"15", timezone:"Etc/UTC", theme:"dark", style:"1", locale:"en", enable_publishing:false, backgroundColor:"rgba(10, 10, 10, 1)", gridColor:"rgba(233, 228, 214, 0.06)", overrides:{"mainSeriesProperties.candleStyle.upColor":"#16a34a","mainSeriesProperties.candleStyle.downColor":"#0a0a0a","mainSeriesProperties.candleStyle.borderUpColor":"#16a34a","mainSeriesProperties.candleStyle.borderDownColor":"#555555","mainSeriesProperties.candleStyle.wickUpColor":"#16a34a","mainSeriesProperties.candleStyle.wickDownColor":"#555555","mainSeriesProperties.candleStyle.borderColor":"#555555"}, hide_top_toolbar:false, hide_side_toolbar:true, allow_symbol_change:false, save_image:false, calendar:false, support_host:"https://www.tradingview.com" });
+  const __isDay = document.documentElement.getAttribute('data-theme')==='day';
+  const __isDawn = document.documentElement.getAttribute('data-theme')==='dawn';
+  const __tvTheme = __isDay ? 'light' : 'dark';
+  const __tvBg = __isDay ? 'rgba(245,241,232,1)' : (__isDawn ? 'rgba(18,22,20,1)' : 'rgba(10,10,10,1)');
+  const __grid = __isDay ? 'rgba(20,20,19,0.06)' : 'rgba(233,228,214,0.06)';
+  s.textContent = JSON.stringify({ autosize:true, symbol:m.Tv, interval:"15", timezone:"Etc/UTC", theme:__tvTheme, style:"1", locale:"en", enable_publishing:false, backgroundColor:__tvBg, gridColor:__grid, overrides:{"mainSeriesProperties.candleStyle.upColor":"#16a34a","mainSeriesProperties.candleStyle.downColor":(__isDay?"#ffffff":"#0a0a0a"),"mainSeriesProperties.candleStyle.borderUpColor":"#16a34a","mainSeriesProperties.candleStyle.borderDownColor":"#555555","mainSeriesProperties.candleStyle.wickUpColor":"#16a34a","mainSeriesProperties.candleStyle.wickDownColor":"#555555","mainSeriesProperties.candleStyle.borderColor":"#555555"}, hide_top_toolbar:false, hide_side_toolbar:true, allow_symbol_change:false, save_image:false, calendar:false, support_host:"https://www.tradingview.com" });
   container.appendChild(s);
 }
 function rebuildDOM(){

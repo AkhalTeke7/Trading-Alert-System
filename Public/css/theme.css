@@ -1,0 +1,83 @@
+/* Theme system — night (default) / day / dawn
+   Works on any page: html[data-theme="day|dawn"] overrides the :root vars
+   from style.css / alert.css / news.html inline <style>.
+   Loaded after those, so wins with attribute selector. */
+
+html[data-theme="day"]{
+  --bg:#f5f1e8;
+  --panel:#ffffff;
+  --panel-2:#fbfaf6;
+  --bone:#141413;
+  --muted:#7a756a;
+  --dim:#a8a49a;
+  --red:#c0392b;
+  --up:#1a9e5e;
+  --line:rgba(20,20,19,.10);
+  --line-strong:rgba(20,20,19,.24);
+  color-scheme: light;
+}
+html[data-theme="day"] body::before{ opacity:.035; }
+html[data-theme="day"] .card,
+html[data-theme="day"] .first,
+html[data-theme="day"] .second,
+html[data-theme="day"] .j-card,
+html[data-theme="day"] .j-analyze{
+  background-image: radial-gradient(rgba(20,20,19,.045) 1px, transparent 1px);
+}
+html[data-theme="day"] .pa-overlay{ background: rgba(255,255,255,.02); }
+
+/* Dawn — warm tactical / amber dossier (my pick)
+   Deep forest paper, copper accent, calm on eyes */
+html[data-theme="dawn"]{
+  --bg:#121614;
+  --panel:#1a211e;
+  --panel-2:#1f2b26;
+  --bone:#e8e0c7;
+  --muted:#9ab0a8;
+  --dim:#6b7a74;
+  --red:#e67e22;
+  --up:#2ecc71;
+  --line:rgba(232,224,199,.12);
+  --line-strong:rgba(232,224,199,.28);
+  color-scheme: dark;
+}
+html[data-theme="dawn"] body::before{ opacity:.045; }
+html[data-theme="dawn"] .card{
+  background-image: radial-gradient(rgba(232,224,199,.05) 1px, transparent 1px);
+}
+
+
+
+/* --- switcher pill --- */
+.theme-switch{
+  display:inline-flex;
+  align-items:center;
+  gap:2px;
+  padding:3px;
+  border:1px solid var(--line);
+  background: var(--panel);
+  border-radius: 999px;
+}
+.theme-switch button{
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  font-size:14px;
+  color:var(--muted);
+  border:1px solid transparent;
+  transition: background .18s, color .18s, border-color .18s, transform .18s;
+}
+.theme-switch button:hover{
+  color:var(--bone);
+  border-color:var(--line-strong);
+}
+.theme-switch button.active{
+  background: var(--bone);
+  color: var(--bg);
+  border-color: var(--bone);
+}
+.theme-switch button.active i{ color: var(--bg); }
+
+/* map TradingView widget bg via CSS var hint — JS will reload widget on theme change */

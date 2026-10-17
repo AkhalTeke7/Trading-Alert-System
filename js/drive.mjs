@@ -173,12 +173,15 @@ function getServiceAccount(env){
       }
     }catch{}
   }
+  const isCloudflareTrunc = raw.length >= 900 && raw.length <= 1100 && raw.includes('private_key');
   _diag.error = 'JSON parse: ' + lastErr.slice(0, 220);
   _diag.rawHead = JSON.stringify(raw.slice(0, 200));
   _diag.rawHeadLen = raw.slice(0,200).length;
-  _diag.hint = raw.length<50
-    ? 'Value looks truncated (len '+raw.length+'). If you pasted pretty-printed JSON with line breaks, minify to ONE line in .env: GOOGLE_DRIVE_SERVICE_ACCOUNT={...} . Or use GOOGLE_DRIVE_KEY_FILE=C:\\path\\to\\key.json (more reliable). Run: node scripts/fix-env.mjs'
-    : 'Paste the service-account JSON as ONE line, or base64-encode it, or point GOOGLE_DRIVE_KEY_FILE to the downloaded .json file. Then restart npm start. Fix now: node scripts/fix-env.mjs (minifies the pretty-printed block in .env)';
+  _diag.hint = isCloudflareTrunc
+    ? 'Cloudflare Vars are limited to ~1k (your len=' + raw.length + '). You put GOOGLE_DRIVE_SERVICE_ACCOUNT in wrangler.jsonc [vars] / Dashboard Variables -> TRUNCATED at 1020 chars. Fix: use SECRET not var: `npx wrangler secret put GOOGLE_DRIVE_SERVICE_ACCOUNT` paste MINIFIED one-line JSON, then `npx wrangler deploy`. Or `echo (cat key.json | base64 -w0)` and put base64 as secret. Local: use GOOGLE_DRIVE_KEY_FILE=C:\\path\\to\\key.json.'
+    : raw.length<50
+      ? 'Value looks truncated (len '+raw.length+'). If you pasted pretty-printed JSON with line breaks, minify to ONE line in .env: GOOGLE_DRIVE_SERVICE_ACCOUNT={...} . Or use GOOGLE_DRIVE_KEY_FILE=C:\\path\\to\\key.json (more reliable). Run: node scripts/fix-env.mjs'
+      : 'Paste the service-account JSON as ONE line, or base64-encode it, or point GOOGLE_DRIVE_KEY_FILE to the downloaded .json file. Then restart npm start. Fix now: node scripts/fix-env.mjs (minifies the pretty-printed block in .env)';
   try{ console.warn('[drive] bad GOOGLE_DRIVE_SERVICE_ACCOUNT json', lastErr, 'rawLen', raw.length, 'head', raw.slice(0,80)); }catch{}
   return null;
 }

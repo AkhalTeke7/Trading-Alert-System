@@ -13,13 +13,16 @@ const state = { events: [], imp: "all", country: "all" };
 
 /* ---------- helpers ---------- */
 function weekRange() {
-    // Monday 00:00 -> next Monday 00:00 (browser local time) - matches TradingView widget
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-    const end = new Date(start);
+    // NEXT week: next Monday 00:00 -> following Monday 00:00 (browser local time)
+    // So on Sat Oct 17 you see Mon Oct 19-25 (0 released), not Mon Oct 12-18 (142/146 released)
+    const thisMon = new Date();
+    thisMon.setHours(0, 0, 0, 0);
+    thisMon.setDate(thisMon.getDate() - ((thisMon.getDay() + 6) % 7));
+    const nextMon = new Date(thisMon);
+    nextMon.setDate(nextMon.getDate() + 7);
+    const end = new Date(nextMon);
     end.setDate(end.getDate() + 7);
-    return [start, end];
+    return [nextMon, end];
 }
 
 function utc4(d) {

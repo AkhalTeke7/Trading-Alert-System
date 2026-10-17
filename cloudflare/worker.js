@@ -44,6 +44,23 @@ export default {
                 return json({ error: 'Could not fetch current prices' }, 502);
             }
         }
+        // Proxy TradingView calendar events — same as Node server, avoids CORS and lets news show NEXT week
+        if (url.pathname === '/api/events') {
+            if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+            try {
+                const from = url.searchParams.get('from') || new Date().toISOString();
+                const to = url.searchParams.get('to') || new Date(Date.now() + 7*24*3600*1000).toISOString();
+                const countries = url.searchParams.get('countries') || 'AR,AU,BR,CA,CN,FR,DE,IN,ID,IT,JP,KR,MX,RU,SA,ZA,TR,GB,US,ERL';
+                const minImportance = url.searchParams.get('minImportance') || '0';
+                const upstream = `https://chartevents-reuters.tradingview.com/events?minImportance=${encodeURIComponent(minImportance)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&countries=${encodeURIComponent(countries)}`;
+                const r = await fetch(upstream, { headers: { Accept: 'application/json', 'User-Agent': 'Price-Alert/1.0' }, signal: AbortSignal.timeout(15_000) });
+                if (!r.ok) throw new Error(`upstream ${r.status}`);
+                const data = await r.json();
+                return json(data);
+            } catch (e) {
+                return json({ error: 'Could not fetch events', detail: String(e?.message || e).slice(0, 300) }, 502);
+            }
+        }
         // --- Journal — Drive-only (same as Node server, provider via JOURNAL_PROVIDER) ---
         if (url.pathname === '/api/drive/status' && request.method === 'GET'){
             const diag = drive.getDriveDiagnostics(env);
