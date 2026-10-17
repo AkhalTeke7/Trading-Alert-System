@@ -10,12 +10,15 @@ import com.google.firebase.messaging.RemoteMessage
 class PriceAlertMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
+        val channel = data["channel"] ?: ""
+        if (channel.isNotEmpty() && channel != "Phone" && channel != "App") return
         val event = TriggeredEvent(
             id = data["eventId"] ?: message.messageId ?: System.currentTimeMillis().toString(),
             pair = data["pair"] ?: data["title"] ?: "Price Alert",
             target = data["target"] ?: "",
             note = data["note"] ?: (data["body"] ?: ""),
             triggeredAt = "",
+            channel = channel,
         )
         // Dedupe with the polling path: without this, push rings now and the
         // poller rings again for the same event ~30s later ("stop does nothing").

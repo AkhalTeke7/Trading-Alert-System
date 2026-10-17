@@ -49,7 +49,7 @@ export function createTelegramBot(token, {
             .text('Bale', 'channel:Bale').style("success")
             .text('Telegram', 'channel:Telegram').style("primary")
             .row()
-            .text('Both', 'channel:Both').style("danger");
+            .text('Phone', 'channel:Phone').style("danger");
 
     const confirmationKeyboard = () =>
         new InlineKeyboard()

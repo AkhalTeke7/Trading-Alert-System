@@ -472,7 +472,9 @@ function renderStratUI(){
 }
 function stats(){
   const n=trades.length, w=trades.filter(t=>t.outcome==='WIN').length, l=trades.filter(t=>t.outcome==='LOSS').length, be=trades.filter(t=>t.outcome==='BE').length;
-  $("#st-total").textContent=n; $("#st-wr").textContent=n? Math.round(w/n*100)+"%" : "—";
+  const wrDen=w+l; // BE excluded — break-even is not a win or loss
+  $("#st-total").textContent=n; $("#st-wr").textContent= wrDen? Math.round(w/wrDen*100)+"%" : "—";
+  $("#st-wr").title = wrDen? `WIN ${w} / (WIN+LOSS ${wrDen}) · BE ${be} excluded` : `No WIN/LOSS yet · BE ${be}`;
   $("#st-wl").textContent=w+" / "+l+" / "+be;
   let sum=0, ok=false; trades.forEach(t=>{ if(hasPnL(t.pnl)){ sum+=numPnL(t.pnl); ok=true; }});
   const el=$("#st-pnl"); el.textContent=ok? (sum>=0? "+"+sum.toFixed(2): sum.toFixed(2))+" USD" : "—"; el.className=ok? (sum>=0?"win":"loss"):"";

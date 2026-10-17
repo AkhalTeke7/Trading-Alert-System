@@ -75,9 +75,16 @@ class AlertMonitorService : Service() {
             p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
             return
         }
-        // One alarm per poll: ring only the latest fresh event, mark the rest
-        // seen. Older ones stay visible in the app's Triggered history.
-        val ordered = fresh.sortedBy { it.triggeredAt }
+        // Only ring for Phone (distinct channel) — ignore Telegram/Bale events
+        val phoneFresh = fresh.filter { it.channel == "Phone" || it.channel == "App" || it.channel.isEmpty() }
+        if (phoneFresh.isEmpty()) {
+            // mark Telegram/Bale as seen so we don't check them again every poll
+            for (e in fresh) seen.add(e.id)
+            p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
+            return
+        }
+        // One alarm per poll: ring only the latest Phone event
+        val ordered = phoneFresh.sortedBy { it.triggeredAt }
         for (e in ordered) seen.add(e.id)
         p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
         val latest = ordered.maxByOrNull { it.triggeredAt } ?: return

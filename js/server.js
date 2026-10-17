@@ -120,7 +120,7 @@ async function pushToFcmDevices(event) {
     if (pushDevices.length === 0) return;
     const title = `Price Alert: ${event.pair}`;
     const body = `${event.pair} ${event.target} — ${event.note || 'triggered'}`;
-    const data = { eventId: event.id, pair: String(event.pair), target: String(event.target), note: String(event.note || '') };
+    const data = { eventId: event.id, pair: String(event.pair), target: String(event.target), note: String(event.note || ''), channel: String(event.channel || '') };
     try {
         const { getServiceAccount, sendFcmV1 } = await import('./fcmV1.js');
         const serviceAccount = getServiceAccount();
@@ -206,17 +206,18 @@ async function checkStoredAlerts() {
             console.log(`[check] ${alert.pair} target=${alert.target} state=${alert.state} prec=${alert.targetPrecision} symbol=${sym} current=${current} trunc=${comparedCurrent} crossed=${crossed}`);
             if (!Number.isFinite(comparedCurrent) || !crossed) continue;
 
+            const isPhone = alert.channel === 'Phone' || alert.channel === 'App';
             try {
-                await alertSender(alert.pair, alert.target, alert.note, alert.channel);
+                if (!isPhone) await alertSender(alert.pair, alert.target, alert.note, alert.channel);
                 const event = recordTriggered({ alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing' });
-                void pushToFcmDevices(event).catch(() => {});
+                if (isPhone) void pushToFcmDevices(event).catch(() => {});
                 storedAlerts = storedAlerts.filter(item => item.id !== alert.id);
                 await persistAlerts();
-                console.log(`[triggered] ${alert.id} ${alert.pair} ${alert.target} sent -> ${alert.channel}`);
+                console.log(`[triggered] ${alert.id} ${alert.pair} ${alert.target} sent -> ${alert.channel}${isPhone ? ' (phone only)' : ''}`);
             } catch (error) {
                 console.error(`Could not send alert ${alert.id}:`, error);
-                // Still ring the phone so a Telegram/Bale outage is audible.
                 recordTriggered({ alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing-delivery-failed' });
+                // No phone fallback — channels are distinct (Phone only rings for Phone)
             }
         }
     } catch (error) {

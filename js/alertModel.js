@@ -44,11 +44,17 @@ export function getAlertInput(body) {
     const note = String(body?.note || '');
     let channel = String(body?.channel || 'Telegram');
     if (channel === 'All') channel = 'Both';
+    // backward compat: old clients sent App/Both/Phone
+    if (channel === 'App') channel = 'Phone';
+    if (channel === 'Phone App' || channel === 'phone') channel = 'Phone';
     if (!allowedPairs.has(pair) || !Number.isFinite(target) || target <= 0 || note.length > 500) {
         throw new Error('Invalid alert details');
     }
-    if (!['Bale', 'Telegram', 'Both', 'App'].includes(channel)) {
-        throw new Error('Invalid alert channel');
+    // Distinct choices: Telegram, Bale, Phone — no "Both" as distinct option
+    if (!['Bale', 'Telegram', 'Phone'].includes(channel)) {
+        // tolerate legacy Both by mapping to Telegram (closest single)
+        if (channel === 'Both') channel = 'Telegram';
+        else throw new Error('Invalid alert channel');
     }
     return { pair, target, targetInputValue, targetPrecision: (targetInputValue.split('.')[1] || '').length, note, channel };
 }

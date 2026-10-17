@@ -447,7 +447,7 @@ export class AlertStore {
         if (!devices.length) return;
         const title = `Price Alert: ${event.pair}`;
         const body = `${event.pair} ${event.target} — ${event.note || 'triggered'}`;
-        const data = { eventId: event.id, pair: String(event.pair), target: String(event.target), note: String(event.note || '') };
+        const data = { eventId: event.id, pair: String(event.pair), target: String(event.target), note: String(event.note || ''), channel: String(event.channel || '') };
         // FCM HTTP v1 (service account) first; legacy server key as fallback.
         try {
             const { getServiceAccount, sendFcmV1 } = await import('../js/fcmV1.js');
@@ -500,24 +500,23 @@ export class AlertStore {
             if (++attempts > 5) break; // Remaining crossed alerts are checked on the next cron tick.
             alert.triggered = true;
             await this.saveAlerts(alerts);
+            const isPhone = alert.channel === 'Phone' || alert.channel === 'App';
             try {
-                await this.notify(alert, this.env, async channel => {
-                    alert.deliveredChannels = [...new Set([...(alert.deliveredChannels || []), channel])];
-                    await this.saveAlerts(alerts);
-                });
+                if (!isPhone) {
+                    await this.notify(alert, this.env, async channel => {
+                        alert.deliveredChannels = [...new Set([...(alert.deliveredChannels || []), channel])];
+                        await this.saveAlerts(alerts);
+                    });
+                }
                 const event = await this.appendTriggered(this.makeTriggered({
                     alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing',
                 }));
-                await this.pushToDevices(event).catch(() => {});
+                if (isPhone) await this.pushToDevices(event).catch(() => {});
                 alerts = alerts.filter(item => item.id !== alert.id);
                 await this.saveAlerts(alerts);
             } catch {
                 console.error(`Notification failed for alert ${alert.id}; retained for retry`);
-                // Still ring the phone so provider outages are audible; retry-safe via event id.
-                const event = await this.appendTriggered(this.makeTriggered({
-                    alertId: alert.id, pair: alert.pair, target: alert.target, note: alert.note, channel: alert.channel, source: 'crossing-delivery-failed',
-                })).catch(() => null);
-                if (event) await this.pushToDevices(event).catch(() => {});
+                // No phone fallback — channels are distinct (Phone only rings for Phone)
                 // Rotate failed alerts so they do not starve other pending alerts.
                 alerts = [...alerts.filter(item => item.id !== alert.id), alert];
                 await this.saveAlerts(alerts);

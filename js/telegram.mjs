@@ -19,8 +19,8 @@ export async function alertSender(pair, targetPrice, note, channel = 'Bale', pre
             requiredVariables: ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'],
         },
     };
-    if (channel === 'App') {
-        // Mobile app only — no Bale/Telegram delivery, phone rings via /api/triggered polling + FCM
+    if (channel === 'Phone' || channel === 'App') {
+        // Phone only — no Bale/Telegram delivery, phone rings via /api/triggered polling + FCM
         return;
     }
     const selectedChannels = channel === 'Both' ? ['Bale', 'Telegram'] : [channel];

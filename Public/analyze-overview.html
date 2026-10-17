@@ -143,14 +143,15 @@ function drawDonut(w,l,be,total){
   if(!total){ svg.innerHTML=`<circle cx="21" cy="21" r="15" fill="none" stroke="rgba(233,228,214,.08)" stroke-width="6"/><text x="21" y="23" text-anchor="middle" font-family="JetBrains Mono" font-size="5" fill="var(--dim)">—</text>`; legend.innerHTML=""; sub.textContent=""; return; }
   sub.textContent=`${total} trades`;
   const wp=w/total*100, lp=l/total*100, bp=be/total*100;
+  const wrDen=w+l, wrPct=wrDen? Math.round(w/wrDen*100) : 0;
   let off=0;
   let html=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(233,228,214,.08)" stroke-width="3.5"/>`;
   if(wp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#3bc47a" stroke-width="3.5" stroke-dasharray="${wp.toFixed(2)} ${(100-wp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)"/>`; off+=wp; }
   if(lp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#d13b2f" stroke-width="3.5" stroke-dasharray="${lp.toFixed(2)} ${(100-lp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)"/>`; off+=lp; }
   if(bp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#e9e4d6" stroke-width="3.5" stroke-dasharray="${bp.toFixed(2)} ${(100-bp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)" opacity=".55"/>`; }
-  html+=`<circle cx="21" cy="21" r="10" fill="var(--bg)"/><text x="21" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="4.5" fill="var(--bone)">${Math.round(wp)}% WR</text>`;
+  html+=`<circle cx="21" cy="21" r="10" fill="var(--bg)"/><text x="21" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="4.5" fill="var(--bone)">${wrDen? wrPct+"% WR":"— WR"}</text><text x="21" y="26.5" text-anchor="middle" font-family="JetBrains Mono" font-size="2.8" fill="var(--dim)">${wrDen? `BE excl.`:"no WIN/LOSS"}</text>`;
   svg.innerHTML=html;
-  legend.innerHTML=`<span><i style="background:#3bc47a"></i>WIN ${w} · ${wp.toFixed(0)}%</span><span><i style="background:#d13b2f"></i>LOSS ${l} · ${lp.toFixed(0)}%</span><span><i style="background:var(--bone);opacity:.6"></i>BE ${be} · ${bp.toFixed(0)}%</span>`;
+  legend.innerHTML=`<span><i style="background:#3bc47a"></i>WIN ${w} · ${wp.toFixed(0)}% of all · ${wrDen? Math.round(w/wrDen*100):0}% WR</span><span><i style="background:#d13b2f"></i>LOSS ${l} · ${lp.toFixed(0)}%</span><span><i style="background:var(--bone);opacity:.6"></i>BE ${be} · ${bp.toFixed(0)}% · excluded from WR</span>`;
 }
 function drawHist(vals){
   const svg=document.getElementById('hist-svg'); svg.innerHTML="";
@@ -178,18 +179,45 @@ function render(){
   document.getElementById('count-tag').textContent=list.length+" trades";
   document.getElementById('filter-bar').innerHTML = (!f.pair&&!f.outcome&&!f.strat&&!f.q) ? `<span>No filter — showing all <b>${list.length}</b> dossiers</span>` : `<span>Filtered:</span> ${f.pair?`<span>pair <b>${f.pair}</b></span>`:''} ${f.outcome?`<span>outcome <b>${f.outcome}</b></span>`:''} ${f.strat?`<span>strategy <b>${f.strat}</b></span>`:''} ${f.q?`<span>search <b>${f.q}</b></span>`:''} <span style="margin-left:auto"><a href="#" onclick="location.search='';return false" style="color:var(--bone)">Clear filters</a></span>`;
   const wins=list.filter(t=>t.outcome==='WIN'), losses=list.filter(t=>t.outcome==='LOSS'), bes=list.filter(t=>t.outcome==='BE');
-  const sumWin=wins.reduce((s,t)=>s+(hasPnL(t.pnl)? numPnL(t.pnl):0),0);
-  const sumLoss=Math.abs(losses.reduce((s,t)=>s+(hasPnL(t.pnl)? numPnL(t.pnl):0),0));
-  const pf=sumLoss>0? (sumWin/sumLoss).toFixed(2) : sumWin>0? "∞" : "—";
-  document.getElementById('an-pf').textContent=pf;
-  const avgW=wins.length? (sumWin/wins.length).toFixed(2):"—", avgL=losses.length? (-(sumLoss/losses.length)).toFixed(2):"—";
-  document.getElementById('an-avg').textContent=avgW+" / "+avgL;
-  const net=list.reduce((s,t)=>s+(hasPnL(t.pnl)? numPnL(t.pnl):0),0);
-  document.getElementById('an-exp').textContent= list.length? (net/list.length).toFixed(2)+" USD" : "—";
+  const valsAll=list.filter(t=>hasPnL(t.pnl)).map(t=>numPnL(t.pnl));
+  const grossProfit=valsAll.filter(v=>v>0).reduce((s,v)=>s+v,0);
+  const grossLossAbs=Math.abs(valsAll.filter(v=>v<0).reduce((s,v)=>s+v,0));
+  const pf=grossLossAbs>0? (grossProfit/grossLossAbs).toFixed(2) : grossProfit>0? "∞" : "—";
+  const pfEl=document.getElementById('an-pf'); pfEl.textContent=pf; pfEl.title=`Gross profit ${grossProfit.toFixed(2)} / gross loss ${grossLossAbs.toFixed(2)} · PnL-sign based (BE excluded)`;
+  const posVals=valsAll.filter(v=>v>0), negVals=valsAll.filter(v=>v<0);
+  const avgW=posVals.length? (posVals.reduce((s,v)=>s+v,0)/posVals.length).toFixed(2):"—";
+  const avgL=negVals.length? (negVals.reduce((s,v)=>s+v,0)/negVals.length).toFixed(2):"—";
+  const avgEl=document.getElementById('an-avg'); avgEl.textContent=avgW+" / "+avgL; avgEl.title=`${posVals.length} wins with PnL>0, ${negVals.length} losses with PnL<0 · BE/zero excluded`;
+  const net=valsAll.reduce((s,v)=>s+v,0);
+  const decided=wins.length+losses.length;
+  const avgWinPos=posVals.length? posVals.reduce((s,v)=>s+v,0)/posVals.length:0;
+  const avgLossAbs=negVals.length? Math.abs(negVals.reduce((s,v)=>s+v,0)/negVals.length):0;
+  const pWinDecided= decided? wins.length/decided : 0;
+  const expDecided= decided? pWinDecided*avgWinPos - (1-pWinDecided)*avgLossAbs : 0;
+  const expAllTrades=list.length? net/list.length:0;
+  const expWithPnL=valsAll.length? net/valsAll.length:0;
+  const expEl=document.getElementById('an-exp');
+  expEl.textContent= valsAll.length? expWithPnL.toFixed(2)+" USD" : "—";
+  expEl.title= `Per PnL trade: ${expWithPnL.toFixed(2)} (net ${net.toFixed(2)}/${valsAll.length} with PnL) · per filtered trade: ${expAllTrades.toFixed(2)} (${list.length} total) · decided pWIN ${Math.round(pWinDecided*100)}% × avgWin ${avgWinPos.toFixed(2)} − avgLoss ${avgLossAbs.toFixed(2)} = ${expDecided.toFixed(2)}`;
   const vals=list.filter(t=>hasPnL(t.pnl)).map(t=>numPnL(t.pnl));
-  document.getElementById('an-bw').textContent= vals.length? Math.max(...vals).toFixed(2)+" / "+Math.min(...vals).toFixed(2) : "—";
-  document.getElementById('an-ls').textContent= list.filter(t=>t.dir==="Long").length+" / "+list.filter(t=>t.dir==="Short").length;
-  let streak="—"; if(list.length){ const ff=list[0].outcome; let c=0; for(const t of list){ if(t.outcome===ff) c++; else break; } streak=c+"× "+ff; let cur=0,bestW=0,worstL=0,last=null; list.slice().reverse().forEach(t=>{ if(t.outcome!==last) last=t.outcome; if(t.outcome==="WIN"){ cur = last==="WIN"? cur+1:1; bestW=Math.max(bestW,cur);} if(t.outcome==="LOSS"){ cur = last==="LOSS"? cur+1:1; worstL=Math.max(worstL,cur);} }); streak+= (bestW? ` · best ${bestW}W / ${worstL}L`:""); }
+  let bwTxt="—", bwTip="";
+  if(vals.length){
+    let best=Math.max(...vals), worst=Math.min(...vals);
+    const bestT=list.find(t=> hasPnL(t.pnl) && numPnL(t.pnl)===best);
+    const worstT=list.find(t=> hasPnL(t.pnl) && numPnL(t.pnl)===worst);
+    bwTxt=best.toFixed(2)+" / "+worst.toFixed(2);
+    const fmtP=t=> t? `${esc(t.pair||"?")} ${esc(t.outcome||"?")} ${esc(fmtStrat(t))} ${new Date(t.date).toLocaleDateString('en-CA')}` : "";
+    function fmtStrat(tt){ const s=typeof tradeStrats==="function"? tradeStrats(tt).join(", "): (tt.strategy||""); return s||"(no strat)"; }
+    bwTip=`Best: ${fmtP(bestT)} · Worst: ${fmtP(worstT)}`;
+  }
+  const bwEl=document.getElementById('an-bw'); bwEl.textContent=bwTxt; bwEl.title=bwTip;
+  const lsLong=list.filter(t=>t.dir==="Long").length, lsShort=list.filter(t=>t.dir==="Short").length;
+  const lsLongW=list.filter(t=>t.dir==="Long"&&t.outcome==="WIN").length, lsLongL=list.filter(t=>t.dir==="Long"&&t.outcome==="LOSS").length;
+  const lsShortW=list.filter(t=>t.dir==="Short"&&t.outcome==="WIN").length, lsShortL=list.filter(t=>t.dir==="Short"&&t.outcome==="LOSS").length;
+  const lsLongWr= lsLongW+lsLongL? Math.round(lsLongW/(lsLongW+lsLongL)*100)+"%":"—";
+  const lsShortWr= lsShortW+lsShortL? Math.round(lsShortW/(lsShortW+lsShortL)*100)+"%":"—";
+  const lsEl=document.getElementById('an-ls'); lsEl.textContent= lsLong+" / "+lsShort; lsEl.title=`Long WR ${lsLongWr} (${lsLongW}W/${lsLongL}L) · Short WR ${lsShortWr} (${lsShortW}W/${lsShortL}L) · BE excl.`;
+  let streak="—"; if(list.length){ const chronoAsc=list.slice().reverse(); const nowOutcome=list[0].outcome; let curRun=1; for(let k=1;k<list.length;k++){ if(list[k].outcome===nowOutcome) curRun++; else break; } streak=curRun+"× "+nowOutcome+" now"; let run=0, last=null, bestW=0, worstL=0; chronoAsc.forEach(t=>{ if(t.outcome===last) run++; else { run=1; last=t.outcome; } if(t.outcome==="WIN") bestW=Math.max(bestW,run); if(t.outcome==="LOSS") worstL=Math.max(worstL,run); }); streak+= (bestW||worstL? ` · best ${bestW}W / worst ${worstL}L`:""); }
   document.getElementById('an-streak').textContent=streak;
   drawDonut(wins.length, losses.length, bes.length, list.length);
   drawHist(vals);

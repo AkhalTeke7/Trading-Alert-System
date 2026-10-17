@@ -12,6 +12,7 @@ data class TriggeredEvent(
     val target: String,
     val note: String,
     val triggeredAt: String,
+    val channel: String = "",
 )
 
 object Api {
@@ -43,6 +44,7 @@ object Api {
                 target = o.opt("target")?.toString() ?: "",
                 note = o.optString("note"),
                 triggeredAt = o.optString("triggeredAt"),
+                channel = o.optString("channel"),
             )
         }
         return out

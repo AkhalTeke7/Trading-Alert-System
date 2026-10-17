@@ -2,6 +2,7 @@
 import { renderMainChartHtml } from '../js/mainChartShot.js';
 
 export async function sendAlert(alert, env, onDelivered) {
+    if (alert.channel === 'Phone' || alert.channel === 'App') return;
     const names = alert.channel === 'Both' ? ['Bale', 'Telegram'] : [alert.channel];
     const pending = names.filter(name => !alert.deliveredChannels?.includes(name));
     if (!pending.length) return;
