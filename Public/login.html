@@ -39,11 +39,14 @@
         <h1 id="welcome-title">Welcome<br><em>back.</em></h1>
         <p class="intro">Sign in to pick up where the market left off.</p>
 
-        <form id="login-form" autocomplete="on">
+        <form id="login-form" autocomplete="off" data-form-type="other">
+          <!-- decoy fields to trap aggressive password managers (Chrome/Edge) -->
+          <input type="text" name="prevent_autofill_username" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none">
+          <input type="password" name="prevent_autofill_password" autocomplete="current-password" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none">
           <label class="field-label" for="username">USERNAME</label>
           <div class="input-wrap">
             <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-3.4 3-5.2 7-5.2s6.4 1.8 7 5.2"/></svg>
-            <input id="username" name="username" type="text" placeholder="Your dashboard username" autocomplete="username" required autofocus>
+            <input id="username" name="pa_username" type="text" placeholder="Your dashboard username" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true" value="" required>
           </div>
 
           <div class="password-heading">
@@ -52,7 +55,7 @@
           </div>
           <div class="input-wrap">
             <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10" rx="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+            <input id="password" name="pa_password" type="password" placeholder="Enter your password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true" value="" required>
             <button class="show-password" type="button" id="toggle-password" aria-label="Show password">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
             </button>

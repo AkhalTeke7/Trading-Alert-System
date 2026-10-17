@@ -3,8 +3,25 @@
   const message = document.getElementById('form-message');
   const submit = form.querySelector('[type="submit"]');
   const label = submit.querySelector('.submit-label');
+  const username = document.getElementById('username');
   const password = document.getElementById('password');
   const togglePassword = document.getElementById('toggle-password');
+
+  // Always start empty — defeat browser/password-manager autofill (Chrome ignores autocomplete="off")
+  function clearLoginFields() {
+    try { form.reset(); } catch {}
+    if (username) username.value = '';
+    if (password) password.value = '';
+    // nudge managers that this isn't a saveable login form
+    if (username) username.setAttribute('autocomplete', 'off');
+    if (password) password.setAttribute('autocomplete', 'new-password');
+  }
+  clearLoginFields();
+  // autofill often fires after DOMContentLoaded / on bfcache restore
+  window.addEventListener('pageshow', clearLoginFields);
+  window.addEventListener('load', () => setTimeout(clearLoginFields, 80));
+  setTimeout(clearLoginFields, 120);
+  setTimeout(clearLoginFields, 400);
 
   togglePassword.addEventListener('click', () => {
     const showing = password.type === 'text';
