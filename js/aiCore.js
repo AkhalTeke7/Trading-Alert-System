@@ -347,7 +347,25 @@ export function parseJsonCompletion(kind, data) {
 // model answers with the data. Works with every provider incl. the demo channel.
 // ---------------------------------------------------------------------------
 
+// A complete, inspect-only inventory of the dashboard's user-facing functions.
+// This is deliberately data rather than callable endpoints: the AI may learn what
+// each function does, but it cannot create, change, delete, test, or send anything.
+export const FUNCTION_CATALOG = [
+    { name: 'chart_data', access: 'read', description: 'Read live tracked-market prices and TradingView symbols used by the charts.' },
+    { name: 'alerts', access: 'read', description: 'Read pending price alerts and their pair, target, direction, note, delivery channel, and creation time.' },
+    { name: 'trigger_history', access: 'read', description: 'Read recently triggered alert events and their delivery source.' },
+    { name: 'journal', access: 'read', description: 'Read journal performance summaries, pair breakdowns, and recent trade notes when a journal backup is available.' },
+    { name: 'economic_calendar', access: 'read', description: 'Read upcoming high-impact economic events.' },
+    { name: 'web_search', access: 'read', description: 'Read time-sensitive market context from web search results.' },
+    { name: 'alert_testing', access: 'inspect-only', description: 'Inspect the test-alert capability. Running a test can deliver a real notification and is not available to the AI.' },
+    { name: 'messaging_delivery', access: 'inspect-only', description: 'Inspect Telegram and Bale delivery capability. Sending messages is not available to the AI.' },
+    { name: 'mobile_delivery', access: 'inspect-only', description: 'Inspect mobile-app notification capability. Registering devices or sending push notifications is not available to the AI.' },
+    { name: 'alert_creation', access: 'inspect-only', description: 'Inspect alert creation requirements: pair, target, note, and delivery channel. Creating alerts is not available to the AI.' },
+    { name: 'alert_management', access: 'inspect-only', description: 'Inspect alert update and deletion capability. Updating or deleting alerts is not available to the AI.' },
+];
+
 export const TOOLS = [
+    { name: 'read_functions', args: '{}', description: 'Read the complete dashboard function catalog, including chart data, testing, messaging/mobile delivery, and alerts. This is inspect-only and never executes or changes a function.' },
     { name: 'get_prices', args: '{}', description: 'Live prices for the tracked pairs (Gold / USD, EUR / USD, GBP / USD, BTC / USD, NASDAQ / USD, S&P 500 / USD) plus their TradingView symbols.' },
     { name: 'list_alerts', args: '{}', description: 'Pending price alerts saved in the console: id, pair, target, direction, note, channel, created time.' },
     { name: 'list_triggered', args: '{}', description: 'Recently triggered alert events: pair, target, note, channel, when.' },
@@ -368,6 +386,7 @@ export function toolsSystemPrompt() {
         'You will then receive a "TOOL RESULT" message — use it to answer the user in your normal voice.',
         'Available tools:',
         ...lines,
+        'All tool access is read-only. You can inspect dashboard data and function capabilities, but you must not create, update, delete, test, send, deliver, or register anything. Use read_functions when asked what the dashboard can do or whether an action is available to you.',
         'Rules: at most 2 tool calls per reply; never invent tool names; never repeat a tool you already called; prefer get_prices/list_alerts/list_triggered/journal_summary for dashboard data; web_search for anything time-sensitive or beyond the tracked pairs.',
         '',
         '## FORMATTING — Markdown cheatsheet (https://github.com/adam-p/markdown-here/wiki/markdown-cheatsheet)',
@@ -399,6 +418,7 @@ export function parseToolCall(text) {
 
 export function summarizeToolResult(tool, result) {
     if (!result || result.error) return String(result?.error || 'failed');
+    if (tool === 'read_functions') return `${(result.functions || []).length} functions · ${result.access || 'read-only'}`;
     if (tool === 'get_prices') {
         const pairs = Object.keys(result.prices || result || {});
         const first = (result.prices || result)[pairs[0]] || {};
@@ -535,6 +555,11 @@ export function createToolExecutors({
     return {
         async exec(tool, args = {}) {
             switch (tool) {
+                case 'read_functions':
+                    return {
+                        access: 'read-only',
+                        functions: FUNCTION_CATALOG.map(entry => ({ ...entry })),
+                    };
                 case 'get_prices': {
                     if (!getPrices) return { error: 'Prices are not available in this runtime' };
                     try {
@@ -618,6 +643,9 @@ export function createToolExecutors({
 function demoToolPlan(prompt) {
     const text = String(prompt || '').toLowerCase();
     const plan = [];
+    if (/(function|capabilit|what.{0,12}(can|do|access)|available.{0,12}(tool|action|feature)|read.only)/.test(text)) {
+        plan.push({ tool: 'read_functions', args: {} });
+    }
     if (/(price|market|gold|xau|eur|btc|bitcoin|nasdaq|s&p|level|structure|momentum|what.{0,12}(doing|moving))/.test(text)) {
         plan.push({ tool: 'get_prices', args: {} });
     }
@@ -632,6 +660,10 @@ function demoToolPlan(prompt) {
 function demoFormatResult(call) {
     const { tool, result } = call;
     if (!result || result.error) return `- ${tool}: ${result?.error || 'unavailable'}`;
+    if (tool === 'read_functions') {
+        const names = (result.functions || []).map(entry => entry.name).join(', ');
+        return `- **Dashboard functions (${result.access || 'read-only'}):** ${names || 'none'}`;
+    }
     if (tool === 'get_prices') {
         const rows = Object.entries(result.prices || {}).map(([symbol, entry]) => `  - ${symbol}: ${entry.price ?? '—'}`);
         return [`- **Live prices** (${result.at ? result.at.slice(11, 16) : ''} UTC):`, ...rows].join('\n');

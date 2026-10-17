@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import worker from '../cloudflare/worker.js';
 import { AlertStore } from '../cloudflare/alertStore.js';
 import {
-    maskKey, validateKey, runChat, DEFAULT_SKILLS, TOOLS,
+    maskKey, validateKey, runChat, DEFAULT_SKILLS, TOOLS, FUNCTION_CATALOG,
     parseToolCall, webSearch, summarizeJournal, createToolExecutors,
 } from '../js/aiCore.js';
 
@@ -208,6 +208,18 @@ test('chat proxies to the configured provider with the stored key and skill prom
     assert.match(seenBody.messages[0].content, /Journal Coach/);
     assert.match(seenBody.messages[0].content, /CONSOLE DATA TOOLS/);
     assert.equal(seenBody.model, 'mistral-small-latest');
+});
+
+test('the AI can inspect every dashboard function without receiving write access', async () => {
+    assert.ok(TOOLS.some(tool => tool.name === 'read_functions'));
+    const result = await createToolExecutors().exec('read_functions');
+    assert.equal(result.access, 'read-only');
+    assert.deepEqual(result.functions, FUNCTION_CATALOG);
+    assert.deepEqual(result.functions.map(entry => entry.name), [
+        'chart_data', 'alerts', 'trigger_history', 'journal', 'economic_calendar', 'web_search',
+        'alert_testing', 'messaging_delivery', 'mobile_delivery', 'alert_creation', 'alert_management',
+    ]);
+    assert.ok(result.functions.every(entry => ['read', 'inspect-only'].includes(entry.access)));
 });
 
 test('the model can call console data tools and gets their real outputs', async () => {
