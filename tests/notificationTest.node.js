@@ -38,6 +38,30 @@ test('test failures are truthful and redact provider secrets', async () => {
     assert.doesNotMatch(JSON.stringify(failed), /botsecret|private/);
     const rejected = await testNotification({ ...args, fetchImpl: async () => ({ ok: true, json: async () => ({ ok: false }) }) });
     assert.ok(rejected.error);
-    assert.ok((await testNotification({ channel: 'App', getDevices: async () => [] })).error);
-    assert.ok((await testNotification({ channel: 'App', getDevices: async () => [{ pushToken: 'private' }] })).error);
+});
+
+test('App test only queues a triggered event — no registered devices or FCM needed', async () => {
+    const queued = [];
+    const result = await testNotification({
+        channel: 'App',
+        // No getDevices, no FCM service account / server key at all.
+        recordTriggered: async event => { queued.push(event); return { id: 'evt-1', ...event }; },
+    });
+    assert.equal(result.status, 'queued');
+    assert.equal(result.channel, 'App');
+    assert.equal(result.eventId, 'evt-1');
+    assert.match(result.detail, /pulls it automatically/);
+    assert.doesNotMatch(JSON.stringify(result), /register/i);
+    assert.equal(queued.length, 1);
+    assert.equal(queued[0].pair, 'Test');
+    assert.equal(queued[0].target, 'test');
+    assert.equal(queued[0].channel, 'App');
+    assert.equal(queued[0].source, 'ai-test');
+    assert.match(queued[0].note, /delivery test/);
+    // Without a triggered-history writer the runtime reports honestly, and a
+    // failing writer is an error — never a "register the app first" message.
+    assert.ok((await testNotification({ channel: 'App' })).error);
+    const failed = await testNotification({ channel: 'App', recordTriggered: async () => { throw new Error('storage down'); } });
+    assert.ok(failed.error);
+    assert.doesNotMatch(failed.error, /register/i);
 });

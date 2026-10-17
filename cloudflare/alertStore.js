@@ -208,7 +208,9 @@ export class AlertStore {
     // prices, alerts, triggered events and the journal through these.
     aiExecutors(settings) {
         return createToolExecutors({
-            testNotification: args => testNotification({ ...args, env: this.env, getDevices: async () => await this.storage.get('pushDevices') || [], fetchImpl: this.aiFetch }),
+            // App test = queue a triggered event; the Android app polls /api/triggered
+            // and pulls it automatically — no device registration / FCM needed.
+            testNotification: args => testNotification({ ...args, env: this.env, recordTriggered: event => this.appendTriggered(this.makeTriggered(event)), fetchImpl: this.aiFetch }),
             getPrices: this.prices,
             getAlerts: () => this.getAlerts(),
             getTriggered: () => this.getTriggered(),

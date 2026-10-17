@@ -453,8 +453,12 @@ js/
 
 The AI console can call `test_notification` directly; no additional buttons are
 needed. With an AI provider configured, ask “Send a Telegram test message”,
-“Test Bale delivery”, or “Send a test push to my phone”. `App` means Android
-push notifications, not SMS. The demo channel does not send tests.
+“Test Bale delivery”, or “Send a test to my phone”. `App` means the Android
+app, not SMS: the test is only queued as an event in triggered history
+(`/api/triggered`), and the app's monitor pulls it automatically on its next
+poll and rings — **no device registration and no FCM credentials are needed**
+(registration/FCM is only an optional instant-push extra). The demo channel
+does not send tests.
 
 Delivery tests work from **every skill**, including **Market Analyst** — a skill
 changes the assistant's voice and focus, not its permissions. Both runtimes
@@ -465,9 +469,10 @@ support sending notifications” or “I am read-only”. Creating, updating or
 deleting alerts and registering devices remain UI-only and are reported as
 such.
 
-Tests use fixed text and only server-configured destinations:
-`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`, `BALE_BOT_TOKEN` / `BALE_CHAT_ID`,
-or registered app devices with the existing FCM configuration. The AI cannot
-supply credentials, override recipients, register devices, or modify alerts.
-A provider accepting a test does not prove that the recipient read it or that
-a phone sounded. Failures are returned without secret-bearing provider URLs.
+Telegram/Bale tests use fixed text and only server-configured destinations
+(`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`, `BALE_BOT_TOKEN` / `BALE_CHAT_ID`).
+App tests use no destination at all — just the queued triggered event above.
+The AI cannot supply credentials, override recipients, or modify alerts.
+A provider accepting (or the server queueing) a test does not prove that the
+recipient read it or that a phone sounded. Failures are returned without
+secret-bearing provider URLs.
