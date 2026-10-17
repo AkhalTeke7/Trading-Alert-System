@@ -251,14 +251,22 @@ const aiSettingsFile = resolve(projectRoot, 'data', 'ai-settings.json');
 async function loadAiSettings() {
     try {
         const value = JSON.parse(await readFile(aiSettingsFile, 'utf8'));
+        const raw = value.providers && typeof value.providers === 'object' ? value.providers : {};
+        const providers = {};
+        for (const [k,v] of Object.entries(raw)) {
+            if (k === 'opencode') continue; // drop legacy opencode, keep custom:* for multi-endpoint
+            providers[k]=v;
+        }
+        let activeProvider = String(value.activeProvider || 'demo');
+        if (activeProvider === 'opencode') activeProvider = 'demo';
         return {
-            providers: value.providers && typeof value.providers === 'object' ? value.providers : {},
+            providers,
             skills: Array.isArray(value.skills) ? value.skills : [],
-            activeProvider: String(value.activeProvider || 'opencode'),
+            activeProvider,
             activeModel: String(value.activeModel || ''),
         };
     } catch (error) {
-        if (error.code === 'ENOENT') return { providers: {}, skills: [], activeProvider: 'opencode', activeModel: '' };
+        if (error.code === 'ENOENT') return { providers: {}, skills: [], activeProvider: 'demo', activeModel: '' };
         throw error;
     }
 }
@@ -288,7 +296,7 @@ function aiMaskedProviders(settings) {
     })();
     return effective.map(preset => {
         const saved = settings.providers[preset.id] || null;
-        const isKeyless = !!preset.keyless || preset.id === 'opencode';
+        const isKeyless = !!preset.keyless;
         return {
             id: preset.id,
             name: preset.name,
@@ -298,10 +306,10 @@ function aiMaskedProviders(settings) {
             requiresBaseUrl: !!preset.requiresBaseUrl,
             models: preset.models,
             defaultModel: preset.defaultModel,
-            configured: isKeyless || Boolean(saved?.apiKey) || Boolean(saved?.baseUrl),
+            configured: isKeyless || Boolean(saved?.apiKey),
             keyMask: saved?.apiKey ? maskKey(saved.apiKey) : null,
             model: saved?.model || '',
-            baseUrl: saved?.baseUrl || (preset.id==='opencode' ? (process.env.OPENCODE_BASE_URL || preset.baseUrl) : ''),
+            baseUrl: saved?.baseUrl || '',
             savedAt: saved?.savedAt || null,
         };
     });
@@ -350,9 +358,66 @@ async function handleAiApi(request, response, url) {
         return true;
     }
     try {
-        if (path === '/api/ai/state' && method === 'GET') {
-            sendJson(response, 200, aiStatePayload(aiSettings));
+        // Browser-direct bridge: returns raw key for same-site browser fetch (uses your IP/v2ray, not Cloudflare IP)
+        // Fixes shared-IP 429 on agnes/apihub when calling from *.workers.dev.
+        if (path === '/api/ai/bridge' && method === 'GET') {
+            if (!sameSiteWriteAllowed(request, url) && request.headers.origin) { sendJson(response, 403, { error: 'Cross-origin not allowed' }); return true; }
+            // Same-site GET without Origin (direct navigation) - allow only if Sec-Fetch-Site not cross-site
+            if (!request.headers.origin && request.headers['sec-fetch-site'] === 'cross-site') { sendJson(response, 403, { error: 'Cross-origin not allowed' }); return true; }
+            const provider = String(url.searchParams.get('provider') || '').trim();
+            if (!provider) { sendJson(response, 400, { error: 'provider required' }); return true; }
+            // Validate provider exists
+            const preset = PROVIDERS.find(p => p.id === provider) || (/^custom[:_-]/i.test(provider) ? PROVIDERS.find(p => p.id === 'custom') : null);
+            if (!preset) { sendJson(response, 404, { error: 'Unknown provider' }); return true; }
+            if (preset.kind === 'search' || preset.id === 'demo') { sendJson(response, 400, { error: 'Not a chat provider' }); return true; }
+            const saved = aiSettings.providers[provider] || null;
+            if (!saved?.apiKey) { sendJson(response, 404, { error: 'No key saved for this provider' }); return true; }
+            // Don't log key; return only for same-site browser in memory
+            sendJson(response, 200, {
+                provider,
+                apiKey: saved.apiKey,
+                baseUrl: saved.baseUrl || preset.baseUrl || '',
+                model: saved.model || preset.defaultModel || '',
+                kind: preset.kind,
+            });
             return true;
+        }
+        // Tool executor for browser-direct mode: browser does upstream fetch, calls tools here via your IP
+        if (path === '/api/ai/tool' && method === 'POST') {
+            if (!sameSiteWriteAllowed(request, url) && request.headers.origin) { sendJson(response, 403, { error: 'Cross-origin not allowed' }); return true; }
+            const body = await readJson(request, 8_000).catch(() => null);
+            const tool = String(body?.tool || '').trim();
+            const args = body?.args && typeof body.args === 'object' ? body.args : {};
+            if (!tool) { sendJson(response, 400, { error: 'tool required' }); return true; }
+            const exec = aiExecutors(aiSettings);
+            let result;
+            try { result = await exec.exec(tool, args); } catch (e) { result = { error: String(e?.message || e) }; }
+            sendJson(response, 200, result);
+            return true;
+        }
+        if (path === '/api/ai/context' && method === 'POST') {
+            const body = await readJson(request, 8_000).catch(() => null);
+            const skillId = String(body?.skillId || '').trim();
+            const rawMessages = Array.isArray(body?.messages) ? body.messages.slice(-40) : [];
+            const sk = listSkills(aiSettings.skills).find(s => s.id === skillId) || null;
+            // Reuse same system injection as chat but without provider validation
+            try { const { capabilitiesSystemPrompt, toolsSystemPrompt } = await import('./aiCore.js'); 
+                const systemText = [sk?.systemPrompt || '', capabilitiesSystemPrompt(), toolsSystemPrompt()].filter(Boolean).join('\n\n');
+                const prepared = systemText ? [{ role: 'system', content: systemText }, ...rawMessages] : rawMessages;
+                sendJson(response, 200, { skill: sk, messages: prepared });
+                return true;
+            } catch { sendJson(response, 200, { skill: sk, messages: rawMessages }); return true; }
+        }
+        if (path === '/api/ai/state' && method === 'GET') {
+            // Small ETag so browser reuses 304 and we save JSON gen/bandwidth.
+            const payload = aiStatePayload(aiSettings);
+            const body = JSON.stringify(payload);
+            let etag = null;
+            try { const { createHash } = await import('crypto'); etag = 'W/"' + createHash('sha1').update(body).digest('hex').slice(0, 16) + '"'; } catch {}
+            if (etag && request.headers['if-none-match'] === etag) { response.writeHead(304); response.end(); return true; }
+            const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, max-age=10, stale-while-revalidate=30' };
+            if (etag) headers['ETag'] = etag;
+            response.writeHead(200, headers); response.end(body); return true;
         }
 
         if (path === '/api/ai/providers' && method === 'PUT') {

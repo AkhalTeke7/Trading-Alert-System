@@ -1512,3 +1512,36 @@ button.ai-chip:hover {
 }
 /* pause expensive GPU work when tab hidden or on low-end/battery saver */
 .ai-bg.is-paused .ai-orb, .ai-bg.is-paused .ai-grid { animation-play-state: paused; }
+
+/* ---------------- caching UI ---------------- */
+.ai-cache-notice{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin: 10px 0; padding: 9px 12px;
+  border: 1px dashed rgba(233,228,214,.22); background: rgba(233,228,214,.05);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; color: var(--muted);
+}
+.ai-cache-notice button{
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  border: 1px solid var(--line-strong); background: var(--bg); color: var(--bone); padding: 4px 8px;
+}
+.ai-cache-notice button:hover{ background: var(--bone); color: var(--bg); }
+.ai-cache-bar{
+  display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);
+}
+.ai-cache-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  font-family: var(--font-mono); font-size:9px; letter-spacing:.10em; text-transform:uppercase;
+  border:1px solid var(--line); background: var(--panel); color: var(--muted); padding:6px 8px;
+}
+.ai-cache-btn:hover{ color:var(--bone); border-color:var(--line-strong); }
+.ai-cache-btn.ghost{ background: transparent; }
+.ai-cache-btn.danger:hover{ color:var(--red); border-color: rgba(209,59,47,.45); }
+
+/* browser-direct bridge toggle (fixes shared-IP 429 on agnes via your IP/v2ray) */
+.ai-chip.ai-bridge{ cursor:pointer; user-select:none; }
+.ai-chip.ai-bridge.on{
+  color: #8aff8a;
+  border-color: rgba(138,255,138,.35);
+  background: rgba(138,255,138,.08);
+}
+.ai-chip.ai-bridge.on i{ color: #8aff8a; }

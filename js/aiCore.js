@@ -8,17 +8,6 @@
 
 export const PROVIDERS = [
     {
-        id: 'opencode',
-        name: 'OpenCode',
-        hint: 'local gateway · no key required · default',
-        keyless: true,
-        kind: 'openai',
-        // Default local OpenCode gateway; override via OPENCODE_BASE_URL env in server/worker.
-        baseUrl: 'http://127.0.0.1:4096/v1',
-        models: ['opencode-default', 'opencode-fast', 'opencode-reasoning'],
-        defaultModel: 'opencode-default',
-    },
-    {
         id: 'demo',
         name: 'Demo channel',
         hint: 'offline · no key required',
@@ -92,16 +81,9 @@ export const PROVIDERS = [
     },
 ];
 
-export function resolveOpenCodeBaseUrl(env) {
-    const fromEnv = String(env?.OPENCODE_BASE_URL || env?.OPENCODE_API_BASE || '').trim().replace(/\/+$/, '');
-    if (fromEnv) return fromEnv;
-    const preset = PROVIDERS.find(p => p.id === 'opencode');
-    return preset?.baseUrl || 'http://127.0.0.1:4096/v1';
-}
 export const providerById = id => {
     const found = PROVIDERS.find(provider => provider.id === id) || null;
     if (found) return found;
-    // Dynamic custom endpoints (custom-2, custom:foo) inherit the base custom preset
     const sid = String(id || '');
     if (/^custom[:_-]/i.test(sid)) {
         const base = PROVIDERS.find(p => p.id === 'custom');
@@ -119,6 +101,7 @@ export function listEffectiveProviders(savedProviders = {}) {
     }
     return list;
 }
+export function resolveOpenCodeBaseUrl() { return ''; } // kept for backwards compat — no longer used
 
 const RUNES = ['𐰀', '𐰇', '𐰉', '𐰴', '𐰚', '𐱅', '𐰸', '𐰺', '𐰽', '𐰾'];
 
@@ -240,7 +223,12 @@ export function validateBaseUrl(baseUrl) {
 }
 
 export function sanitizeModel(model, preset) {
-    const value = String(model || '').trim().slice(0, 120);
+    let value = String(model || '').trim().slice(0, 120);
+    if (preset?.kind === 'google' && value) {
+        // Users often paste "models/gemini-2.5-flash" or "gemini/gemini-2.5-flash" — strip prefix.
+        value = value.replace(/^models\//i, '').trim();
+        if (value.includes('/')) value = value.split('/').pop().trim();
+    }
     return value || preset?.defaultModel || '';
 }
 
@@ -964,14 +952,11 @@ async function* toolLoopStream({ fetchImpl, preset, apiKey, baseUrl, model, skil
                 signal: AbortSignal.timeout(90_000),
             });
         } catch {
-            yield { error: `Could not reach ${preset.name}. Check the worker's outbound network and try again.` };
+            yield { error: `Could not reach ${preset.name}. Check outbound network and try again.` };
             return;
         }
         if (!upstream.ok) {
-            const isLocalOC = preset.id === 'opencode' && String(baseUrl||'').includes('127.0.0.1');
-            const hint = isLocalOC
-                ? ` OpenCode points to ${baseUrl} (localhost) — only works when running locally via "npm start" + an OpenCode gateway on :4096. On Cloudflare, change Active channel to Demo or a real provider (OpenAI/Groq/Anthropic), or set a public OPENCODE_BASE_URL via "wrangler secret put OPENCODE_BASE_URL".`
-                : (upstream.status===429 ? ' Rate limited / quota exceeded. Wait a minute or switch provider.' : '') + (upstream.status===401||upstream.status===403 ? ' Key invalid, expired, or model not allowed for this key.' : '');
+            const hint = (upstream.status===429 ? ' Rate limited / quota exceeded.' : '') + (upstream.status===401||upstream.status===403 ? ' Key invalid / model not allowed.' : '');
             yield { error: `${preset.name} rejected the request (HTTP ${upstream.status}).${hint}` };
             return;
         }
@@ -1031,10 +1016,7 @@ async function toolLoopJson({ fetchImpl, preset, apiKey, baseUrl, model, skill, 
             throw error;
         }
         if (!upstream.ok) {
-            const isLocalOC = preset.id === 'opencode' && String(baseUrl||'').includes('127.0.0.1');
-            const hint = isLocalOC
-                ? ` OpenCode is localhost-only (${baseUrl}). On Cloudflare, switch Active channel to Demo or a real provider, or set a public OPENCODE_BASE_URL.`
-                : '' + (upstream.status===429 ? ' Rate limited / quota exceeded.' : '') + (upstream.status===401||upstream.status===403 ? ' Key invalid/expired.' : '');
+            const hint = '' + (upstream.status===429 ? ' Rate limited / quota exceeded.' : '') + (upstream.status===401||upstream.status===403 ? ' Key invalid/expired.' : '');
             const error = new Error(`${preset.name} rejected the request (HTTP ${upstream.status}).${hint}`);
             error.publicMessage = error.message;
             error.status = upstream.status === 401 || upstream.status === 403 ? 402 : 502;
@@ -1074,15 +1056,14 @@ async function toolLoopJson({ fetchImpl, preset, apiKey, baseUrl, model, skill, 
  *   { kind: 'json', provider, model, skill, content, toolCalls }
  * Throws Error with .publicMessage for user-facing failures.
  */
-function isKeylessPreset(preset) { return !!preset?.keyless || preset?.id === 'opencode'; }
+function isKeylessPreset(preset) { return !!preset?.keyless; }
 function availabilityRank(preset, saved) {
-    if (preset?.keyless) return preset.id === 'opencode' ? 0 : 9;
-    if (isKeylessPreset(preset)) return 0;
+    if (preset?.keyless) return 9;
     return saved?.apiKey ? 1 : 99;
 }
 function buildFallbackChain(primaryId, providersBag) {
     const all = listEffectiveProviders(providersBag);
-    const primary = providerById(primaryId) || providerById('opencode') || providerById('demo');
+    const primary = providerById(primaryId) || providerById('demo');
     const chain = [primary.id];
     const sorted = [...all]
         .filter(p => p.id !== primary.id && p.kind !== 'search')
@@ -1100,7 +1081,7 @@ function buildFallbackChain(primaryId, providersBag) {
     return chain;
 }
 async function runChatWithFallback(input, opts) {
-    const primaryId = String(input?.provider || opts.providers?.activeProvider || 'opencode');
+    const primaryId = String(input?.provider || opts.providers?.activeProvider || 'demo');
     const chain = buildFallbackChain(primaryId, opts.providers || {});
     let lastErr = null;
     for (let idx = 0; idx < chain.length; idx++) {
@@ -1176,7 +1157,7 @@ function wrapStreamWithFallback(initialRes, _initialId, chain, startIdx, input, 
     return { ...initialRes, events: eventsGen(), fallbackFrom: startIdx > 0 ? primaryId : undefined };
 }
 export async function runChat(input, opts = {}) {
-    // Public wrapper with automatic availability-based failover across multiple custom endpoints + OpenCode first.
+    // Public wrapper with automatic failover across saved providers/custom endpoints → demo.
     return runChatWithFallback(input, opts);
 }
 async function runChatDirect(input, {
@@ -1219,16 +1200,15 @@ async function runChatDirect(input, {
         };
     }
 
-    const isOpencode = preset.id === 'opencode' || preset.id.startsWith('opencode');
     const apiKey = String(saved.apiKey || '').trim();
-    const needsKey = !preset.keyless && !isOpencode;
+    const needsKey = !preset.keyless;
     if (needsKey && !apiKey) {
-        const error = new Error(`No API key saved for ${preset.name} — open Settings -> AI providers to add one.`);
+        const error = new Error(`No API key saved for ${preset.name} — open Settings → AI providers to add one.`);
         error.publicMessage = error.message;
         error.status = 409;
         throw error;
     }
-    const baseUrl = saved.baseUrl || preset.baseUrl || (isOpencode ? resolveOpenCodeBaseUrl() : '');
+    const baseUrl = saved.baseUrl || preset.baseUrl || '';
 
     if (stream) {
         return {
@@ -1260,30 +1240,6 @@ export async function testProvider({ provider, apiKey, model, baseUrl }, { provi
     }
     if (preset.kind === 'demo') {
         return { ok: true, provider: 'demo', model: 'dossier-demo', sample: 'Demo channel is always available.' };
-    }
-    if (preset.id === 'opencode' || preset.id.startsWith('opencode')) {
-        const targetBase = String(baseUrl || providers[preset.id]?.baseUrl || preset.baseUrl || '').trim();
-        if (!targetBase) {
-            const err = new Error('Base URL is required for OpenCode');
-            err.status = 400;
-            throw err;
-        }
-        const urlErr = validateBaseUrl(targetBase);
-        if (urlErr) { const err = new Error(urlErr); err.status = 400; throw err; }
-        const finalModel = sanitizeModel(model || providers[preset.id]?.model, preset);
-        // OpenCode is keyless — no apiKey required. Probe with a tiny chat.
-        const savedOC = providers[preset.id] || {};
-        const probeKey = String(apiKey || savedOC.apiKey || 'opencode').trim() || 'opencode';
-        const result = await runChatDirect({
-            provider: preset.id,
-            model: finalModel,
-            stream: false,
-            messages: [{ role: 'user', content: 'Reply with the single word: ready' }],
-        }, {
-            providers: { ...providers, [preset.id]: { apiKey: probeKey, model: finalModel, baseUrl: targetBase } },
-            fetchImpl,
-        });
-        return { ok: true, provider: preset.id, model: result.model, sample: String(result.content || '').trim().slice(0, 80) || 'OK' };
     }
     const saved = providers[preset.id] || {};
     const key = String(apiKey || saved.apiKey || '').trim();
@@ -1317,7 +1273,8 @@ export async function testProvider({ provider, apiKey, model, baseUrl }, { provi
         }
     }
     const finalModel = sanitizeModel(model || saved.model, preset);
-    const result = await runChat({
+    // Bypass fallback chain — test must hit exactly this provider; a bad key/model must error, not silently become demo.
+    const result = await runChatDirect({
         provider: preset.id,
         model: finalModel,
         stream: false,
@@ -1326,6 +1283,10 @@ export async function testProvider({ provider, apiKey, model, baseUrl }, { provi
         providers: { ...providers, [preset.id]: { apiKey: key, model: finalModel, baseUrl: targetBase } },
         fetchImpl,
     });
+    if (result.kind !== 'json') {
+        // stream should not happen here, but handle
+        return { ok: true, provider: preset.id, model: result.model, sample: 'OK' };
+    }
     return {
         ok: true,
         provider: preset.id,
@@ -1344,19 +1305,16 @@ function wantsPersistCustomId(rawId, body) {
     if (!id) return null;
     if (id === 'custom') return 'custom';
     if (/^custom[:_-]/i.test(id)) return id;
-    // allow arbitrary slug when caller sets wantsCustom variant
     if (body?.kind === 'openai' && body?.baseUrl) return id;
     return null;
 }
 export function upsertProvider(settings, body) {
-    const rawId = String(body?.provider || '');
+    const rawId = String(body?.provider || '').trim();
     const customId = wantsPersistCustomId(rawId, body);
     const preset = providerById(rawId) || (customId ? providerById('custom') : null);
     const effectiveId = customId || preset?.id;
     if (!preset || !effectiveId) return { error: 'Unknown provider' };
-    // demo is display-only; opencode is keyless but still persistable (baseUrl/model)
     if (preset.id === 'demo') return { error: 'Unknown provider' };
-    if (preset.id === 'opencode' && body?.apiKey) return { error: 'OpenCode needs no API key — set Base URL and Model instead.' };
     const providers = { ...(settings.providers || {}) };
     const next = { ...(providers[effectiveId] || {}), savedAt: new Date().toISOString() };
     if (body.apiKey !== undefined) {
@@ -1384,22 +1342,21 @@ export function upsertProvider(settings, body) {
     if (modelPreset.requiresBaseUrl && next.apiKey && !next.baseUrl) {
         return { error: 'Base URL is required for the custom endpoint' };
     }
-    const needsPersist = !!next.apiKey || !!next.baseUrl || !!next.model || effectiveId === 'opencode' || /^custom[:_-]/i.test(effectiveId);
+    // Multi-custom: custom:* can persist with apiKey or baseUrl; plain providers need apiKey
+    const isCustomSlot = /^custom[:_-]/i.test(effectiveId) || effectiveId === 'custom';
+    const needsPersist = !!next.apiKey || !!next.baseUrl || !!next.model || isCustomSlot;
     if (needsPersist) {
-        // opencode + custom:* can persist without apiKey (local / keyless gateways)
-        if (!next.apiKey && effectiveId !== 'opencode' && !/^custom[:_-]/i.test(effectiveId)) {
-            delete providers[effectiveId];
-        } else {
-            providers[effectiveId] = next;
-        }
+        if (!next.apiKey && !isCustomSlot) { delete providers[effectiveId]; }
+        else if (!next.apiKey && !next.baseUrl && isCustomSlot) { delete providers[effectiveId]; }
+        else providers[effectiveId] = next;
     } else delete providers[effectiveId];
 
     const activeProvider = body.active === true && providers[effectiveId]
         ? effectiveId
-        : (settings.activeProvider === effectiveId && !providers[effectiveId] ? 'opencode' : settings.activeProvider);
+        : (settings.activeProvider === effectiveId && !providers[effectiveId] ? 'demo' : settings.activeProvider);
     const activeModel = body.active === true && providers[effectiveId]
         ? (next.model || modelPreset.defaultModel)
-        : (activeProvider === 'opencode' || activeProvider === 'demo' ? '' : settings.activeModel);
+        : (activeProvider === 'demo' ? '' : settings.activeModel);
     return {
         settings: { ...settings, providers, activeProvider, activeModel },
         provider: providers[effectiveId] || null,
@@ -1413,8 +1370,8 @@ export function removeProvider(settings, id) {
     const providers = { ...(settings.providers || {}) };
     if (!providers[id]) return { error: 'Provider not configured', status: 404 };
     delete providers[id];
-    const activeProvider = settings.activeProvider === id ? 'opencode' : settings.activeProvider;
-    const activeModel = (activeProvider === 'demo' || activeProvider === 'opencode') ? '' : settings.activeModel;
+    const activeProvider = settings.activeProvider === id ? 'demo' : settings.activeProvider;
+    const activeModel = activeProvider === 'demo' ? '' : settings.activeModel;
     return { settings: { ...settings, providers, activeProvider, activeModel } };
 }
 

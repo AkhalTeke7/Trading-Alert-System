@@ -165,12 +165,19 @@ export class AlertStore {
     // --- AI console: provider keys, skills and proxied chat (keys stay server-side) ---
 
     async getAiSettings() {
-        const settings = await this.storage.get('aiSettings') || {};
+        const raw = await this.storage.get('aiSettings') || {};
+        const providers = {};
+        for (const [k,v] of Object.entries(raw.providers || {})) {
+            if (k === 'opencode') continue;
+            providers[k]=v;
+        }
+        let activeProvider = raw.activeProvider || 'demo';
+        if (activeProvider === 'opencode') activeProvider = 'demo';
         return {
-            providers: settings.providers || {},
-            skills: Array.isArray(settings.skills) ? settings.skills : [],
-            activeProvider: settings.activeProvider || 'opencode',
-            activeModel: settings.activeModel || '',
+            providers,
+            skills: Array.isArray(raw.skills) ? raw.skills : [],
+            activeProvider,
+            activeModel: raw.activeModel || '',
         };
     }
 
@@ -192,7 +199,7 @@ export class AlertStore {
         })();
         return effective.map(preset => {
             const saved = settings.providers[preset.id] || null;
-            const isKeyless = !!preset.keyless || preset.id === 'opencode';
+            const isKeyless = !!preset.keyless;
             return {
                 id: preset.id,
                 name: preset.name,
@@ -202,10 +209,10 @@ export class AlertStore {
                 requiresBaseUrl: !!preset.requiresBaseUrl,
                 models: preset.models,
                 defaultModel: preset.defaultModel,
-                configured: isKeyless || Boolean(saved?.apiKey) || Boolean(saved?.baseUrl),
+                configured: isKeyless || Boolean(saved?.apiKey),
                 keyMask: saved?.apiKey ? maskKey(saved.apiKey) : null,
                 model: saved?.model || '',
-                baseUrl: saved?.baseUrl || (preset.id==='opencode' ? (this.env?.OPENCODE_BASE_URL || preset.baseUrl) : ''),
+                baseUrl: saved?.baseUrl || '',
                 savedAt: saved?.savedAt || null,
             };
         });
@@ -240,6 +247,46 @@ export class AlertStore {
         const url = new URL(request.url);
         const path = url.pathname;
         try {
+            if (path === '/api/ai/bridge' && request.method === 'GET') {
+                const origin = request.headers.get('Origin') || '';
+                const fetchSite = request.headers.get('Sec-Fetch-Site') || '';
+                if ((origin && (()=>{ try{ return new URL(origin).host !== url.host; }catch{ return true; }})()) || fetchSite === 'cross-site') return json({ error: 'Cross-origin not allowed' }, 403);
+                const provider = String(url.searchParams.get('provider') || '').trim();
+                if (!provider) return json({ error: 'provider required' }, 400);
+                const preset = PROVIDERS.find(p => p.id === provider) || (/^custom[:_-]/i.test(provider) ? PROVIDERS.find(p => p.id === 'custom') : null);
+                if (!preset) return json({ error: 'Unknown provider' }, 404);
+                if (preset.kind === 'search' || preset.id === 'demo') return json({ error: 'Not a chat provider' }, 400);
+                const settings = await this.getAiSettings();
+                const saved = settings.providers[provider] || null;
+                if (!saved?.apiKey) return json({ error: 'No key saved for this provider' }, 404);
+                return json({ provider, apiKey: saved.apiKey, baseUrl: saved.baseUrl || preset.baseUrl || '', model: saved.model || preset.defaultModel || '', kind: preset.kind });
+            }
+            if (path === '/api/ai/tool' && request.method === 'POST') {
+                const origin = request.headers.get('Origin') || '';
+                const fetchSite = request.headers.get('Sec-Fetch-Site') || '';
+                if ((origin && (()=>{ try{ return new URL(origin).host !== url.host; }catch{ return true; }})()) || fetchSite === 'cross-site') return json({ error: 'Cross-origin not allowed' }, 403);
+                let body; try{ body = await readJson(request, 8_000); }catch{ return json({ error: 'Invalid JSON' }, 400); }
+                const tool = String(body?.tool || '').trim();
+                const args = body?.args && typeof body.args === 'object' ? body.args : {};
+                if (!tool) return json({ error: 'tool required' }, 400);
+                const settings = await this.getAiSettings();
+                const exec = this.aiExecutors(settings);
+                let result; try{ result = await exec.exec(tool, args); }catch(e){ result = { error: String(e?.message||e) }; }
+                return json(result);
+            }
+            if (path === '/api/ai/context' && request.method === 'POST') {
+                let body; try{ body = await readJson(request, 8_000); }catch{ body={}; }
+                const skillId = String(body?.skillId || '').trim();
+                const rawMessages = Array.isArray(body?.messages) ? body.messages.slice(-40) : [];
+                const settings = await this.getAiSettings();
+                const sk = listSkills(settings.skills).find(s => s.id === skillId) || null;
+                try{
+                    const { capabilitiesSystemPrompt, toolsSystemPrompt } = await import('../js/aiCore.js');
+                    const systemText = [sk?.systemPrompt || '', capabilitiesSystemPrompt(), toolsSystemPrompt()].filter(Boolean).join('\n\n');
+                    const prepared = systemText ? [{ role: 'system', content: systemText }, ...rawMessages] : rawMessages;
+                    return json({ skill: sk, messages: prepared });
+                }catch{ return json({ skill: sk, messages: rawMessages }); }
+            }
             if (path === '/api/ai/state' && request.method === 'GET') {
                 return json(this.aiStatePayload(await this.getAiSettings()));
             }
@@ -338,7 +385,7 @@ export class AlertStore {
                     return json({ error: 'Invalid JSON' }, 400);
                 }
                 const settings = await this.getAiSettings();
-                if (!body.provider) body.provider = settings.activeProvider || 'opencode';
+                if (!body.provider) body.provider = settings.activeProvider || 'demo';
                 if (!body.model && settings.activeModel) body.model = settings.activeModel;
                 let result;
                 try {
