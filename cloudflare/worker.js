@@ -27,13 +27,23 @@ export default {
         if (unauthorized) return unauthorized;
         if (!['GET', 'HEAD'].includes(request.method)) {
             const origin = request.headers.get('Origin');
-            if ((origin && origin !== url.origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
+            // Compare hosts, not full origins: reverse proxies terminate TLS, so the
+            // worker may see http while the browser origin is https — same site still.
+            const crossOrigin = origin && (() => {
+                try {
+                    return new URL(origin).host !== url.host;
+                } catch {
+                    return true;
+                }
+            })();
+            if (crossOrigin || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
                 return json({ error: 'Cross-origin requests are not allowed' }, 403);
             }
         }
         if (url.pathname === '/api/alerts' || url.pathname.startsWith('/api/alerts/') ||
             url.pathname === '/api/triggered' || url.pathname === '/api/devices' || url.pathname === '/api/test-alert' ||
-            url.pathname === '/api/alert-card' || url.pathname === '/api/alert-image') {
+            url.pathname === '/api/alert-card' || url.pathname === '/api/alert-image' ||
+            url.pathname.startsWith('/api/ai/')) {
             return store(env).fetch(request);
         }
         if (url.pathname === '/api/prices') {

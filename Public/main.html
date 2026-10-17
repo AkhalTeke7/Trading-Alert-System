@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="./css/style.css">
     <link rel="stylesheet" href="./css/theme.css">
+    <link rel="stylesheet" href="./css/ai-settings.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
     <script src="./js/theme.js"></script>
 </head>
@@ -27,7 +28,7 @@
         </div>
         <nav class="right-header">
             <div id="theme-switch"></div>
-            <button type="button" class="paragraph">Settings</button>
+            <button type="button" class="settings-btn paragraph">Settings</button>
             <button type="button" class="aboutme paragraph">About</button>
             
         </nav>
@@ -39,7 +40,7 @@
             <button type="button" class="alert sid-botton"><i class="ico ti ti-bell-ringing"></i><span class="lb">Alert</span></button>
             <button type="button" class="journal sid-botton"><i class="ico ti ti-notebook"></i><span class="lb">Journal</span></button>
             <button type="button" class="news sid-botton"><i class="ico ti ti-news"></i><span class="lb">News</span></button>
-            <button type="button" class="sid-botton"><i class="ico ti ti-cpu"></i><span class="lb">AI</span></button>
+            <button type="button" class="ai sid-botton"><i class="ico ti ti-cpu"></i><span class="lb">AI</span></button>
         </aside>
 
         <div class="content">
@@ -85,7 +86,15 @@
     document.querySelector(".journal")?.addEventListener("click", function () {
         window.location = "./journal.html";
     });
+    document.querySelector(".ai")?.addEventListener("click", function () {
+        window.location = "./ai.html";
+    });
+    // Settings slide-over: AI provider keys + custom chat skills (stored on Cloudflare)
+    document.querySelector(".settings-btn")?.addEventListener("click", function () {
+        window.PriceAlertSettings.open();
+    });
 </script>
+<script src="./js/ai-settings.js"></script>
 <script>
 // --- Dynamic charts (max 6), persisted to localStorage ---
 const PAIR_META = {

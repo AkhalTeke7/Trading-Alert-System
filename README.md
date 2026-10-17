@@ -36,6 +36,7 @@
 - [Preview](#-preview) — screenshots & where to put your GIFs
 - [What it is](#-what-it-is)
 - [Features](#-features)
+- [AI Console](#-ai-console) — full-screen chat, skills, provider keys via Cloudflare
 - [Design & Animations](#-design--animations) — every motion, in detail
 - [Architecture](#-architecture)
 - [Quick start](#-quick-start)
@@ -224,6 +225,41 @@ All **filtered-aware** (respect pair/outcome/strategy/search + calendar day):
 
 ---
 
+### <span style="font-family: Fraunces">✦</span> AI Console
+
+> `ai.html` — a full-screen, Mistral-grade chat surface wearing the same dossier skin: drifting red/bone orbs over a panning hairline grid, staggered word-reveal hero, blur-in messages, streaming caret, scanning "analyzing" chip, rotating conic send ring.
+
+**Skills (modes) — 3 built in, add more from the UI**
+- **Market Analyst** `ti-chart-candle` — bias, key levels, invalidation, next action
+- **Alert Architect** `ti-bell-ringing` — trade idea → entry / stop / TP ladder as ready-to-enter console fields
+- **Journal Coach** `ti-notebook` — process-over-outcome review, one rule per week
+- **+ New skill** — name, icon, tagline, system prompt → `POST /api/ai/skills` (up to 24 custom, editable/deletable; built-ins are protected). Each skill rewrites the system prompt server-side, so the browser can't drop the mode it's chatting under.
+
+**Settings — API keys typed in the site, stored on Cloudflare**
+- Header **Settings** (every page) opens the slide-over: providers (**Mistral AI, OpenAI, Anthropic, Groq, Google Gemini, custom OpenAI-compatible**), key field with reveal toggle, model + base URL, **Test**, **Use in chat**, **Remove** — plus **Tavily Search** (optional, powers the `web_search` tool; keyless search works without it)
+- Keys are saved `PUT /api/ai/providers` → Durable Object (`aiSettings`) / `data/ai-settings.json` on Node — responses only ever carry a masked preview (`sk-••••••••9876`). The raw key is used server-side to call the provider; the browser never sees it again. `data/ai-settings.json` is gitignored
+- **Demo channel** works with zero keys: the console streams a local canned reply so the UI is fully usable before configuration
+
+**Chat plumbing**
+- `POST /api/ai/chat` — SSE events: `{delta}` streaming text, `{reset}` (a tool-call block is replaced by chips), `{tool}` (running/done chip), `{done}` (with `toolCalls`), `{error}` — or plain JSON with `stream:false`; skill prompt + tool protocol prepended server-side; per-skill threads persisted in `localStorage pa.ai.v1`
+- Providers normalized in `js/aiCore.js`: OpenAI-compatible (`chat/completions`), Anthropic (`/messages`), Google (`streamGenerateContent?alt=sse`) — all re-emitted as one delta format
+- Same-origin writes only (host-based check survives TLS-terminating proxies), dashboard Basic auth on Workers as everywhere else
+
+**Console data tools — the chat reads your own function outputs**
+- The model can call the dashboard's real functions mid-answer (provider-agnostic tool loop: reply with a fenced `tool` JSON block → server runs the function → feeds the result back → answer with the data; max 3 rounds):
+  - `get_prices` — live prices via `getPrices()` (the same function the charts use)
+  - `list_alerts` / `list_triggered` — pending alerts and trigger history from the store
+  - `journal_summary` — win/loss/BE, net pnl, per-pair breakdown, recent trades from the journal backup
+  - `get_events` — this week's economic calendar (TradingView events proxy)
+  - `web_search {query}` — **web search**: keyless DuckDuckGo by default, or save a **Tavily** key in Settings for better results
+  - `get_time`
+- Every call shows as a live chip in the message (`⚙ get_prices · 2 pairs ✓`) and the raw outputs are the app's own — no invented data
+- The **demo channel** runs the same tools for real, so the preview answers with actual alerts/journal/prices even before an AI key exists
+
+**Animations (all `prefers-reduced-motion` guarded):** boot stagger (rail slides in, composer rises), hero word-by-word reveal with `--d` delays, orb drift 26s/32s loops, grid pan 80s, message `blur(5px)→0` entrances (user from right, assistant from left with a drawn red hairline), blinking caret + scan shimmer while streaming, thinking-dots + scanning chip, conic-gradient send ring on `has-text`, rotating gear badge, toast slide-ins, drawer blur/slide with staggered sections.
+
+---
+
 ### <span style="font-family: Fraunces">◐</span> Design & Animations
 
 > The whole site is a **paper dossier on a darkroom wall**. Every motion is hairline, not flashy.
@@ -280,7 +316,7 @@ MyFont        data:font/ttf;base64 (font-display: swap → block for CF Browser 
 
 ```mermaid
 flowchart LR
-  U[Browser<br/>main.html<br/>journal.html] -- fetch /api/* --> W{Cloudflare Worker<br/>cloudflare/worker.js<br/>or Node js/server.js}
+  U[Browser<br/>main.html<br/>journal.html<br/>ai.html] -- fetch /api/* --> W{Cloudflare Worker<br/>cloudflare/worker.js<br/>or Node js/server.js}
   W -- Durable Object<br/>AlertStore SQLite --> S[(Alerts + Telegram state)]
   W -- scanner.tradingview.com --> P[Prices]
   W -- Playwright / Browser Rendering --> C[Alert card PNG 1200×675]
@@ -293,6 +329,7 @@ flowchart LR
 * **Assets:** only `Public/` is uploaded — `.env`, `data/`, backend `js/`, secrets never become public assets.
 * **Alerts:** Durable Object `AlertStore` on Workers (SQLite, `personal-dashboard` singleton, `* * * * *` cron every minute, 100 alert cap, 5 per-tick, checkpointed delivery, at-least-once). Node uses `data/alerts.json` + `setInterval 10s`.
 * **Journal:** Drive-only via `js/drive.mjs` (Node `crypto` + WebCrypto fallback for Workers, `GOOGLE_DRIVE_*` from `process.env` or `env` bindings, quota-aware `supportsAllDrives` + `parents:[sharedDriveId]`), provider-pluggable via `js/journalProviders.mjs` (`JOURNAL_PROVIDER`).
+* **AI console:** shared adapters/rules in `js/aiCore.js` (providers, skills, key masking, demo channel, **data-tool loop + web search**) — `/api/ai/*` on the Durable Object (`aiSettings` record) and on Node (`data/ai-settings.json`, gitignored). Keys are saved from the site UI, stored server-side, only ever returned masked, and chat is proxied through the same runtime — the model calls your own functions (`get_prices`, `list_alerts`, `list_triggered`, `journal_summary`, `get_events`, `web_search`, `get_time`) and reasons over their real outputs.
 
 ---
 
@@ -430,16 +467,22 @@ Set `JOURNAL_PROVIDER=my` in `.env` (Node) or `wrangler secret put JOURNAL_PROVI
 ```
 Public/
   main.html            markets — 6 draw-to-alert TradingView charts
+  ai.html              AI console — full-screen chat, skills, settings drawer
   journal.html         dossier — strategies, Analyze, switchable calendar, live Drive sync
   news.html            Reuters events proxy
   Alert/alert.html     alerts CRUD
   css/style.css        dossier theme, 75% flex, scroll layout, pa-*, j-*
+  css/ai.css           AI console — ambient orbs, message blur-ins, streaming caret
+  css/ai-settings.css  settings slide-over — provider keys, custom skills
   js/  asset/
+  js/ai.js             chat client — skills, SSE streaming, threads, hero
+  js/ai-settings.js    settings drawer shared by main.html + ai.html
 cloudflare/
-  worker.js            fetch + /api/journal/* + /api/drive/* (drive provider)
-  alertStore.js        Durable Object — alerts + Telegram state + cron
+  worker.js            fetch + /api/journal/* /api/drive/* /api/ai/*
+  alertStore.js        Durable Object — alerts + Telegram + aiSettings + cron
 js/
-  server.js            Node server — /api/prices /alerts /events /drive/* /journal/*
+  server.js            Node server — /api/prices /alerts /events /drive/* /journal/* /ai/*
+  aiCore.js            AI providers (Mistral/OpenAI/Anthropic/Groq/Gemini/custom), skills, key masking
   drive.mjs            service-account JWT (Node crypto + WebCrypto), Shared Drive, quota-aware
   journalProviders.mjs provider registry (drive — add more here)
   alertModel.js        allowedPairs, pairToSymbol OANDA CFDs, getAlertInput All→Both
@@ -449,7 +492,7 @@ js/
   fcmV1.js             FCM HTTP v1
 ```
 
-`localStorage` keys: `pa.journal.v1` (trades), `pa.strategies.v1`, `pa.journal.imgcache.v1` `{url:dataURL}`, `pa.charts.v1` (string array max 6). Drive thumb `https://drive.google.com/thumbnail?id=ID&sz=w1200` via `GET /api/drive/thumb/:id`.
+`localStorage` keys: `pa.journal.v1` (trades), `pa.strategies.v1`, `pa.journal.imgcache.v1` `{url:dataURL}`, `pa.charts.v1` (string array max 6), `pa.ai.v1` (AI console threads + active skill). Drive thumb `https://drive.google.com/thumbnail?id=ID&sz=w1200` via `GET /api/drive/thumb/:id`.
 
 ### Scripts
 

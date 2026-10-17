@@ -11,6 +11,12 @@ import { alertSender, startTelegramBot } from './telegram.mjs';
 import { getAccessToken, isDriveConfigured, uploadToDrive, upsertJournalJson, getJournalJson, journalFileInfo, JOURNAL_NAME, getDriveDiagnostics, isQuotaError, getDriveConfigHelp } from './drive.mjs';
 // providers registry — to add another API, create js/<myProvider>.mjs with same interface and register in js/journalProviders.mjs
 import { getProvider } from './journalProviders.mjs';
+// AI console core — same adapters/rules as the Cloudflare worker (cloudflare/alertStore.js)
+import {
+    PROVIDERS, listSkills, maskKey,
+    upsertProvider, removeProvider, createSkillEntry, updateSkillEntry, deleteSkillEntry,
+    runChat, testProvider, createToolExecutors,
+} from './aiCore.js';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 // Only the Public/ folder is served — everything else (js/, data/, .env) stays private.
@@ -248,6 +254,265 @@ function sendJson(response, status, value) {
         'Cache-Control': 'no-store',
     });
     response.end(JSON.stringify(value));
+}
+
+// --- AI console settings (mirrors the Durable Object's aiSettings record) ---
+const aiSettingsFile = resolve(projectRoot, 'data', 'ai-settings.json');
+
+async function loadAiSettings() {
+    try {
+        const value = JSON.parse(await readFile(aiSettingsFile, 'utf8'));
+        return {
+            providers: value.providers && typeof value.providers === 'object' ? value.providers : {},
+            skills: Array.isArray(value.skills) ? value.skills : [],
+            activeProvider: String(value.activeProvider || 'demo'),
+            activeModel: String(value.activeModel || ''),
+        };
+    } catch (error) {
+        if (error.code === 'ENOENT') return { providers: {}, skills: [], activeProvider: 'demo', activeModel: '' };
+        throw error;
+    }
+}
+
+let aiSettings = await loadAiSettings();
+let aiWriteQueue = Promise.resolve();
+
+function persistAiSettings() {
+    const contents = JSON.stringify(aiSettings, null, 2);
+    aiWriteQueue = aiWriteQueue.then(async () => {
+        await mkdir(resolve(projectRoot, 'data'), { recursive: true });
+        await writeFile(aiSettingsFile, contents);
+    });
+    return aiWriteQueue;
+}
+
+function aiMaskedProviders(settings) {
+    return PROVIDERS.map(preset => {
+        const saved = settings.providers[preset.id] || null;
+        return {
+            id: preset.id,
+            name: preset.name,
+            hint: preset.hint,
+            kind: preset.kind,
+            keyless: !!preset.keyless,
+            requiresBaseUrl: !!preset.requiresBaseUrl,
+            models: preset.models,
+            defaultModel: preset.defaultModel,
+            configured: !!preset.keyless || Boolean(saved?.apiKey),
+            keyMask: saved?.apiKey ? maskKey(saved.apiKey) : null,
+            model: saved?.model || '',
+            baseUrl: saved?.baseUrl || '',
+            savedAt: saved?.savedAt || null,
+        };
+    });
+}
+
+// Tool executors bound to this server's real data (prices, alerts, journal…).
+function aiExecutors(settings) {
+    return createToolExecutors({
+        getPrices,
+        getAlerts: async () => storedAlerts,
+        getTriggered: async () => triggeredEvents,
+        getJournal: async () => {
+            const journal = getProvider(null, null);
+            if (!journal.isConfigured(null)) return null;
+            const data = await journal.getJson(null);
+            return data?.json ? JSON.parse(data.json) : null;
+        },
+        searchApiKey: String(settings.providers?.tavily?.apiKey || ''),
+    });
+}
+
+function aiStatePayload(settings) {
+    return {
+        providers: aiMaskedProviders(settings),
+        active: { provider: settings.activeProvider, model: settings.activeModel },
+        skills: listSkills(settings.skills),
+    };
+}
+
+// Writes are same-site only, but host comparison survives TLS-terminating proxies.
+function sameSiteWriteAllowed(request, url) {
+    const origin = request.headers.origin;
+    if (!origin) return request.headers['sec-fetch-site'] !== 'cross-site';
+    try {
+        return new URL(origin).host === url.host;
+    } catch {
+        return false;
+    }
+}
+
+async function handleAiApi(request, response, url) {
+    const path = url.pathname;
+    if (!path.startsWith('/api/ai/')) return false;
+    const method = request.method;
+    if (!sameSiteWriteAllowed(request, url) && !['GET', 'HEAD'].includes(method)) {
+        sendJson(response, 403, { error: 'Cross-origin requests are not allowed' });
+        return true;
+    }
+    try {
+        if (path === '/api/ai/state' && method === 'GET') {
+            sendJson(response, 200, aiStatePayload(aiSettings));
+            return true;
+        }
+
+        if (path === '/api/ai/providers' && method === 'PUT') {
+            const body = await readJson(request, 8_000).catch(() => null);
+            if (!body) {
+                sendJson(response, 400, { error: 'Invalid JSON' });
+                return true;
+            }
+            const result = upsertProvider(aiSettings, body);
+            if (result.error) {
+                sendJson(response, result.status || 400, { error: result.error });
+                return true;
+            }
+            aiSettings = result.settings;
+            await persistAiSettings();
+            sendJson(response, 200, aiStatePayload(aiSettings));
+            return true;
+        }
+
+        const providerMatch = path.match(/^\/api\/ai\/providers\/([^/]+)$/);
+        if (providerMatch && method === 'DELETE') {
+            const result = removeProvider(aiSettings, decodeURIComponent(providerMatch[1]));
+            if (result.error) {
+                sendJson(response, result.status || 400, { error: result.error });
+                return true;
+            }
+            aiSettings = result.settings;
+            await persistAiSettings();
+            sendJson(response, 200, aiStatePayload(aiSettings));
+            return true;
+        }
+
+        if (path === '/api/ai/providers/test' && method === 'POST') {
+            const body = await readJson(request, 8_000).catch(() => null);
+            if (!body) {
+                sendJson(response, 400, { error: 'Invalid JSON' });
+                return true;
+            }
+            try {
+                const result = await testProvider({
+                    provider: String(body?.provider || 'demo'),
+                    apiKey: body?.apiKey,
+                    model: body?.model,
+                    baseUrl: body?.baseUrl,
+                }, { providers: aiSettings.providers });
+                sendJson(response, 200, result);
+            } catch (error) {
+                sendJson(response, error.status || 502, { error: error.publicMessage || error.message || 'Key test failed' });
+            }
+            return true;
+        }
+
+        if (path === '/api/ai/skills' && method === 'GET') {
+            sendJson(response, 200, { skills: listSkills(aiSettings.skills) });
+            return true;
+        }
+
+        if (path === '/api/ai/skills' && method === 'POST') {
+            const body = await readJson(request, 12_000).catch(() => null);
+            if (!body) {
+                sendJson(response, 400, { error: 'Invalid JSON' });
+                return true;
+            }
+            const result = createSkillEntry(aiSettings, body);
+            if (result.error) {
+                sendJson(response, result.status || 400, { error: result.error });
+                return true;
+            }
+            aiSettings = result.settings;
+            await persistAiSettings();
+            sendJson(response, 201, { skills: listSkills(aiSettings.skills), created: result.skill });
+            return true;
+        }
+
+        const skillMatch = path.match(/^\/api\/ai\/skills\/([^/]+)$/);
+        if (skillMatch && ['PUT', 'DELETE'].includes(method)) {
+            const id = decodeURIComponent(skillMatch[1]);
+            if (method === 'DELETE') {
+                const result = deleteSkillEntry(aiSettings, id);
+                if (result.error) {
+                    sendJson(response, result.status || 400, { error: result.error });
+                    return true;
+                }
+                aiSettings = result.settings;
+                await persistAiSettings();
+                sendJson(response, 200, { skills: listSkills(aiSettings.skills), deleted: true });
+                return true;
+            }
+            const body = await readJson(request, 12_000).catch(() => null);
+            if (!body) {
+                sendJson(response, 400, { error: 'Invalid JSON' });
+                return true;
+            }
+            const result = updateSkillEntry(aiSettings, id, body);
+            if (result.error) {
+                sendJson(response, result.status || 400, { error: result.error });
+                return true;
+            }
+            aiSettings = result.settings;
+            await persistAiSettings();
+            sendJson(response, 200, { skills: listSkills(aiSettings.skills), updated: result.skill });
+            return true;
+        }
+
+        if (path === '/api/ai/chat' && method === 'POST') {
+            const body = await readJson(request, 200_000).catch(() => null);
+            if (!body) {
+                sendJson(response, 400, { error: 'Invalid JSON' });
+                return true;
+            }
+            if (!body.provider) body.provider = aiSettings.activeProvider || 'demo';
+            if (!body.model && aiSettings.activeModel) body.model = aiSettings.activeModel;
+            let result;
+            try {
+                result = await runChat(body, {
+                    providers: aiSettings.providers,
+                    skills: aiSettings.skills,
+                    demoDelayMs: 18,
+                    executors: aiExecutors(aiSettings),
+                });
+            } catch (error) {
+                sendJson(response, error.status || 502, { error: error.publicMessage || error.message || 'Chat failed' });
+                return true;
+            }
+            if (result.kind === 'json') {
+                sendJson(response, 200, {
+                    message: { role: 'assistant', content: result.content },
+                    provider: result.provider,
+                    model: result.model,
+                    skill: result.skill?.id || null,
+                    toolCalls: result.toolCalls || [],
+                });
+                return true;
+            }
+            response.writeHead(200, {
+                'Content-Type': 'text/event-stream; charset=utf-8',
+                'Cache-Control': 'no-store',
+                'X-Content-Type-Options': 'nosniff',
+                'X-Accel-Buffering': 'no',
+                Connection: 'keep-alive',
+            });
+            try {
+                // { delta } | { reset } | { tool } | { done } | { error }
+                for await (const event of result.events) {
+                    response.write(`data: ${JSON.stringify(event)}\n\n`);
+                }
+            } catch {
+                response.write(`data: ${JSON.stringify({ error: 'The response stream ended unexpectedly.' })}\n\n`);
+            }
+            response.end();
+            return true;
+        }
+
+        sendJson(response, 404, { error: 'Not found' });
+        return true;
+    } catch (error) {
+        sendJson(response, error?.status || 500, { error: error?.publicMessage || error?.message || 'AI operation failed' });
+        return true;
+    }
 }
 
 async function readJson(request, maxBytes = 10_000) {
@@ -599,6 +864,8 @@ const server = createServer(async (request, response) => {
         }
         return;
     }
+
+    if (await handleAiApi(request, response, requestUrl)) return;
 
     const alertMatch = pathname.match(/^\/api\/alerts\/([^/]+)$/);
     if (alertMatch && ['PUT', 'DELETE'].includes(request.method)) {
