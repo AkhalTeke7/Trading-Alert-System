@@ -1,1002 +1,1002 @@
 [
   {
-    "id": "c6da09f9-12c7-4037-b4b7-3bb482b56e58",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "326d787a-e2c3-4099-a16a-676cd2ff52ea",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:47:59.165Z"
+    "triggeredAt": "2026-10-17T11:51:22.675Z"
   },
   {
-    "id": "6784f247-b38c-4b37-82fd-35926e4f1290",
+    "id": "f400c64b-ac52-4e56-9d54-194122f5462a",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:48:07.510Z"
+    "triggeredAt": "2026-10-17T11:51:32.637Z"
   },
   {
-    "id": "fb70a4f9-5a18-47d0-8f6b-69dc5484208d",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "66392d33-9048-4a4b-a83e-b7fb739aca37",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:48:17.590Z"
+    "triggeredAt": "2026-10-17T11:51:32.638Z"
   },
   {
-    "id": "b746befe-192f-419a-b5e7-4c000d09e2dc",
+    "id": "16ef790d-b36f-4ada-9257-ee04a6da3188",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:48:29.028Z"
+    "triggeredAt": "2026-10-17T11:51:42.692Z"
   },
   {
-    "id": "fedd7098-11f9-498d-a66c-ad097a4b9514",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "2f49d675-f725-4680-8eaa-5e0afe277a60",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:48:37.496Z"
+    "triggeredAt": "2026-10-17T11:51:42.694Z"
   },
   {
-    "id": "053ca02b-d176-4c08-84a7-0e8326aea9a9",
+    "id": "896cd827-8fe7-4605-9c97-3cf1a656cc31",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:48:47.539Z"
+    "triggeredAt": "2026-10-17T11:51:52.706Z"
   },
   {
-    "id": "9ddbd74a-4888-4a9e-9dc8-d1be56b55aab",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "eaffb885-7e81-458e-990f-4b8590559ab0",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:48:57.712Z"
+    "triggeredAt": "2026-10-17T11:51:52.708Z"
   },
   {
-    "id": "906ee432-d908-49c1-a8ad-31822c1f5298",
+    "id": "e3406ce8-7a17-4fb2-88ea-19b8c8986f43",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:49:07.554Z"
+    "triggeredAt": "2026-10-17T11:52:08.993Z"
   },
   {
-    "id": "c8b858b7-85df-474d-9518-414fbb286a08",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "7725ed2f-1f95-472d-90b5-0691b15af3bd",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:49:17.558Z"
+    "triggeredAt": "2026-10-17T11:52:08.997Z"
   },
   {
-    "id": "2947acf6-22a3-4699-b0d0-1fbb23c27b90",
+    "id": "361333e1-f47a-42a0-af34-0ba91ddbcad8",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:49:27.966Z"
+    "triggeredAt": "2026-10-17T11:52:12.805Z"
   },
   {
-    "id": "e156a4cf-26fa-4e48-87a5-f68b1ef14b99",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "2bd97c91-2f89-4c2e-a1ca-d29abf596dc8",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:49:38.411Z"
+    "triggeredAt": "2026-10-17T11:52:12.806Z"
   },
   {
-    "id": "cfa2338b-6d93-4c46-8362-5147d6ebba1d",
+    "id": "7d8e3a6f-471a-4fed-8c2c-93e9ba887247",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:49:47.610Z"
+    "triggeredAt": "2026-10-17T11:52:25.143Z"
   },
   {
-    "id": "d7a50e9f-8141-4923-a10b-ad3b699d9d6a",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "e6775e65-fa08-4f1f-977e-5759ed9f1944",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:49:57.182Z"
+    "triggeredAt": "2026-10-17T11:52:25.146Z"
   },
   {
-    "id": "5a706865-8117-4c24-a178-95c27c0c2650",
+    "id": "fafce860-4963-454b-a930-4a4b68c0259a",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:50:07.093Z"
+    "triggeredAt": "2026-10-17T11:52:33.667Z"
   },
   {
-    "id": "cdf2a9d6-9da8-4f76-bfae-17868dac386f",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "eb38881b-5861-41ed-80ed-d69972774071",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:50:17.088Z"
+    "triggeredAt": "2026-10-17T11:52:33.668Z"
   },
   {
-    "id": "7a7dc373-9299-4fe8-8054-ac801e237ccd",
+    "id": "8937ad7a-0958-4c41-a084-0446555af4ab",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:50:27.103Z"
+    "triggeredAt": "2026-10-17T11:52:43.612Z"
   },
   {
-    "id": "e57c2f10-709a-4489-8543-2d8e0daeba69",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "176419dd-8986-4861-92e1-483579910903",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:50:37.606Z"
+    "triggeredAt": "2026-10-17T11:52:43.614Z"
   },
   {
-    "id": "17030d82-c928-4384-a5e0-a9ae7460d366",
+    "id": "c5524600-b187-474a-b30d-05e7b8ad8bf4",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:50:47.155Z"
+    "triggeredAt": "2026-10-17T11:52:54.703Z"
   },
   {
-    "id": "7777fbf7-d228-4c60-a523-08ffe331ee5f",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "18ee3be3-4da1-4bc5-9664-09ab29cc4b67",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:50:58.561Z"
+    "triggeredAt": "2026-10-17T11:52:54.707Z"
   },
   {
-    "id": "4c4e4d26-ca26-4aae-9fbb-48a28c823764",
+    "id": "c46494ea-e324-4349-b0ed-38fef8e55650",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:51:07.756Z"
+    "triggeredAt": "2026-10-17T11:53:05.061Z"
   },
   {
-    "id": "4ece4991-7f68-4373-968e-3e93c7979ee3",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "3264c673-b637-45b9-b1b7-d4a3e3bb1787",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:51:17.701Z"
+    "triggeredAt": "2026-10-17T11:53:05.064Z"
   },
   {
-    "id": "0f81352e-ffe1-4b1d-ab1f-a1b310a0b639",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "cc00756f-4a1d-4492-9e07-a90626162d64",
+    "alertId": null,
     "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "target": "test",
+    "note": "Test sound from website",
     "channel": "Telegram",
-    "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:51:27.702Z"
+    "source": "manual-test",
+    "triggeredAt": "2026-10-17T11:53:10.070Z"
   },
   {
-    "id": "ddcae12f-7225-484e-8afe-899e9a737ea9",
+    "id": "4fe90d77-7397-4858-9fea-038b41d53865",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:51:37.692Z"
+    "triggeredAt": "2026-10-17T11:53:14.451Z"
   },
   {
-    "id": "72d6c00e-10f4-4dd0-b4bc-69fdc75824d0",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "f06c6d86-eae7-48b3-8056-c53e9e35a285",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:51:47.993Z"
+    "triggeredAt": "2026-10-17T11:53:14.460Z"
   },
   {
-    "id": "1f89b285-36a1-4951-adfc-3212f9db8f80",
+    "id": "bc367d79-4738-44d5-babc-7f14b9e553f5",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:51:58.365Z"
+    "triggeredAt": "2026-10-17T11:53:25.872Z"
   },
   {
-    "id": "d98326f3-5572-4538-afb7-032676d3337c",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "30e72e8c-3097-43cb-970f-f5d6d4c581b4",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:52:07.716Z"
+    "triggeredAt": "2026-10-17T11:53:25.874Z"
   },
   {
-    "id": "847fed6e-1a8a-4461-88c0-eb7735753d41",
+    "id": "c367303e-ea93-46dc-b049-d98cf8c44faf",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:52:18.419Z"
+    "triggeredAt": "2026-10-17T11:53:34.776Z"
   },
   {
-    "id": "62e6465e-1f71-4563-a571-4855f88382d3",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "bc375ec6-55be-433b-af86-83abae5db3b7",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:52:27.722Z"
+    "triggeredAt": "2026-10-17T11:53:34.777Z"
   },
   {
-    "id": "bbad3076-1860-4013-bb5e-fcf90e3ab5a4",
+    "id": "24b54015-12f5-4f7c-9095-7a7336331dbf",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:52:37.824Z"
+    "triggeredAt": "2026-10-17T11:53:44.628Z"
   },
   {
-    "id": "9e02ebdb-4772-40eb-b3f3-58f0e32628fa",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "2ab6905a-f94b-4381-98d9-c2594834e08e",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:52:47.769Z"
+    "triggeredAt": "2026-10-17T11:53:44.630Z"
   },
   {
-    "id": "ea68e1f6-8fa7-450a-81f5-484170d2ea58",
+    "id": "9694a89b-4f4e-4740-ad74-60ead11cf2b7",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:52:57.796Z"
+    "triggeredAt": "2026-10-17T11:53:56.064Z"
   },
   {
-    "id": "592f2cdc-61b1-4990-bf6a-1f4228f652c3",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "6187a5ac-ccdf-4444-b5e9-71244b9877b5",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:53:07.783Z"
+    "triggeredAt": "2026-10-17T11:53:56.068Z"
   },
   {
-    "id": "455c95df-416e-4e0f-afa1-e5b24cbd7cf1",
+    "id": "a907530b-787f-4077-a47c-834733c44f6b",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:54:13.947Z"
+    "triggeredAt": "2026-10-17T11:54:08.384Z"
   },
   {
-    "id": "d45ce652-5062-435e-ad43-b0af7b6ef878",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "38ada87e-5f59-4938-b3e1-aba0149a5a4c",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:54:23.891Z"
+    "triggeredAt": "2026-10-17T11:54:08.386Z"
   },
   {
-    "id": "6f1f5b0a-6792-4b0c-8ee5-1b21daa83142",
+    "id": "cbd02c42-bdc5-490f-940b-9505a8e2c7ba",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:54:33.413Z"
+    "triggeredAt": "2026-10-17T11:54:15.032Z"
   },
   {
-    "id": "5b2796d5-6b5d-4b07-a296-c4746f3abe8e",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "7c25db64-2854-476d-bb25-9d94dc422bea",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:54:45.170Z"
+    "triggeredAt": "2026-10-17T11:54:15.037Z"
   },
   {
-    "id": "d5d13385-04a5-41b5-a294-29336ab35e84",
+    "id": "9692d0a0-8cae-49d8-815c-b7f932c572ef",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:54:54.295Z"
+    "triggeredAt": "2026-10-17T11:54:24.651Z"
   },
   {
-    "id": "66e3cef3-d1d2-45f4-b8fb-13dff5d462f2",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "98ab8073-7e4f-44d2-a231-6889e493873b",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:55:05.215Z"
+    "triggeredAt": "2026-10-17T11:54:24.653Z"
   },
   {
-    "id": "689e1cd4-3ee7-4234-a77c-f68cd9ff5837",
+    "id": "0550d52a-6a24-414c-ae74-5341c20153c1",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:55:13.957Z"
+    "triggeredAt": "2026-10-17T11:54:34.236Z"
   },
   {
-    "id": "44982e72-1d8f-4293-b046-a90abe3e1bd5",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "1ca8d63f-4715-4b50-9fad-9162a4c3a0e9",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:55:23.412Z"
+    "triggeredAt": "2026-10-17T11:54:34.238Z"
   },
   {
-    "id": "94378127-701e-4b28-a12a-a0191c66cf8f",
+    "id": "d6a21aca-ef15-4d76-ba15-705e5aa81979",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:55:33.516Z"
+    "triggeredAt": "2026-10-17T11:54:43.420Z"
   },
   {
-    "id": "177e5dc4-3760-49a9-8112-5b0017570d15",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "3b782b92-b00b-427d-bf4a-de58761b7220",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:55:43.494Z"
+    "triggeredAt": "2026-10-17T11:54:43.422Z"
   },
   {
-    "id": "b9cb44fc-014c-42e9-a93e-9356ebe687b0",
+    "id": "be207cdf-9921-45b7-b01a-00e8dff5e255",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:55:53.439Z"
+    "triggeredAt": "2026-10-17T11:54:55.403Z"
   },
   {
-    "id": "f813bdeb-b574-469d-86e9-cc52121bda77",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "77f18606-720d-4b5c-879a-ee0990e4cd5a",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:56:03.487Z"
+    "triggeredAt": "2026-10-17T11:54:55.405Z"
   },
   {
-    "id": "978874e5-e2e1-42f1-be7e-d190657b191a",
+    "id": "c48d431c-c6c8-4985-99ac-f88ef3d6a94e",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:56:14.017Z"
+    "triggeredAt": "2026-10-17T11:55:04.117Z"
   },
   {
-    "id": "f459dfcf-6b0d-492e-9a85-b667de30ebb9",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "f0564e51-6b71-44ca-bf46-99117c62826b",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:56:24.039Z"
+    "triggeredAt": "2026-10-17T11:55:04.118Z"
   },
   {
-    "id": "0afb2a99-b052-4701-8131-edbac1f8451c",
+    "id": "1c6ca04c-95f3-430e-8efa-deaea23b9884",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:56:34.757Z"
+    "triggeredAt": "2026-10-17T11:55:16.319Z"
   },
   {
-    "id": "6c112dfd-f469-4c05-8458-618655d06f91",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "8f622355-e545-4b29-a2a9-8ff0afa6ab0b",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:56:43.588Z"
+    "triggeredAt": "2026-10-17T11:55:16.322Z"
   },
   {
-    "id": "04d3c7e9-0cf0-4115-b18a-9ebf501553b8",
+    "id": "b483fc09-d036-444b-a490-500696b980dc",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:56:53.534Z"
+    "triggeredAt": "2026-10-17T11:55:24.130Z"
   },
   {
-    "id": "170bb34b-a004-4d0a-b16f-6db7f425e0a2",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "e47e73a8-35db-4d34-8e5e-5b51a62a177e",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:57:03.636Z"
+    "triggeredAt": "2026-10-17T11:55:24.133Z"
   },
   {
-    "id": "fd9ae712-6db9-4e8c-8a15-65f82795817c",
+    "id": "2daa7022-a67a-4f97-a408-f70e4eefea58",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:57:13.523Z"
+    "triggeredAt": "2026-10-17T11:55:35.691Z"
   },
   {
-    "id": "f3fab612-fefe-455f-91bd-770e63455ccf",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "93c29b90-ed27-48d4-9cc7-99472c8020e9",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:57:23.558Z"
+    "triggeredAt": "2026-10-17T11:55:35.693Z"
   },
   {
-    "id": "d59347df-8834-48d1-a9b8-a14d451bb289",
+    "id": "1c0fccef-80bd-45f0-ab91-b328bd5e2b5a",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:57:33.540Z"
+    "triggeredAt": "2026-10-17T11:55:45.446Z"
   },
   {
-    "id": "afeb59e5-a1f4-4a48-87b5-9da4db149416",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "699dc393-135e-41e4-8e14-657430448ba5",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:57:43.501Z"
+    "triggeredAt": "2026-10-17T11:55:45.448Z"
   },
   {
-    "id": "b5dfecf3-ed5f-4809-acc7-5551feb2f3f7",
+    "id": "3c0e26bc-e319-447e-90d7-0d7cc7c5a245",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:57:54.054Z"
+    "triggeredAt": "2026-10-17T11:55:55.670Z"
   },
   {
-    "id": "12c92ce7-da76-45b5-99a7-9eb5b3e2e3a9",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "eeddf37a-dc8b-4012-a611-c1722b94e3cb",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:58:03.550Z"
+    "triggeredAt": "2026-10-17T11:55:55.671Z"
   },
   {
-    "id": "2f1a652f-6465-4f40-8ece-17b7cac74400",
+    "id": "1f65a317-bbae-4457-9b79-97d385cd6de8",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:58:13.578Z"
+    "triggeredAt": "2026-10-17T11:56:03.432Z"
   },
   {
-    "id": "124f4ef2-4efe-43fe-9825-36c6e306dba2",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "9c19b7c9-0480-4af5-977c-bb2febab5a33",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:58:23.953Z"
+    "triggeredAt": "2026-10-17T11:56:03.435Z"
   },
   {
-    "id": "35c16bd9-43a4-476b-9551-e60615bde37a",
+    "id": "9d74af40-923d-49c6-8ad6-5070dc986f74",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:58:33.569Z"
+    "triggeredAt": "2026-10-17T11:56:14.389Z"
   },
   {
-    "id": "4efefac2-916d-457a-b560-a7fa8a0061e9",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "0570a238-a520-4c93-bb84-ec460858f33c",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:58:43.578Z"
+    "triggeredAt": "2026-10-17T11:56:14.390Z"
   },
   {
-    "id": "3fee4f60-8bdf-48b8-8ab9-f3cb3e087723",
+    "id": "4be2775a-4626-4ad0-86a6-d43520563691",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:59:00.552Z"
+    "triggeredAt": "2026-10-17T11:56:23.651Z"
   },
   {
-    "id": "049fc4c3-bf8e-4987-a9ef-7863b2c5a66d",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "e2e24071-b58f-4afb-a405-bc7a3b8909f1",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:59:07.169Z"
+    "triggeredAt": "2026-10-17T11:56:23.653Z"
   },
   {
-    "id": "5287cfeb-9999-4de8-882b-44c6d5889d81",
+    "id": "3029c49c-eb6e-480c-9f3a-2691066a3448",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:59:16.653Z"
+    "triggeredAt": "2026-10-17T11:56:34.289Z"
   },
   {
-    "id": "f446533d-4070-4003-bbbc-351030b5883c",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "7739426a-7f7b-4fd0-8a36-1aa4e90832a7",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:59:28.851Z"
+    "triggeredAt": "2026-10-17T11:56:34.290Z"
   },
   {
-    "id": "01e79a11-ae50-4c39-9a23-14dbf3981d17",
+    "id": "8e689fc1-a64c-4b4d-918b-3c3c02b78eb1",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:59:37.253Z"
+    "triggeredAt": "2026-10-17T11:56:45.501Z"
   },
   {
-    "id": "52a07fcc-efc5-4650-8e44-325d595867e6",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "2518b46d-b968-4ae0-abda-c223284e0462",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:59:47.474Z"
+    "triggeredAt": "2026-10-17T11:56:45.502Z"
   },
   {
-    "id": "2381aa86-fa37-4291-9d37-dd0e46aafc41",
+    "id": "b31f04f3-174b-4264-b136-c9137ec62e80",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T09:59:57.519Z"
+    "triggeredAt": "2026-10-17T11:56:56.273Z"
   },
   {
-    "id": "0249d1cf-f31e-48ea-990e-8acdfa53369d",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "70e55e97-ae94-4a98-bf85-8c42de79a8e4",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:00:08.082Z"
+    "triggeredAt": "2026-10-17T11:56:56.276Z"
   },
   {
-    "id": "0371b524-704d-47b2-879a-793dae3ccd71",
+    "id": "7ecf0b04-f9ff-4ed4-b0bf-ae289d3cd5c6",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:00:18.015Z"
+    "triggeredAt": "2026-10-17T11:57:04.267Z"
   },
   {
-    "id": "2cda1954-3d08-4588-a2fa-a19b9fe29562",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "0936be9d-46e0-4f2f-b698-e4371c4d6c49",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:00:28.360Z"
+    "triggeredAt": "2026-10-17T11:57:04.269Z"
   },
   {
-    "id": "2b51c57a-9202-4ea9-a6ee-0db5827f5441",
+    "id": "14319457-4adc-429a-92a1-18392783d87f",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:00:37.435Z"
+    "triggeredAt": "2026-10-17T11:57:13.997Z"
   },
   {
-    "id": "47dd95d5-ee71-4a83-ac71-6556076bc591",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "12379f1a-09f4-4d34-91b5-a7b5f5dd8c98",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:00:47.566Z"
+    "triggeredAt": "2026-10-17T11:57:13.999Z"
   },
   {
-    "id": "fb581b44-4d7f-43ce-b39e-e2491039c8e8",
+    "id": "3073ad6c-7f36-4281-aa0f-cc252919e435",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:00:57.462Z"
+    "triggeredAt": "2026-10-17T11:57:24.894Z"
   },
   {
-    "id": "29b1b5b8-5473-4bfc-a40e-22f0cc230aec",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "24f6598a-6977-4b31-9d26-8a899171121d",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:01:07.441Z"
+    "triggeredAt": "2026-10-17T11:57:24.896Z"
   },
   {
-    "id": "ce90e3c5-15d3-45ab-a08d-496c1959c28c",
+    "id": "09a40940-e0e0-417d-b58d-08c1143e9466",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:01:17.273Z"
+    "triggeredAt": "2026-10-17T11:57:33.996Z"
   },
   {
-    "id": "014a6a19-c115-420b-8897-42c27b5dfe57",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "025ab8f4-ac16-499b-a80b-952fd5103c90",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:01:27.374Z"
+    "triggeredAt": "2026-10-17T11:57:33.997Z"
   },
   {
-    "id": "d79d4b61-7110-47c8-affc-837edf22ab8a",
+    "id": "c4135c7b-bb7f-4dd8-a3a3-cd6d61102747",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:01:37.418Z"
+    "triggeredAt": "2026-10-17T11:57:43.844Z"
   },
   {
-    "id": "d4f10769-1c82-46b7-92f3-581c76523d2d",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "72809e7a-f9e6-4296-8c2c-622267d06f29",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:01:47.354Z"
+    "triggeredAt": "2026-10-17T11:57:43.845Z"
   },
   {
-    "id": "fd9472bb-3135-4e72-963c-23da681aade0",
+    "id": "e146f7c9-44c0-4ffd-9c03-c31546c29a63",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:01:57.857Z"
+    "triggeredAt": "2026-10-17T11:57:56.376Z"
   },
   {
-    "id": "fb9ca58b-4b44-40b9-a579-761965b8c894",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "9ab908bc-c76c-467a-9640-a17f1f48e108",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:02:07.640Z"
+    "triggeredAt": "2026-10-17T11:57:56.378Z"
   },
   {
-    "id": "287df72c-a300-48b7-afaf-6c024b6daa92",
+    "id": "1ad5f8b5-b080-400f-84fb-db59a8617ae5",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:02:17.375Z"
+    "triggeredAt": "2026-10-17T11:58:05.490Z"
   },
   {
-    "id": "a28028a0-7c2e-4068-8b5f-be6dafe15626",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "54d793c9-480b-4c49-82d2-e964b178d8fb",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:02:27.505Z"
+    "triggeredAt": "2026-10-17T11:58:05.492Z"
   },
   {
-    "id": "ed431048-fc46-4d40-8128-f837f9fae353",
+    "id": "eea4bc11-21c2-41e5-bc14-ded79f19e88f",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:02:37.321Z"
+    "triggeredAt": "2026-10-17T11:58:15.684Z"
   },
   {
-    "id": "79792704-f8b5-46d1-9877-3a2fdd485372",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "f431de6d-342a-44b4-8bb0-436d8ac94963",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:02:47.353Z"
+    "triggeredAt": "2026-10-17T11:58:15.690Z"
   },
   {
-    "id": "9b50ac84-8def-444a-968b-0f90d43f33b1",
+    "id": "1d7662ad-bb11-42b2-8623-4f517ba2ade2",
     "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:02:57.391Z"
+    "triggeredAt": "2026-10-17T11:58:25.402Z"
   },
   {
-    "id": "480ea461-7d71-46c1-a3b9-9d05cf1ffbc7",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "b9ab6638-b79c-43c7-93b5-c6d49851c1ac",
+    "alertId": "2035559e-aa6c-4e4f-8c06-6d6698becbd9",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
+    "channel": "Both",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:03:07.301Z"
+    "triggeredAt": "2026-10-17T11:58:25.404Z"
   },
   {
-    "id": "ea7b4fda-4d8b-4728-bc1e-cdc1ec984c33",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "6126f771-22f4-47b3-b9aa-3f2665fa91d8",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:03:17.508Z"
+    "triggeredAt": "2026-10-17T11:59:01.604Z"
   },
   {
-    "id": "6bf82a89-3378-4678-9876-fcaf84ba320f",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "a56875ac-3db9-4b6f-ab64-3aa8dc3a830b",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:03:27.582Z"
+    "triggeredAt": "2026-10-17T11:59:16.116Z"
   },
   {
-    "id": "cf3993f8-33e1-4e8a-83b1-cb97a9d1be40",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "e0627ebe-77c5-48f8-9ff7-a830f36d92b0",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:03:37.415Z"
+    "triggeredAt": "2026-10-17T11:59:24.449Z"
   },
   {
-    "id": "677b076a-f4fa-499b-8f73-8de6b4d73205",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "db7de578-9709-4b26-9d3b-5b099736aca8",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:03:47.394Z"
+    "triggeredAt": "2026-10-17T11:59:33.182Z"
   },
   {
-    "id": "86a11e91-2c00-43bf-bad4-91d3ea3b3f36",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "aca74095-ec49-4a25-a921-37d38adc60ad",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:03:57.413Z"
+    "triggeredAt": "2026-10-17T11:59:43.792Z"
   },
   {
-    "id": "25a13606-abca-483b-ac2e-f9879c4d2f21",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "70c53738-646a-4459-8892-6d25bf7ada2d",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:04:07.588Z"
+    "triggeredAt": "2026-10-17T11:59:52.080Z"
   },
   {
-    "id": "cee7cf4d-c360-4623-9aa9-2b2bd70ce199",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "aa92c668-6953-4a00-97e0-00c7da1a2f50",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:04:17.448Z"
+    "triggeredAt": "2026-10-17T12:00:02.039Z"
   },
   {
-    "id": "9e497bba-58e9-45f6-89bc-4813997a37ea",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "3e7d186b-75cf-47c4-8532-3ff34cbee158",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:04:27.512Z"
+    "triggeredAt": "2026-10-17T12:00:15.691Z"
   },
   {
-    "id": "662ec13e-87f2-47b0-8a1f-73d9c57aa7b2",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "75f845b2-2a07-4552-8ed6-e2b32fad5fa0",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:04:37.405Z"
+    "triggeredAt": "2026-10-17T12:00:23.458Z"
   },
   {
-    "id": "01fd67f1-9974-4150-b480-cc0129f703ce",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "46313d06-b49a-4546-8514-bf8bbc11c4cb",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:04:47.587Z"
+    "triggeredAt": "2026-10-17T12:00:35.556Z"
   },
   {
-    "id": "752dcacc-aca2-46a8-8ec3-b45a6da47225",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "1017517c-c237-4f67-b304-1f8e8199b804",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:04:57.429Z"
+    "triggeredAt": "2026-10-17T12:00:41.551Z"
   },
   {
-    "id": "950e2533-49c5-4b73-ba4e-f21f3902e985",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
+    "id": "1f5d4fe7-e8a5-474d-953a-6821a6e361eb",
+    "alertId": "673fbeee-3069-4ea4-9271-0de3044112c1",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "سلام",
     "channel": "Telegram",
     "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:05:07.625Z"
+    "triggeredAt": "2026-10-17T12:00:51.986Z"
   },
   {
-    "id": "26ba397e-5d53-4fab-aec7-569e5e99a51d",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
-    "pair": "Gold / USD",
-    "target": 4165,
-    "note": "Chart 4165",
-    "channel": "Telegram",
-    "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:05:17.002Z"
+    "id": "74e28343-e7b9-4391-b320-ffd212d60536",
+    "alertId": "fe5b7924-756e-4914-9ce5-0b0ca3137a48",
+    "pair": "EUR / USD",
+    "target": 1.123,
+    "note": "یبی",
+    "channel": "App",
+    "source": "crossing",
+    "triggeredAt": "2026-10-17T12:01:50.176Z"
   },
   {
-    "id": "e4eae204-4055-4150-b98c-f59f813ac01d",
-    "alertId": "48c33d3b-d362-4d61-9181-cc7424deef41",
+    "id": "573e9ba8-2914-4797-bb53-6173983a485b",
+    "alertId": "ea89e781-1624-4d5b-9713-e78ab875830f",
     "pair": "Gold / USD",
     "target": 4165,
     "note": "Chart 4165",
-    "channel": "Telegram",
-    "source": "crossing-delivery-failed",
-    "triggeredAt": "2026-10-17T10:05:26.931Z"
+    "channel": "App",
+    "source": "crossing",
+    "triggeredAt": "2026-10-17T12:03:30.317Z"
   }
 ]

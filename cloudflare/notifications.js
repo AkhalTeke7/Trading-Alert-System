@@ -1,5 +1,5 @@
 
-import { renderAlertCard } from '../js/alertCard.js';
+import { renderMainChartHtml } from '../js/mainChartShot.js';
 
 export async function sendAlert(alert, env, onDelivered) {
     const names = alert.channel === 'Both' ? ['Bale', 'Telegram'] : [alert.channel];
@@ -12,6 +12,7 @@ export async function sendAlert(alert, env, onDelivered) {
         if (!token || !chatId) throw new Error(`Missing ${prefix} notification secrets`);
         return { name, token, chatId, root: name === 'Bale' ? 'https://tapi.bale.ai' : 'https://api.telegram.org' };
     });
+    const html = renderMainChartHtml(alert.pair, alert.target, alert.note);
     const { launch } = await import('@cloudflare/playwright');
     const browser = await launch(env.BROWSER);
     let screenshot;
@@ -20,9 +21,10 @@ export async function sendAlert(alert, env, onDelivered) {
             viewport: { width: 1200, height: 800 },
             deviceScaleFactor: 2,
         });
-        await page.setContent(renderAlertCard(alert.pair, alert.target, alert.note));
-        await page.waitForTimeout(800);
-        screenshot = await page.screenshot({ fullPage: true });
+        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+        try { await page.waitForSelector('iframe', { timeout: 14000 }); } catch {}
+        await page.waitForTimeout(5000);
+        screenshot = await page.screenshot({ fullPage: false });
     } finally {
         await browser.close();
     }

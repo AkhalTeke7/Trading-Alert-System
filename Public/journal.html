@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/theme.css"><script src="./js/theme.js"></script>
+<link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/theme.css"><link rel="stylesheet" href="./css/journal-lines-fix.css"><script src="./js/theme.js"></script>
 <style>
 .main.journal-main{display:flex;flex:1;min-height:0;overflow:hidden}
 .main.journal-main .content{flex:1;min-height:0;overflow-y:auto}
@@ -111,11 +111,16 @@
 .j-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:12px}
 .j-head-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .j-tag{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.j-idx{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--dim);padding-right:2px}
 .j-pill{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border:1px solid var(--line);background:var(--bg);color:var(--muted)}
 .j-pill.win{color:var(--up);border-color:rgba(59,196,122,.35);background:rgba(59,196,122,.08)}
 .j-pill.loss{color:var(--red);border-color:rgba(209,59,47,.3);background:rgba(209,59,47,.08)}
 .j-pill.be{color:var(--bone);border-color:var(--line-strong)}
 .j-pill.strat{color:var(--bone);border-color:var(--line-strong);background:rgba(233,228,214,.06)}
+.j-pill.pair{color:var(--bg);background:var(--bone);border-color:var(--bone);font-weight:600;letter-spacing:.12em}
+.j-pill.dir{font-weight:600;letter-spacing:.12em}
+.j-pill.dir-long{color:#0a0a0a;background:var(--up);border-color:var(--up)}
+.j-pill.dir-short{color:#fff;background:var(--red);border-color:var(--red)}
 .j-shots{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
 @media(max-width:900px){ .j-shots{grid-template-columns:1fr} }
 .j-shot{position:relative;border:1px solid var(--line);background:var(--bg);overflow:hidden;display:flex;flex-direction:column;min-height:200px}
@@ -152,6 +157,11 @@
 .j-field input,.j-field select,.j-field textarea{background:var(--bg);border:1px solid var(--line);color:var(--bone);font-family:var(--font-mono);font-size:12px;padding:9px 10px;outline:none}
 .j-field input:focus,.j-field select:focus,.j-field textarea:focus{border-color:var(--line-strong)}
 .j-field textarea{min-height:70px;resize:vertical}
+.j-strat-picks{display:flex;flex-wrap:wrap;gap:6px;min-height:42px;padding:6px;border:1px solid var(--line);background:var(--bg)}
+.j-pick{padding:6px 10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;user-select:none;line-height:1;transition:border-color .15s,background .15s,color .15s}
+.j-pick:hover{border-color:var(--line-strong);color:var(--bone)}
+.j-pick.on{background:var(--bone);color:var(--bg);border-color:var(--bone);font-weight:600}
+.j-pick.on:hover{filter:brightness(1.05)}
 .j-upload-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 @media(max-width:700px){ .j-upload-grid{grid-template-columns:1fr} }
 .j-up{border:1px solid var(--line);background:var(--bg);padding:8px;display:flex;flex-direction:column;gap:8px}
@@ -266,7 +276,7 @@
       <div class="j-field"><label>Date</label><input id="m-date" type="date"></div>
       <div class="j-field"><label>Direction</label><select id="m-dir"><option>Long</option><option>Short</option></select></div>
       <div class="j-field"><label>Outcome</label><select id="m-out"><option>WIN</option><option>LOSS</option><option>BE</option></select></div>
-      <div class="j-field"><label>Strategy</label><select id="m-strat"></select></div>
+      <div class="j-field"><label>Strategies (pick one or more)</label><div class="j-strat-picks" id="m-strat-picks"></div><p style="font-family:var(--font-mono);font-size:9px;color:var(--dim);margin-top:4px">Tap to select multiple — at least one required. Add more strategies via the bar above or type below.</p><div style="display:flex;gap:6px;margin-top:6px"><input id="m-strat-quick" placeholder="Quick add strategy — e.g. Supply zone" style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--bone);font-family:var(--font-mono);font-size:11px;padding:7px 10px;outline:none"><button type="button" class="j-btn sm" id="m-strat-quick-add">+ Add</button></div><select id="m-strat" style="display:none"></select></div>
       <div class="j-field"><label>PnL (USD)</label><input id="m-pnl" placeholder="+42 or -18"></div>
       <div class="j-field"><label>Tags</label><input id="m-tags" placeholder="breakout, london, retest"></div>
       <div class="j-field full"><label>Notes</label><textarea id="m-notes" placeholder="Plan, execution, mistake, lesson... — text-only is fine"></textarea></div>
@@ -292,6 +302,14 @@ const LS="pa.journal.v1", LS_STRAT="pa.strategies.v1";
 const $ = s => document.querySelector(s);
 const grid=$("#j-grid"), fPair=$("#f-pair"), fOut=$("#f-outcome"), fStrat=$("#f-strat"), fSearch=$("#f-search");
 let trades=[]; let strategies=[]; let editId=null; let pendingImgs=[null,null,null]; // strings: data: URL or https:// link
+let draftStrats=new Set(); // selected strategies for the open modal (multi)
+function tradeStrats(t){
+  if(Array.isArray(t.strategies)) return t.strategies.filter(s=>typeof s==="string"&&s.trim()).map(s=>s.trim());
+  if(Array.isArray(t.strategy)) return t.strategy.filter(s=>typeof s==="string"&&s.trim()).map(s=>s.trim());
+  if(typeof t.strategy==="string"&&t.strategy.trim()) return t.strategy.split(",").map(s=>s.trim()).filter(Boolean);
+  return [];
+}
+function stratString(arr){ return arr.join(", "); }
 function normalizeUrl(url){ return (url||"").trim(); }
 function cachedSrc(url){ return url||""; }
 function syncMsg(t, ok=false){ const el=$("#sync-msg"); if(!el) return; el.textContent=t; el.style.color= ok? "var(--up)": "var(--dim)"; if(t) setTimeout(()=>{ if(el.textContent===t) el.textContent=""; }, 4000); }
@@ -381,13 +399,21 @@ function applyBackupPayload(payload, opts={}){
   // merge trades: add only dossiers whose id is not already present — never overwrite existing data
   const existingIds = new Set(trades.map(x=>x.id));
   let added=0, skipped=0;
-  const incoming = t.map(x=> ({...x, id: x.id || crypto.randomUUID()}));
+  const incoming = t.map(x=> {
+    const id=x.id || crypto.randomUUID();
+    const strats = Array.isArray(x.strategies) ? x.strategies.filter(s=>typeof s==="string"&&s.trim()).map(s=>s.trim())
+      : typeof x.strategy==="string"&&x.strategy.trim() ? x.strategy.split(",").map(s=>s.trim()).filter(Boolean) : [];
+    const stratStr = strats.join(", ");
+    return {...x, id, strategy: x.strategy||stratStr, strategies: strats.length? strats: (x.strategy? [x.strategy]:[]) };
+  });
+  // also harvest any strategies seen on imported trades
+  incoming.forEach(item=> (item.strategies||[]).forEach(name=>{ if(!strategies.includes(name)){ strategies.push(name); }}));
+  if(incoming.some(it=> (it.strategies||[]).length)) saveStrat();
   incoming.forEach(item=>{
     if(existingIds.has(item.id)){
       skipped++;
       return;
     }
-    // also avoid exact duplicates when id was auto-generated (same content, different id) — optional: dedupe by content hash
     trades.push(item);
     existingIds.add(item.id);
     added++;
@@ -410,8 +436,18 @@ function migrate(){
   let changed=false;
   trades.forEach(t=>{
     if(t.entry!==undefined||t.sl!==undefined||t.tp!==undefined||t.size!==undefined){ delete t.entry; delete t.sl; delete t.tp; delete t.size; changed=true; }
-    if(!t.strategy) { t.strategy = t.tags?.split(",")[0]?.trim() || strategies[0] || ""; changed=true; }
-    // leave old Drive URLs as-is; no Drive normalization needed. They'll either load or be replaced on next export.
+    const hasArr = Array.isArray(t.strategies) && t.strategies.length;
+    const hasStr = typeof t.strategy==="string" && t.strategy.trim();
+    if(!hasArr && !hasStr){
+      const v = t.tags?.split(",")[0]?.trim() || strategies[0] || "";
+      t.strategies = v? [v] : []; t.strategy = stratString(t.strategies); changed=true;
+    } else if(hasStr && !hasArr){
+      t.strategies = t.strategy.split(",").map(s=>s.trim()).filter(Boolean);
+      t.strategy = stratString(t.strategies); changed=true;
+    } else if(hasArr){
+      t.strategy = stratString(t.strategies);
+    }
+    // keep both in sync (legacy strategy string + new strategies array)
   });
   if(changed) save();
 }
@@ -419,11 +455,20 @@ function fmtDate(s){ try{ return new Date(s).toLocaleDateString('en-CA'); }catch
 function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function numPnL(v){ const n=parseFloat(String(v??"").replace(/[^0-9.\-]/g,'')); return Number.isFinite(n)? n : 0; }
 function hasPnL(v){ return /-?\d/.test(String(v??"")); }
+function renderStratPicks(){
+  const box=$("#m-strat-picks"); if(!box) return;
+  if(!strategies.length){ box.innerHTML=`<span style="color:var(--dim);font-family:var(--font-mono);font-size:11px">No strategies yet — add one above or use Quick add.</span>`; return; }
+  box.innerHTML=strategies.map(s=>{
+    const on=draftStrats.has(s);
+    return `<button type="button" class="j-pick ${on?'on':''}" data-strat="${esc(s)}">${esc(s)}</button>`;
+  }).join("");
+}
 function renderStratUI(){
   const chips=$("#strat-chips"); chips.innerHTML=strategies.map(s=>`<span class="j-chip"><b>${esc(s)}</b> <button data-del-strat="${esc(s)}" title="Remove">✕</button></span>`).join("") || `<span style="font-family:var(--font-mono);font-size:10px;color:var(--dim)">No strategies — add one →</span>`;
   const opts=strategies.map(s=>`<option>${esc(s)}</option>`).join("");
   $("#f-strat").innerHTML=`<option value="">All strategies</option>`+opts;
   $("#m-strat").innerHTML=opts || `<option value="">— add a strategy first —</option>`;
+  renderStratPicks();
 }
 function stats(){
   const n=trades.length, w=trades.filter(t=>t.outcome==='WIN').length, l=trades.filter(t=>t.outcome==='LOSS').length, be=trades.filter(t=>t.outcome==='BE').length;
@@ -437,8 +482,8 @@ function filtered(){
   return trades.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).filter(t=>{
     if(p && t.pair!==p) return false;
     if(o && t.outcome!==o) return false;
-    if(st && t.strategy!==st) return false;
-    if(q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(t.strategy||"")).toLowerCase().includes(q)) return false;
+    if(st && !tradeStrats(t).includes(st)) return false;
+    if(q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(tradeStrats(t).join(" "))+(t.strategy||"")).toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -472,18 +517,24 @@ function render(){
     } else {
       shotsHtml=`<div style="border:1px dashed var(--line);background:rgba(233,228,214,.03);padding:10px;margin-bottom:12px;font-family:var(--font-mono);font-size:11px;color:var(--dim);letter-spacing:.04em">Text-only dossier — no charts attached. <button class="j-btn sm" data-edit="${t.id}" style="margin-left:8px">Add images</button></div>`;
     }
+    const pnlHas = hasPnL(t.pnl);
+    const pnlNum = numPnL(t.pnl);
+    const pnlCls = !pnlHas ? "" : pnlNum>0 ? "win" : pnlNum<0 ? "loss" : "be";
+    const tStrats = tradeStrats(t);
     return `<article class="j-card" data-id="${t.id}">
       <div class="j-head">
         <div class="j-head-left">
-          <span class="j-tag">${String(idx+1).padStart(2,'0')} // ${esc(t.pair)} · ${esc(t.dir)} · ${esc(fmtDate(t.date))}</span>
+          <span class="j-idx">${String(idx+1).padStart(2,'0')}</span><span style="font-family:var(--font-mono);font-size:11px;color:var(--dim)">//</span>
+          <span class="j-pill pair">${esc(t.pair)}</span>
+          <span class="j-pill dir ${String(t.dir).toLowerCase()==='short'?'dir-short':'dir-long'}">${esc(t.dir)}</span>
           <span class="j-pill ${t.outcome==='WIN'?'win':t.outcome==='LOSS'?'loss':'be'}">${esc(t.outcome)}</span>
-          <span class="j-pill strat">${esc(t.strategy||"—")}</span>
+          ${tStrats.length ? tStrats.map(s=>`<span class="j-pill strat">${esc(s)}</span>`).join("") : `<span class="j-pill strat">—</span>`}
           ${t.tags? `<span class="j-pill">${esc(t.tags)}</span>`:""}
+          ${pnlHas ? `<span class="j-pill ${pnlCls}">${esc(t.pnl)}</span>` : `<span class="j-pill" style="opacity:.55">—</span>`}
+          <span class="j-pill">${esc(fmtDate(t.date))}</span>
         </div>
-        <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${esc(t.pnl||"")}</span>
       </div>
       ${shotsHtml}
-      <div class="j-meta-line"><span><b>PnL</b> ${esc(t.pnl||"—")}</span><span><b>Strategy</b> ${esc(t.strategy||"—")}</span><span><b>Date</b> ${esc(fmtDate(t.date))}</span></div>
       <div class="j-notes"><k>Notes</k><p>${esc(t.notes||"—")}</p></div>
       <div class="j-foot">
         <button class="j-btn sm" data-dup="${t.id}">Duplicate</button>
@@ -497,17 +548,26 @@ function render(){
 function openModal(id=null){
   editId=id; pendingImgs=[null,null,null];
   $("#m-err").textContent="";
-  renderStratUI();
-  [0,1,2].forEach(i=>{ $("#p"+i).innerHTML="<span>no image</span>"; $("#f"+i).value=""; $("#u"+i).value=""; $("#c"+i).value=""; $("#cc"+i).textContent="0/120"; });
   if(id){
     const t=trades.find(x=>x.id===id); if(!t) return;
-    $("#m-pair").value=t.pair; $("#m-date").value=t.date||""; $("#m-dir").value=t.dir; $("#m-out").value=t.outcome; $("#m-strat").value=t.strategy||strategies[0]||"";
+    draftStrats=new Set(tradeStrats(t).filter(s=>strategies.includes(s)));
+    if(!draftStrats.size && tradeStrats(t).length) tradeStrats(t).forEach(s=>{ if(!strategies.includes(s)){ strategies.push(s); } draftStrats.add(s); });
+    if(!draftStrats.size && strategies[0]) draftStrats.add(strategies[0]);
+  } else {
+    draftStrats=new Set(strategies[0]? [strategies[0]]: []);
+  }
+  renderStratUI();
+  [0,1,2].forEach(i=>{ $("#p"+i).innerHTML="<span>no image</span>"; $("#f"+i).value=""; $("#u"+i).value=""; $("#c"+i).value=""; $("#cc"+i).textContent="0/120"; });
+  const quick=$("#m-strat-quick"); if(quick) quick.value="";
+  if(id){
+    const t=trades.find(x=>x.id===id); if(!t) return;
+    $("#m-pair").value=t.pair; $("#m-date").value=t.date||""; $("#m-dir").value=t.dir; $("#m-out").value=t.outcome;
     $("#m-pnl").value=t.pnl||""; $("#m-tags").value=t.tags||""; $("#m-notes").value=t.notes||"";
     (t.images||[]).slice(0,3).forEach((im,i)=>{ if(im?.src){ $("#p"+i).innerHTML=`<img src="${esc(im.src)}">`; $("#u"+i).value=im.src.startsWith("data:")?"":im.src; $("#c"+i).value=im.cap||""; $("#cc"+i).textContent=(im.cap||"").length+"/120"; pendingImgs[i]=im.src; }});
   } else {
     $("#m-date").value = new Date().toISOString().slice(0,10);
-    $("#m-strat").value = strategies[0]||"";
   }
+  renderStratPicks();
   $("#j-modal").classList.add("open");
 }
 function closeModal(){ $("#j-modal").classList.remove("open"); editId=null; }
@@ -540,10 +600,28 @@ $("#modal-x").addEventListener("click",closeModal);
 $("#m-cancel").addEventListener("click",closeModal);
 $("#modal-bg").addEventListener("click",closeModal);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); closeLb(); }});
+$("#m-strat-picks")?.addEventListener("click", e=>{
+  const btn=e.target.closest(".j-pick[data-strat]"); if(!btn) return;
+  e.preventDefault();
+  const name=btn.getAttribute("data-strat");
+  if(draftStrats.has(name)) draftStrats.delete(name); else draftStrats.add(name);
+  btn.classList.toggle("on", draftStrats.has(name));
+  $("#m-err").textContent=draftStrats.size? "" : $("#m-err").textContent;
+});
+function addQuickStrat(){
+  const inp=$("#m-strat-quick"); if(!inp) return;
+  const v=inp.value.trim(); if(!v) return;
+  if(!strategies.includes(v)){ strategies.push(v); saveStrat(); renderStratUI(); }
+  draftStrats.add(v); renderStratPicks(); inp.value="";
+}
+$("#m-strat-quick-add")?.addEventListener("click", addQuickStrat);
+$("#m-strat-quick")?.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addQuickStrat(); }});
 $("#m-save").addEventListener("click", async ()=>{
-  const pair=$("#m-pair").value, date=$("#m-date").value, dir=$("#m-dir").value, outcome=$("#m-out").value, strategy=$("#m-strat").value;
+  const pair=$("#m-pair").value, date=$("#m-date").value, dir=$("#m-dir").value, outcome=$("#m-out").value;
+  const stratList=Array.from(draftStrats).map(s=>s.trim()).filter(Boolean);
+  const strategy=stratString(stratList);
   const pnl=$("#m-pnl").value.trim(), tags=$("#m-tags").value.trim(), notes=$("#m-notes").value.trim();
-  if(!strategy){ $("#m-err").textContent="Pick a strategy — or add one above."; return; }
+  if(!stratList.length){ $("#m-err").textContent="Pick at least one strategy — tap the chips above or Quick add one."; return; }
   let baseImgs=[];
   if(editId){ const t=trades.find(x=>x.id===editId); baseImgs=(t.images||[]).slice(); }
   for(let i=0;i<3;i++){
@@ -560,7 +638,7 @@ $("#m-save").addEventListener("click", async ()=>{
   }
   const compact=baseImgs.filter(Boolean);
   if(!notes && !compact.length){ $("#m-err").textContent="Add notes or at least one chart — text-only trades need notes."; return; }
-  const payload={ pair, date: date || new Date().toISOString().slice(0,10), dir, outcome, strategy, pnl, tags, notes, images: compact.slice(0,6) };
+  const payload={ pair, date: date || new Date().toISOString().slice(0,10), dir, outcome, strategy, strategies: stratList.slice(), pnl, tags, notes, images: compact.slice(0,6) };
   if(editId){ const idx=trades.findIndex(x=>x.id===editId); if(idx>=0) trades[idx]={ ...trades[idx], ...payload }; }
   else trades.unshift({ id: crypto.randomUUID(), ...payload, createdAt: new Date().toISOString() });
   try{ save(); }catch(e){ return; }
@@ -570,7 +648,7 @@ grid.addEventListener("click", e=>{
   const del=e.target.closest("[data-del]"); if(del){ const id=del.getAttribute("data-del"); if(confirm("Delete dossier?")){ trades=trades.filter(t=>t.id!==id); save(); render(); } return; }
   const dup=e.target.closest("[data-dup]"); if(dup){ const t=trades.find(x=>x.id===dup.getAttribute("data-dup")); if(t){ const c={...t, id:crypto.randomUUID(), date:new Date().toISOString().slice(0,10), createdAt:new Date().toISOString()}; trades.unshift(c); save(); render(); } return; }
   const ed=e.target.closest("[data-ed]"); if(ed){ openModal(ed.getAttribute("data-ed")); return; }
-  const an=e.target.closest("[data-an]"); if(an){ const t=trades.find(x=>x.id===an.getAttribute("data-an")); if(t){ const qs=new URLSearchParams({ pair:"", outcome:"", strat: t.strategy||"", q:"" }).toString(); location.href="./analyze-strategy.html?"+qs; } return; }
+  const an=e.target.closest("[data-an]"); if(an){ const t=trades.find(x=>x.id===an.getAttribute("data-an")); if(t){ const qs=new URLSearchParams({ pair:"", outcome:"", strat: tradeStrats(t)[0]||"", q:"" }).toString(); location.href="./analyze-strategy.html?"+qs; } return; }
   const view=e.target.closest("[data-view]"); if(view){ const t=trades.find(x=>x.id===view.getAttribute("data-view")); const i=Number(view.getAttribute("data-si")); const im=t?.images?.[i]; if(im?.src) openLb(cachedSrc(im.src)); return; }
   const img=e.target.closest(".j-shot-img"); if(img){ const s=img.getAttribute("data-img"); if(s) openLb(s); }
 });

@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from './alertModel.js';
-import { renderAlertCard } from './alertCard.js';
+import { renderMainChartHtml } from './mainChartShot.js';
 import { fileURLToPath } from 'node:url';
 import getPrices from './fetchPrice.js';
 import { alertSender, startTelegramBot } from './telegram.mjs';
@@ -93,46 +93,25 @@ function persistDevices() {
     return devicesWriteQueue;
 }
 
-// Live chart PNG cache — key includes price snapshot so each trigger is fresh, not reused
+// Main-page chart PNG — screenshot of the chart as it appears on main.html
 const alertImageCache = new Map();
 async function renderAlertPng(pair, target, note) {
-    const key = `${pair}|${target}|${note}`;
+    const key = `main|${pair}|${target}|${note}`;
     const cached = alertImageCache.get(key);
     if (cached) return cached;
     const { chromium } = await import('playwright');
-    const symbolMap = { 'Gold / USD': 'OANDA:XAUUSD', 'EUR / USD': 'FX_IDC:EURUSD', 'BTC / USD': 'BITSTAMP:BTCUSD', 'GBP / USD': 'FX_IDC:GBPUSD', 'NASDAQ / USD': 'OANDA:NAS100USD', 'S&P 500 / USD': 'OANDA:SPX500USD' };
-    const tvSymbol = symbolMap[pair] || pair;
-    const safeNote = String(note||'').slice(0,60).replace(/</g,'');
-    // Prefer live TradingView chart at this moment; fall back to static glass card
-    const liveHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=1200, initial-scale=1"><style>html,body{margin:0;padding:0;background:#0a0a0a;overflow:hidden} #wrap{width:1200px;height:675px;display:flex;position:relative} .tradingview-widget-container{flex:1} .tradingview-widget-container iframe{border:0} .tag{position:absolute;left:12px;bottom:12px;background:rgba(10,10,10,.88);border:1px solid rgba(233,228,214,.18);color:#e9e4d6;font:11px 'JetBrains Mono',monospace;letter-spacing:.08em;padding:6px 10px;z-index:9}</style></head><body><div id="wrap"><div class="tradingview-widget-container" id="tv"><div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div></div><div class="tag">${pair}  ·  TARGET ${target}  ·  ${safeNote}</div></div><script>const s=document.createElement('script');s.type='text/javascript';s.async=true;s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';s.textContent=JSON.stringify({autosize:true,symbol:"${tvSymbol}",interval:"15",timezone:"Etc/UTC",theme:"dark",style:"1",locale:"en",enable_publishing:false,backgroundColor:"rgba(10, 10, 10, 1)",gridColor:"rgba(233, 228, 214, 0.06)",overrides:{"mainSeriesProperties.candleStyle.upColor":"#16a34a","mainSeriesProperties.candleStyle.downColor":"#0a0a0a","mainSeriesProperties.candleStyle.borderUpColor":"#16a34a","mainSeriesProperties.candleStyle.borderDownColor":"#555555","mainSeriesProperties.candleStyle.wickUpColor":"#16a34a","mainSeriesProperties.candleStyle.wickDownColor":"#555555","mainSeriesProperties.candleStyle.borderColor":"#555555"},hide_top_toolbar:false,hide_side_toolbar:true,allow_symbol_change:false,save_image:false,calendar:false,support_host:"https://www.tradingview.com"});document.getElementById('tv').appendChild(s);<\/script></body></html>`;
+    const html = renderMainChartHtml(pair, target, note);
+    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
     try {
-        const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
-        try {
-            const page = await browser.newPage({ viewport: { width: 1200, height: 675 }, deviceScaleFactor: 2 });
-            await page.setContent(liveHtml, { waitUntil: 'domcontentloaded' });
-            try { await page.waitForSelector('iframe', { timeout: 12000 }); } catch {}
-            await page.waitForTimeout(4500);
-            const png = await page.screenshot({ fullPage: false });
-            if (png && png.length > 20000) {
-                if (alertImageCache.size > 20) alertImageCache.delete(alertImageCache.keys().next().value);
-                alertImageCache.set(key, png);
-                return png;
-            }
-            throw new Error('live chart empty');
-        } finally { await browser.close(); }
-    } catch (e) {
-        console.warn('renderAlertPng live chart failed, fallback to glass card:', e.message || e);
-    }
-    const browser2 = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
-    try {
-        const page = await browser2.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 1 });
-        await page.setContent(renderAlertCard(pair, target, note));
-        await page.waitForTimeout(800);
-        const png = await page.screenshot({ fullPage: true });
+        const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
+        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+        try { await page.waitForSelector('iframe', { timeout: 14000 }); } catch {}
+        await page.waitForTimeout(5000);
+        const png = await page.screenshot({ fullPage: false });
         if (alertImageCache.size > 20) alertImageCache.delete(alertImageCache.keys().next().value);
         alertImageCache.set(key, png);
         return png;
-    } finally { await browser2.close(); }
+    } finally { await browser.close(); }
 }
 
 // Push: FCM HTTP v1 (service account) first, legacy server key as fallback.
@@ -718,7 +697,7 @@ const server = createServer(async (request, response) => {
             'Content-Type': 'text/html; charset=utf-8',
             'Cache-Control': 'private, max-age=86400',
         });
-        response.end(renderAlertCard(pair, target, note));
+        response.end(renderMainChartHtml(pair, target, note));
         return;
     }
 

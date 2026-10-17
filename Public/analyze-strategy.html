@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/theme.css"><script src="./js/theme.js"></script>
+<link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/theme.css"><link rel="stylesheet" href="./css/journal-lines-fix.css"><script src="./js/theme.js"></script>
 <style>
 .main.journal-main{display:flex;flex:1;min-height:0;overflow:hidden}
 .main.journal-main .content{flex:1;min-height:0;overflow-y:auto}
@@ -118,13 +118,14 @@ function hasPnL(v){ return /-?\d/.test(String(v??"")); }
 function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function load(){ try{ const r=localStorage.getItem(LS); if(r) trades=JSON.parse(r);}catch{} if(!Array.isArray(trades)) trades=[]; }
 function getFilters(){ const p=new URLSearchParams(location.search); return { pair:p.get('pair')||'', outcome:p.get('outcome')||'', strat:p.get('strat')||'', q:(p.get('q')||'').toLowerCase() }; }
+function tradeStrats(t){ if(Array.isArray(t.strategies)) return t.strategies.filter(s=>typeof s==="string"&&s.trim()).map(s=>s.trim()); if(typeof t.strategy==="string"&&t.strategy.trim()) return t.strategy.split(",").map(s=>s.trim()).filter(Boolean); return []; }
 function filtered(){
   const f=getFilters();
   return trades.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).filter(t=>{
     if(f.pair && t.pair!==f.pair) return false;
     if(f.outcome && t.outcome!==f.outcome) return false;
-    if(f.strat && t.strategy!==f.strat) return false;
-    if(f.q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(t.strategy||"")).toLowerCase().includes(f.q)) return false;
+    if(f.strat && !tradeStrats(t).includes(f.strat)) return false;
+    if(f.q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(tradeStrats(t).join(" "))+(t.strategy||"")).toLowerCase().includes(f.q)) return false;
     return true;
   });
 }
@@ -180,7 +181,7 @@ function render(){
   const f=getFilters();
   document.getElementById('count-tag').textContent=list.length+" trades";
   document.getElementById('filter-bar').innerHTML = (!f.pair&&!f.outcome&&!f.strat&&!f.q) ? `<span>No filter — showing all <b>${list.length}</b> dossiers</span>` : `<span>Filtered:</span> ${f.pair?`<span>pair <b>${esc(f.pair)}</b></span>`:''} ${f.outcome?`<span>outcome <b>${esc(f.outcome)}</b></span>`:''} ${f.strat?`<span>strategy <b>${esc(f.strat)}</b></span>`:''} ${f.q?`<span>search <b>${esc(f.q)}</b></span>`:''} <span style="margin-left:auto"><a href="#" onclick="location.search='';return false" style="color:var(--bone)">Clear filters</a></span>`;
-  const byStrat={}; list.forEach(t=>{ const k=t.strategy||"(no strategy)"; (byStrat[k]=byStrat[k]||{n:0,w:0,sum:0}) .n++; if(t.outcome==="WIN") byStrat[k].w++; if(hasPnL(t.pnl)) byStrat[k].sum+=numPnL(t.pnl); });
+  const byStrat={}; list.forEach(t=>{ const keys=tradeStrats(t); const ks=keys.length?keys:["(no strategy)"]; ks.forEach(k=>{ (byStrat[k]=byStrat[k]||{n:0,w:0,sum:0}).n++; if(t.outcome==="WIN") byStrat[k].w++; if(hasPnL(t.pnl)) byStrat[k].sum+=numPnL(t.pnl); }); });
   const tbodyS=document.querySelector('#tbl-strat tbody'); tbodyS.innerHTML=Object.entries(byStrat).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.n?Math.round(v.w/v.n*100)+"%":"—"}</td><td style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--dim)">No trades in filter</td></tr>`;
   const byPair={}; list.forEach(t=>{ const k=t.pair; (byPair[k]=byPair[k]||{n:0,w:0,sum:0}).n++; if(t.outcome==="WIN") byPair[k].w++; if(hasPnL(t.pnl)) byPair[k].sum+=numPnL(t.pnl); });
   const tbodyP=document.querySelector('#tbl-pair tbody'); tbodyP.innerHTML=Object.entries(byPair).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.n?Math.round(v.w/v.n*100)+"%":"—"}</td><td style="color:${v.sum>=0?'var(--up)':'var(--red)'}">${v.sum>=0?"+":""}${v.sum.toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" style="color:var(--dim)">—</td></tr>`;

@@ -13,7 +13,10 @@ html[data-theme="day"]{
   --red:#c0392b;
   --up:#1a9e5e;
   --line:rgba(20,20,19,.10);
-  --line-strong:rgba(20,20,19,.24);
+  --line-strong:rgba(20,20,19,.22);
+  --line-mid:rgba(20,20,19,.14);
+  --line-faint:rgba(20,20,19,.07);
+  --line-hair:rgba(20,20,19,.05);
   color-scheme: light;
 }
 html[data-theme="day"] body::before{ opacity:.035; }
@@ -37,8 +40,11 @@ html[data-theme="dawn"]{
   --dim:#6b7a74;
   --red:#e67e22;
   --up:#2ecc71;
-  --line:rgba(232,224,199,.12);
+  --line:rgba(232,224,199,.13);
   --line-strong:rgba(232,224,199,.28);
+  --line-mid:rgba(232,224,199,.18);
+  --line-faint:rgba(232,224,199,.08);
+  --line-hair:rgba(232,224,199,.05);
   color-scheme: dark;
 }
 html[data-theme="dawn"] body::before{ opacity:.045; }

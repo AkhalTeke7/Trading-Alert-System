@@ -12,7 +12,10 @@
   --red: #d13b2f;
   --up: #3bc47a;
   --line: rgba(233, 228, 214, 0.14);
-  --line-strong: rgba(233, 228, 214, 0.38);
+  --line-strong: rgba(233, 228, 214, 0.30);
+  --line-mid: rgba(233, 228, 214, 0.18);
+  --line-faint: rgba(233, 228, 214, 0.08);
+  --line-hair: rgba(233, 228, 214, 0.06);
 
   --font-ui: "Inter", system-ui, sans-serif;
   --font-display: "Space Grotesk", "Inter", sans-serif;

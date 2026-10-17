@@ -1,7 +1,7 @@
 import { testNotification } from '../js/notificationTest.js';
 import getPrices from '../js/fetchPrice.js';
 import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from '../js/alertModel.js';
-import { renderAlertCard } from '../js/alertCard.js';
+import { renderMainChartHtml } from '../js/mainChartShot.js';
 import { createTelegramBot } from '../js/telegramBot.js';
 import {
     PROVIDERS, listSkills, maskKey,
@@ -122,7 +122,7 @@ export class AlertStore {
                 const pair = (params.get('pair') || 'Gold / USD').slice(0, 50);
                 const target = (params.get('target') || 'test').slice(0, 50);
                 const note = (params.get('note') || '').slice(0, 500);
-                return new Response(renderAlertCard(pair, target, note), {
+                return new Response(renderMainChartHtml(pair, target, note), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, max-age=86400' },
                 });
             }
@@ -138,12 +138,12 @@ export class AlertStore {
                     try {
                         const page = await browser.newPage({
                             viewport: { width: 1200, height: 800 },
-                            // Scale 1: same card, smaller PNG for mobile data.
-                            deviceScaleFactor: 1,
+                            deviceScaleFactor: 2,
                         });
-                        await page.setContent(renderAlertCard(pair, target, note));
-                        await page.waitForTimeout(800);
-                        png = await page.screenshot({ fullPage: true });
+                        await page.setContent(renderMainChartHtml(pair, target, note), { waitUntil: 'domcontentloaded' });
+                        try { await page.waitForSelector('iframe', { timeout: 14000 }); } catch {}
+                        await page.waitForTimeout(5000);
+                        png = await page.screenshot({ fullPage: false });
                     } finally {
                         await browser.close();
                     }
