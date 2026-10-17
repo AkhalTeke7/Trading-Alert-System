@@ -1,5 +1,7 @@
 # Price-Alert · Trading Intelligence System
 
+<p align="center"><a href="README.md">English</a> · <a href="README.fa.md">فارسی</a></p>
+
 <p align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0a0a0a&height=220&section=header&text=TRADING%20ALERT%20SYSTEM&fontSize=42&fontColor=f5f2eb&fontAlignY=38&desc=Institutional%20Price%20Monitoring%20%C2%B7%20Mobile%20Alarm%20%C2%B7%20Local%20Journal%20Dossier%20%C2%B7%20AI%20Console&descFontSize=15&descColor=a39e93&descAlignY=58" width="100%" alt="Trading Alert System Header" />
 </p>
@@ -213,6 +215,16 @@ npx wrangler secret put FCM_SERVICE_ACCOUNT
 | `BALE_BOT_TOKEN` | Optional | Bale messenger bot token | From Bale Bot Father |
 | `BALE_CHAT_ID` | Optional | Bale recipient chat ID | Destination chat ID |
 | `FCM_SERVICE_ACCOUNT` | Optional | Firebase service-account JSON for FCM HTTP v1 | Firebase Console → Service Accounts |
+
+#### Optional AI Console & Web Search Keys
+
+These keys are configured inside the site—not as Wrangler secrets or `.env` values. The built-in **Demo channel** needs no key; live AI responses require a key from one provider:
+
+1. Open **AI** from the dashboard, then choose **Settings** (Cloudflare deployments require dashboard sign-in first).
+2. **AI chat:** Create an API key with one provider—[OpenAI](https://platform.openai.com/api-keys), [Anthropic](https://console.anthropic.com/settings/keys), [Google Gemini](https://aistudio.google.com/app/apikey), [Mistral](https://console.mistral.ai/api-keys), [Groq](https://console.groq.com/keys), or an OpenAI-compatible endpoint. Expand that provider, paste the key, then click **Save key → Test → Use in chat**. The default model is prefilled; change it if needed.
+3. **Web search:** Create a [Tavily API key](https://app.tavily.com/home), expand **Tavily Search**, paste it, and click **Save key → Test**. This key is optional: without it, `web_search` falls back to keyless DuckDuckGo.
+
+Keys stay server-side and the browser only receives a masked preview. Cloudflare deployments store them in the Durable Object; local Node.js runs store them in the ignored `data/ai-settings.json` file—treat that file as secret and never share or commit it. Check each provider's usage limits and billing.
 
 ---
 
