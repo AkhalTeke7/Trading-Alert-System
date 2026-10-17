@@ -169,7 +169,7 @@ export class AlertStore {
         return {
             providers: settings.providers || {},
             skills: Array.isArray(settings.skills) ? settings.skills : [],
-            activeProvider: settings.activeProvider || 'demo',
+            activeProvider: settings.activeProvider || 'opencode',
             activeModel: settings.activeModel || '',
         };
     }
@@ -180,21 +180,32 @@ export class AlertStore {
     }
 
     maskedProviders(settings) {
-        return PROVIDERS.map(preset => {
+        const effective = (() => {
+            const base = [...PROVIDERS];
+            for (const k of Object.keys(settings.providers || {})) {
+                if (!PROVIDERS.some(p=>p.id===k) && /^custom[:_-]/i.test(k)) {
+                    const b = PROVIDERS.find(p=>p.id==='custom');
+                    if (b) base.push({ ...b, id:k, name:`Custom — ${k.replace(/^custom[:_-]*/i,'')||k}` });
+                }
+            }
+            return base;
+        })();
+        return effective.map(preset => {
             const saved = settings.providers[preset.id] || null;
+            const isKeyless = !!preset.keyless || preset.id === 'opencode';
             return {
                 id: preset.id,
                 name: preset.name,
                 hint: preset.hint,
                 kind: preset.kind,
-                keyless: !!preset.keyless,
+                keyless: isKeyless,
                 requiresBaseUrl: !!preset.requiresBaseUrl,
                 models: preset.models,
                 defaultModel: preset.defaultModel,
-                configured: !!preset.keyless || Boolean(saved?.apiKey),
+                configured: isKeyless || Boolean(saved?.apiKey) || Boolean(saved?.baseUrl),
                 keyMask: saved?.apiKey ? maskKey(saved.apiKey) : null,
                 model: saved?.model || '',
-                baseUrl: saved?.baseUrl || '',
+                baseUrl: saved?.baseUrl || (preset.id==='opencode' ? (this.env?.OPENCODE_BASE_URL || preset.baseUrl) : ''),
                 savedAt: saved?.savedAt || null,
             };
         });

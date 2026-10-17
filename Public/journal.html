@@ -38,8 +38,10 @@
 .j-strat-add{display:flex;gap:6px;align-items:center}
 .j-strat-add input{background:var(--bg);border:1px solid var(--line);color:var(--bone);font-family:var(--font-mono);font-size:11px;padding:7px 10px;outline:none;min-width:160px}
 .j-strat-add input:focus{border-color:var(--line-strong)}
-.j-analyze{border:1px solid var(--line);background:var(--panel);background-image:radial-gradient(rgba(233,228,214,.07) 1px, transparent 1px);background-size:7px 7px;padding:14px;margin-bottom:16px;display:none}
-.j-analyze.open{display:block}
+.j-analyze{border:1px solid var(--line);background:var(--panel);background-image:radial-gradient(rgba(233,228,214,.07) 1px, transparent 1px);background-size:7px 7px;padding:14px;margin-bottom:16px;display:none; -webkit-font-smoothing:antialiased; text-rendering:geometricPrecision}
+.j-analyze.open{display:block; animation:none}
+.j-analyze .j-kpis{margin-bottom:10px}
+.j-analyze .j-kpi{ -webkit-font-smoothing:antialiased; transform:translateZ(0) }
 .j-analyze-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .j-analyze h3{font-family:var(--font-serif);font-weight:400;font-size:20px;letter-spacing:-.01em}
 .j-btn.red{background:var(--red);color:#fff;border-color:var(--red);letter-spacing:.1em}
@@ -249,6 +251,7 @@
         <button type="button" class="j-btn sm red" data-analyze-page="strategy" title="Open strategy lab">Strategy Lab</button>
         <button type="button" class="j-btn sm red" data-analyze-page="calendar" title="Open calendar & equity">Calendar &amp; Equity</button>
       </nav>
+      <div id="j-analyze-inline" style="margin-top:10px"></div>
     </div>
     <div class="j-filters">
       <select id="f-pair"><option value="">All pairs</option><option>Gold / USD</option><option>EUR / USD</option><option>BTC / USD</option><option>GBP / USD</option><option>NASDAQ / USD</option><option>S&P 500 / USD</option></select>
@@ -661,8 +664,28 @@ $("#lightbox").addEventListener("click",e=>{ if(e.target.id==="lightbox") closeL
 $("#f-pair").addEventListener("change",()=>render());
 $("#f-outcome").addEventListener("change",()=>render());
 $("#f-strat").addEventListener("change",()=>render());
-$("#f-search").addEventListener("input",()=>render());
-$("#btn-analyze").addEventListener("click",()=>{ const a=$("#analyze"); const open=a.classList.toggle("open"); $("#btn-analyze").textContent=open?"Analyze ▴":"Analyze ▾"; });
+let _searchDebounce=null;
+$("#f-search").addEventListener("input",()=>{ clearTimeout(_searchDebounce); _searchDebounce=setTimeout(()=>render(), 160); });
+function renderInlineAnalyze(list){
+  const host=document.getElementById('j-analyze-inline'); if(!host) return;
+  if(!list.length){ host.innerHTML=`<div class="j-empty" style="padding:14px"><p>Need at least one trade to analyze.</p></div>`; return; }
+  const wins=list.filter(t=>t.outcome==='WIN').length, losses=list.filter(t=>t.outcome==='LOSS').length, be=list.filter(t=>t.outcome==='BE').length;
+  const pf=(list=>{
+    const vals=list.filter(t=>/-?\d/.test(String(t.pnl||''))).map(t=>parseFloat(String(t.pnl).replace(/[^0-9.\-]/g,''))).filter(Number.isFinite);
+    const gp=vals.filter(v=>v>0).reduce((s,v)=>s+v,0), gl=Math.abs(vals.filter(v=>v<0).reduce((s,v)=>s+v,0));
+    return gl? (gp/gl).toFixed(2) : gp>0?"∞":"—";
+  })(list);
+  const byPair={}; list.forEach(t=>{ const k=t.pair||'?'; byPair[k]=byPair[k]||{n:0,w:0}; byPair[k].n++; if(t.outcome==='WIN') byPair[k].w++; });
+  const rows=Object.entries(byPair).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.w}</td><td>${v.n?Math.round(v.w/v.n*100)+'%':'—'}</td></tr>`).join('');
+  host.innerHTML=`<div class="j-kpis"><div class="j-kpi"><k>Trades</k><v>${list.length}</v></div><div class="j-kpi"><k>WIN / LOSS / BE</k><v>${wins} / ${losses} / ${be}</v></div><div class="j-kpi"><k>Profit factor</k><v>${pf}</v></div></div>
+  <div class="j-panel" style="margin-top:10px"><h4>By pair</h4><table class="j-table"><thead><tr><th>Pair</th><th>n</th><th>W</th><th>WR</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p style="font-family:var(--font-mono);font-size:10px;color:var(--dim);margin-top:8px">Inline quick view — open <b>Overview</b> / <b>Strategy Lab</b> / <b>Calendar &amp; Equity</b> for full charts.</p>`;
+}
+$("#btn-analyze").addEventListener("click",()=>{
+  const a=$("#analyze"); const open=a.classList.toggle("open");
+  $("#btn-analyze").textContent=open?"Analyze ▴":"Analyze ▾";
+  if(open){ try{ renderInlineAnalyze(filtered()); }catch{} }
+});
 $("#analyze-nav")?.addEventListener("click", e=>{
   const b=e.target.closest("[data-analyze-page]"); if(!b) return;
   const p=b.getAttribute("data-analyze-page");

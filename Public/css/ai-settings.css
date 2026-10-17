@@ -6,13 +6,22 @@
   inset: 0;
   z-index: 150;
   background: rgba(6, 6, 6, 0.62);
-  backdrop-filter: blur(7px);
   opacity: 0;
   transition: opacity 0.35s ease;
+  /* blur moved to ::before so drawer text never inherits a filtered stacking context */
 }
 
 .ais-backdrop.open {
   opacity: 1;
+}
+
+.ais-backdrop.open::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  pointer-events: none;
 }
 
 .ais-drawer {
@@ -30,10 +39,18 @@
   transform: translateX(104%);
   transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
   will-change: transform;
+  /* prevent sub-pixel blur during transform */
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .ais-drawer.open {
   transform: none;
+}
+
+.ais-drawer.ais-settled {
+  will-change: auto;
 }
 
 .ais-head {
@@ -113,13 +130,19 @@
 
 .ais-section {
   margin-bottom: 30px;
-  opacity: 0;
-  transform: translateY(14px);
 }
 
-.ais-drawer.open .ais-section {
+.ais-drawer.ais-boot .ais-section {
+  opacity: 0;
+  transform: translateY(14px);
   animation: ais-row-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   animation-delay: var(--d, 0s);
+}
+
+.ais-drawer.ais-boot.ais-settled .ais-section {
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 
 .ais-flash {
@@ -364,6 +387,9 @@
 
 .ais-provider.open .ais-provider-body {
   display: flex;
+}
+
+.ais-drawer.ais-boot .ais-provider.open .ais-provider-body {
   animation: ais-row-in 0.4s ease both;
 }
 

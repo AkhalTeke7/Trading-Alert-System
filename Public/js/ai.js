@@ -1053,5 +1053,10 @@
     $('#ai-input')?.focus();
   }
 
+  // pause expensive orb/grid animations when tab hidden
+  document.addEventListener('visibilitychange', ()=>{
+    document.querySelectorAll('.ai-bg').forEach(el=> el.classList.toggle('is-paused', document.hidden));
+  });
+
   document.addEventListener('DOMContentLoaded', boot);
 })();

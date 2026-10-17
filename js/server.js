@@ -254,11 +254,11 @@ async function loadAiSettings() {
         return {
             providers: value.providers && typeof value.providers === 'object' ? value.providers : {},
             skills: Array.isArray(value.skills) ? value.skills : [],
-            activeProvider: String(value.activeProvider || 'demo'),
+            activeProvider: String(value.activeProvider || 'opencode'),
             activeModel: String(value.activeModel || ''),
         };
     } catch (error) {
-        if (error.code === 'ENOENT') return { providers: {}, skills: [], activeProvider: 'demo', activeModel: '' };
+        if (error.code === 'ENOENT') return { providers: {}, skills: [], activeProvider: 'opencode', activeModel: '' };
         throw error;
     }
 }
@@ -276,21 +276,32 @@ function persistAiSettings() {
 }
 
 function aiMaskedProviders(settings) {
-    return PROVIDERS.map(preset => {
+    const effective = (() => {
+        const base = [...PROVIDERS];
+        for (const k of Object.keys(settings.providers || {})) {
+            if (!PROVIDERS.some(p=>p.id===k) && /^custom[:_-]/i.test(k)) {
+                const b = PROVIDERS.find(p=>p.id==='custom');
+                if (b) base.push({ ...b, id:k, name:`Custom — ${k.replace(/^custom[:_-]*/i,'')||k}` });
+            }
+        }
+        return base;
+    })();
+    return effective.map(preset => {
         const saved = settings.providers[preset.id] || null;
+        const isKeyless = !!preset.keyless || preset.id === 'opencode';
         return {
             id: preset.id,
             name: preset.name,
             hint: preset.hint,
             kind: preset.kind,
-            keyless: !!preset.keyless,
+            keyless: isKeyless,
             requiresBaseUrl: !!preset.requiresBaseUrl,
             models: preset.models,
             defaultModel: preset.defaultModel,
-            configured: !!preset.keyless || Boolean(saved?.apiKey),
+            configured: isKeyless || Boolean(saved?.apiKey) || Boolean(saved?.baseUrl),
             keyMask: saved?.apiKey ? maskKey(saved.apiKey) : null,
             model: saved?.model || '',
-            baseUrl: saved?.baseUrl || '',
+            baseUrl: saved?.baseUrl || (preset.id==='opencode' ? (process.env.OPENCODE_BASE_URL || preset.baseUrl) : ''),
             savedAt: saved?.savedAt || null,
         };
     });
@@ -520,7 +531,7 @@ async function readBodyBuffer(request, maxBytes = 12 * 1024 * 1024) {
     return Buffer.concat(chunks);
 }
 
-async function serveStatic(pathname, response) {
+async function serveStatic(pathname, response, request) {
     const relativePath = pathname === '/' ? 'main.html' : pathname.replace(/^\/+/, '');
     const filePath = resolve(publicRoot, relativePath);
     if (!filePath.startsWith(`${publicRoot}${sep}`)) {
@@ -541,9 +552,23 @@ async function serveStatic(pathname, response) {
             return;
         }
 
+        const ext = extname(filePath);
+        const isHtml = ext === '.html';
+        // cheap ETag: size-mtime
+        const etag = `W/"${fileInfo.size.toString(36)}-${Math.floor(fileInfo.mtimeMs).toString(36)}"`;
+        if (request && request.headers['if-none-match'] === etag) {
+            response.writeHead(304, { 'ETag': etag, 'Cache-Control': isHtml ? 'private, no-store' : 'private, max-age=3600' });
+            response.end();
+            return;
+        }
+        const cacheControl = isHtml
+            ? 'private, no-store'
+            : 'private, max-age=3600, stale-while-revalidate=86400';
         response.writeHead(200, {
-            'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream',
+            'Content-Type': contentTypes[ext] || 'application/octet-stream',
             'Content-Length': fileInfo.size,
+            'Cache-Control': cacheControl,
+            'ETag': etag,
             'X-Content-Type-Options': 'nosniff',
         });
         createReadStream(filePath).pipe(response);
@@ -807,7 +832,7 @@ const server = createServer(async (request, response) => {
         return;
     }
 
-    await serveStatic(pathname, response);
+    await serveStatic(pathname, response, request);
 });
 
 server.listen(port, host, () => {

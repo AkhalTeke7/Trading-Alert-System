@@ -1,6 +1,17 @@
-import getPrices from '../js/fetchPrice.js';
+import getPricesRaw from '../js/fetchPrice.js';
 import { clearDashboardSession, createDashboardSession, crossOriginWrite, dashboardAuth, json, readJson, sameSecret } from './http.js';
 export { AlertStore } from './alertStore.js';
+
+// 5s coalesced price cache at edge — avoids hammering TradingView per request
+let _priceCache = null;
+let _priceInflight = null;
+async function getPrices(){
+  const now = Date.now();
+  if (_priceCache && (now - _priceCache.at) < 5000) return _priceCache.data;
+  if (_priceInflight) return _priceInflight;
+  _priceInflight = getPricesRaw().then(data=>{ _priceCache={at:Date.now(),data}; return data; }).finally(()=>{ _priceInflight=null; });
+  return _priceInflight;
+}
 
 function store(env) {
     return env.ALERT_STORE.get(env.ALERT_STORE.idFromName('personal-dashboard'));
@@ -137,8 +148,11 @@ async function assetResponse(url, request, env) {
     const assetUrl = new URL(url);
     if (assetUrl.pathname === '/') assetUrl.pathname = '/main.html';
     const response = await env.ASSETS.fetch(new Request(assetUrl, request));
+    if (response.status === 404) return response;
     const headers = new Headers(response.headers);
-    headers.set('Cache-Control', 'private, no-store');
+    const ct = headers.get('content-type') || '';
+    const isHtml = ct.includes('text/html') || !ct || assetUrl.pathname.endsWith('.html');
+    headers.set('Cache-Control', isHtml ? 'private, no-store' : 'private, max-age=3600, stale-while-revalidate=86400');
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Referrer-Policy', 'same-origin');
     return new Response(response.body, { status: response.status, headers });

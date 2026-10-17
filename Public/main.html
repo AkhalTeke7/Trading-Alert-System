@@ -7,11 +7,12 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://s3.tradingview.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="./css/style.css">
+    <link rel="preload" href="./css/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="./css/style.css"></noscript>
     <link rel="stylesheet" href="./css/theme.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/></noscript>
     <script src="./js/theme.js"></script>
 </head>
 <body>
@@ -160,10 +161,19 @@ function chartHtml(idx, pair){
     </div>
   </section>`;
 }
-function injectChartScript(idx){
+let _tvScriptLoaded = false;
+function _ensureTvScript(){ if(_tvScriptLoaded) return Promise.resolve(); return new Promise(res=>{ const s=document.createElement('script'); s.src='https://s3.tradingview.com/tv.js'; s.async=true; s.onload=()=>{_tvScriptLoaded=true;res();}; s.onerror=()=>res(); document.head.appendChild(s); }); }
+const _tvQueue = new Set();
+let _tvObserver = null;
+function _flushTvQueue(){
+  _tvQueue.forEach(idx=> _doInject(idx));
+  _tvQueue.clear();
+}
+function _doInject(idx){
   const m = PA[idx];
   const container = document.getElementById('pa-tv-'+idx);
-  if(!container) return;
+  if(!container || container.dataset.tvLoaded==='1') return;
+  container.dataset.tvLoaded='1';
   container.innerHTML = '<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>';
   const s = document.createElement('script');
   s.type='text/javascript'; s.async=true;
@@ -175,6 +185,19 @@ function injectChartScript(idx){
   const __grid = __isDay ? 'rgba(20,20,19,0.06)' : 'rgba(233,228,214,0.06)';
   s.textContent = JSON.stringify({ autosize:true, symbol:m.Tv, interval:"15", timezone:"Etc/UTC", theme:__tvTheme, style:"1", locale:"en", enable_publishing:false, backgroundColor:__tvBg, gridColor:__grid, overrides:{"mainSeriesProperties.candleStyle.upColor":"#16a34a","mainSeriesProperties.candleStyle.downColor":(__isDay?"#ffffff":"#0a0a0a"),"mainSeriesProperties.candleStyle.borderUpColor":"#16a34a","mainSeriesProperties.candleStyle.borderDownColor":"#555555","mainSeriesProperties.candleStyle.wickUpColor":"#16a34a","mainSeriesProperties.candleStyle.wickDownColor":"#555555","mainSeriesProperties.candleStyle.borderColor":"#555555"}, hide_top_toolbar:false, hide_side_toolbar:true, allow_symbol_change:false, save_image:false, calendar:false, support_host:"https://www.tradingview.com" });
   container.appendChild(s);
+}
+function injectChartScript(idx){
+  const el = document.getElementById('pa-tv-'+idx);
+  if(!el) return;
+  // lazy: only inject when visible; first two charts immediate
+  if(idx < 2){ _doInject(idx); return; }
+  if('IntersectionObserver' in window){
+    if(!_tvObserver) _tvObserver = new IntersectionObserver(entries=>{
+      entries.forEach(ent=>{ if(ent.isIntersecting){ const i=Number(ent.target.dataset.tvIdx); _doInject(i); _tvObserver.unobserve(ent.target); } });
+    }, { rootMargin:'200px' });
+    el.dataset.tvIdx = String(idx);
+    _tvObserver.observe(el);
+  } else { _doInject(idx); }
 }
 function rebuildDOM(){
   // rebuild PA map from PA_ORDER

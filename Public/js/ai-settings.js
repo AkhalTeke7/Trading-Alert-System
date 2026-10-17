@@ -11,6 +11,7 @@
 
   const PROVIDER_ICONS = {
     demo: 'ti-flask',
+    opencode: 'ti-code',
     mistral: 'ti-wind',
     openai: 'ti-robot',
     anthropic: 'ti-brain',
@@ -29,11 +30,12 @@
   const state = {
     providers: [],
     skills: [],
-    active: { provider: 'demo', model: '' },
+    active: { provider: 'opencode', model: '' },
     loaded: false,
     editingSkillId: null,
     openProvider: null,
     pending: {},
+    newCustom: { id: '', name: '', baseUrl: '', model: '', apiKey: '' },
   };
 
   let root = null;
@@ -68,29 +70,55 @@
     flash._t = setTimeout(() => bar.classList.remove('show'), 3800);
   }
 
+  function isOpencodeId(id){ return String(id)==='opencode'; }
+  function providerIcon(id){ if(id==='opencode') return 'ti-code'; if(/^custom[:_-]/i.test(id)) return 'ti-world'; return PROVIDER_ICONS[id] || 'ti-key'; }
   function providerCard(preset) {
     const open = state.openProvider === preset.id;
     const pending = state.pending[preset.id] || {};
-    const isCustom = preset.requiresBaseUrl;
+    const isCustom = preset.requiresBaseUrl || /^custom[:_-]/i.test(preset.id);
     const isSearch = preset.kind === 'search';
+    const isOC = isOpencodeId(preset.id);
     return `
       <div class="ais-provider ${preset.configured ? 'configured' : ''} ${open ? 'open' : ''}" data-provider="${esc(preset.id)}">
         <div class="ais-provider-head" data-toggle="${esc(preset.id)}">
-          <span class="p-ico"><i class="ti ${esc(PROVIDER_ICONS[preset.id] || 'ti-key')}"></i></span>
+          <span class="p-ico"><i class="ti ${esc(providerIcon(preset.id))}"></i></span>
           <span>
             <span class="p-name">${esc(preset.name)}</span>
             <span class="p-hint">${esc(preset.hint)}</span>
           </span>
           <span class="ais-provider-status">
-            <span class="dot"></span>${preset.configured ? (preset.keyless ? 'Ready' : 'Key saved') : 'No key'}
+            <span class="dot"></span>${preset.configured ? (preset.keyless ? 'Ready' : 'Key saved') : (isOC ? 'Ready' : 'No key')}
           </span>
           <span class="p-chev"><i class="ti ti-chevron-down"></i></span>
         </div>
         <div class="ais-provider-body">
-          ${preset.keyless ? `
+          ${isOC ? `
+            <div class="ais-hint-line"><b>OpenCode — default, no key, tested first.</b> Local OpenAI-compatible gateway. Set Base URL (e.g. <code>http://127.0.0.1:4096/v1</code>) and Model; chat auto-falls back here when other providers fail.</div>
+            <div class="ais-field">
+              <label>Base URL (OpenAI-compatible)</label>
+              <input type="text" data-field="baseUrl" data-provider="${esc(preset.id)}"
+                placeholder="http://127.0.0.1:4096/v1" value="${esc(pending.baseUrl ?? preset.baseUrl ?? '')}">
+            </div>
+            <div class="ais-field">
+              <label>Model</label>
+              <input type="text" data-field="model" data-provider="${esc(preset.id)}" list="ais-models-${esc(preset.id)}"
+                placeholder="${esc(preset.defaultModel || 'opencode-default')}" value="${esc(pending.model ?? preset.model ?? '')}">
+              <datalist id="ais-models-${esc(preset.id)}">
+                ${(preset.models || []).map(m => `<option value="${esc(m)}"></option>`).join('')}
+              </datalist>
+            </div>
+            <div class="ais-row-actions">
+              <button type="button" class="ais-btn primary" data-save="${esc(preset.id)}">Save</button>
+              <button type="button" class="ais-btn" data-test="${esc(preset.id)}">Test</button>
+              <button type="button" class="ais-btn" data-activate="${esc(preset.id)}">Use in chat</button>
+              ${preset.configured && (pending.baseUrl || preset.baseUrl) ? `<button type="button" class="ais-btn danger" data-remove-provider="${esc(preset.id)}">Clear</button>` : ''}
+            </div>
+            <div class="ais-test-result" data-test-result="${esc(preset.id)}"></div>
+          ` : preset.keyless ? `
             <div class="ais-hint-line">Built-in offline channel — the console stays usable before any key exists.</div>
           ` : `
             ${isSearch ? `<div class="ais-hint-line">Powers the chat's <b>web_search</b> tool. Optional — without it the console searches via a keyless provider.</div>` : ''}
+            ${isSearch ? '' : `
             <div class="ais-key-row">
               <div class="ais-key-wrap">
                 <input type="password" autocomplete="off" spellcheck="false"
@@ -100,7 +128,7 @@
                 <button type="button" class="ais-reveal" data-reveal title="Show / hide"><i class="ti ti-eye"></i></button>
               </div>
             </div>
-            ${preset.configured && preset.keyMask ? `<div><span class="ais-mask">${esc(preset.keyMask)}</span></div>` : ''}
+            ${preset.configured && preset.keyMask ? `<div><span class="ais-mask">${esc(preset.keyMask)}</span></div>` : ''}`}
             ${isCustom ? `
               <div class="ais-field">
                 <label>Base URL (OpenAI-compatible)</label>
@@ -117,6 +145,15 @@
                 ${(preset.models || []).map(m => `<option value="${esc(m)}"></option>`).join('')}
               </datalist>
             </div>`}
+            ${isSearch && !isCustom ? `
+              <div class="ais-field" style="margin-top:6px">
+                <label>API key (optional)</label>
+                <div class="ais-key-row"><div class="ais-key-wrap">
+                  <input type="password" autocomplete="off" data-field="apiKey" data-provider="${esc(preset.id)}" placeholder="${preset.configured && preset.keyMask ? esc(preset.keyMask) : 'Tavily key (optional)'}"
+                    value="${esc(pending.apiKey||'')}"><button type="button" class="ais-reveal" data-reveal><i class="ti ti-eye"></i></button>
+                </div></div>
+                ${preset.configured && preset.keyMask ? `<div><span class="ais-mask">${esc(preset.keyMask)}</span></div>` : ''}
+              </div>` : ''}
             <div class="ais-row-actions">
               <button type="button" class="ais-btn primary" data-save="${esc(preset.id)}">Save key</button>
               <button type="button" class="ais-btn" data-test="${esc(preset.id)}">Test</button>
@@ -146,10 +183,30 @@
       </div>`;
   }
 
+  let bootTimer = null;
+  function markBooted() {
+    const drawer = root && root.querySelector('.ais-drawer');
+    if (!drawer) return;
+    drawer.classList.add('ais-boot');
+    clearTimeout(bootTimer);
+    bootTimer = setTimeout(() => drawer.classList.add('ais-settled'), 700);
+  }
+  function patchToggle(id) {
+    const body = root.querySelector('.ais-body');
+    if (!body) return false;
+    const card = body.querySelector(`[data-provider="${CSS.escape ? CSS.escape(id) : id}"]`);
+    if (!card) return false;
+    const isOpen = card.classList.contains('open');
+    body.querySelectorAll('.ais-provider.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) card.classList.add('open');
+    state.openProvider = isOpen ? null : id;
+    return true;
+  }
   function render() {
     const prevBody = root.querySelector('.ais-body');
     const savedTop = prevBody ? prevBody.scrollTop : 0;
     const hadOpen = !!root.querySelector('.ais-drawer.open');
+    const hadBoot = !!root.querySelector('.ais-drawer.ais-boot');
     const savedFocusId = document.activeElement && document.activeElement.id ? document.activeElement.id : null;
     const editing = state.editingSkillId
       ? state.skills.find(skill => skill.id === state.editingSkillId)
@@ -196,8 +253,22 @@
 
           <section class="ais-section" style="--d:.14s">
             <div class="ais-section-label"><span class="tag">02 // AI providers</span><span class="rule"></span></div>
+            <div class="ais-note" style="margin-bottom:12px">Default is <b>OpenCode</b> (local, no key, tested first). Chat auto-fails over across your saved custom endpoints by availability. Add as many Custom endpoints as you need — each is an independent OpenAI-compatible API.</div>
             <div class="ais-providers">
               ${state.providers.map(providerCard).join('')}
+            </div>
+            <div style="margin-top:12px;border:1px dashed var(--line);padding:12px;background:rgba(233,228,214,.02)">
+              <div class="ais-hint-line" style="margin-bottom:8px">Add another custom endpoint (OpenAI-compatible)</div>
+              <div class="ais-form-2" style="margin-bottom:8px">
+                <div class="ais-field"><label>Endpoint id (slug)</label><input id="ais-custom-id" placeholder="custom-2 or my-llm" value="${esc(state.newCustom.id)}"></div>
+                <div class="ais-field"><label>Display name</label><input id="ais-custom-name" placeholder="My LLM" value="${esc(state.newCustom.name)}"></div>
+              </div>
+              <div class="ais-field" style="margin-bottom:8px"><label>Base URL</label><input id="ais-custom-base" placeholder="https://api.example.com/v1" value="${esc(state.newCustom.baseUrl)}"></div>
+              <div class="ais-form-2">
+                <div class="ais-field"><label>Model (optional)</label><input id="ais-custom-model" placeholder="gpt-4o-mini" value="${esc(state.newCustom.model)}"></div>
+                <div class="ais-field"><label>API key (optional if gateway is keyless)</label><input id="ais-custom-key" type="password" placeholder="sk-..." value="${esc(state.newCustom.apiKey)}"></div>
+              </div>
+              <div class="ais-row-actions" style="margin-top:10px"><button type="button" class="ais-btn primary" id="ais-custom-add">Add endpoint</button><span class="ais-hint-line">Saved server-side · used in fallback chain</span></div>
             </div>
           </section>
 
@@ -264,8 +335,11 @@
     }
     if (hadOpen) {
       root.querySelector('.ais-backdrop')?.classList.add('open');
-      root.querySelector('.ais-drawer')?.classList.add('open');
+      const drawer = root.querySelector('.ais-drawer');
+      drawer?.classList.add('open');
+      if (hadBoot) drawer?.classList.add('ais-boot');
     }
+    if (hadBoot) markBooted();
     // restore focus without scrolling the page to top
     if (savedFocusId) {
       const toFocus = document.getElementById(savedFocusId);
@@ -303,6 +377,7 @@
 
     root.querySelectorAll('[data-toggle]').forEach(head => head.addEventListener('click', () => {
       const id = head.dataset.toggle;
+      if (patchToggle(id)) return;
       state.openProvider = state.openProvider === id ? null : id;
       render();
     }));
@@ -326,16 +401,22 @@
       collectProviderFields(id);
       const draft = state.pending[id] || {};
       const preset = state.providers.find(p => p.id === id);
-      const body = { provider: id };
-      if (draft.apiKey) body.apiKey = draft.apiKey.trim();
-      if (preset?.requiresBaseUrl) body.baseUrl = (draft.baseUrl || '').trim();
+      const body = { provider: preset?.id || id };
+      const isOC = isOpencodeId(body.provider);
+      if (!isOC && draft.apiKey) body.apiKey = draft.apiKey.trim();
+      if (draft.baseUrl !== undefined) body.baseUrl = (draft.baseUrl || '').trim();
+      if (draft.baseUrl === undefined && (preset?.requiresBaseUrl || isOC)) {
+        const inp = root.querySelector(`[data-provider="${body.provider}"][data-field="baseUrl"]`);
+        if (inp) body.baseUrl = inp.value.trim();
+      }
       if (draft.model !== undefined) body.model = draft.model.trim();
+      if (isOC) delete body.apiKey;
       button.classList.add('busy');
       try {
         const data = await api('/api/ai/providers', { method: 'PUT', body: JSON.stringify(body) });
         applyState(data);
         delete state.pending[id];
-        flash(`${preset?.name || id} key saved server-side — only a masked preview is returned.`);
+        flash(`${preset?.name || id} saved server-side.`);
         render();
       } catch (error) {
         flash(error.message, 'err');
@@ -453,6 +534,36 @@
       }
     }));
 
+    const customAdd = root.querySelector('#ais-custom-add');
+    if (customAdd) customAdd.addEventListener('click', async () => {
+      const rawId = (root.querySelector('#ais-custom-id')?.value || '').trim();
+      const name = (root.querySelector('#ais-custom-name')?.value || '').trim();
+      const baseUrl = (root.querySelector('#ais-custom-base')?.value || '').trim();
+      const model = (root.querySelector('#ais-custom-model')?.value || '').trim();
+      const apiKey = (root.querySelector('#ais-custom-key')?.value || '').trim();
+      // persist draft even on validation errors so field values don't flicker away on re-render
+      state.newCustom = { id: rawId, name, baseUrl, model, apiKey };
+      const id = rawId || `custom-${Date.now().toString(36)}`;
+      const normId = /^custom[:_-]/i.test(id) ? id : `custom-${id.replace(/[^a-z0-9_-]/gi,'-').toLowerCase()}`;
+      if (!baseUrl) { flash('Base URL is required for a custom endpoint', 'err'); render(); return; }
+      const body = { provider: normId, baseUrl, model };
+      if (apiKey) body.apiKey = apiKey;
+      // name is display-only, stored via model field hint is from PROVIDERS; keep tag via model list — name sent as part of fallback label only
+      customAdd.classList.add('busy');
+      try {
+        const data = await api('/api/ai/providers', { method: 'PUT', body: JSON.stringify(body) });
+        applyState(data);
+        state.newCustom = { id: '', name: '', baseUrl: '', model: '', apiKey: '' };
+        flash(`Custom endpoint ${normId} saved — will participate in auto-failover.`);
+        render();
+      } catch (e) { flash(e.message, 'err'); customAdd.classList.remove('busy'); }
+    });
+    // keep draft live without full re-render flicker
+    ['#ais-custom-id','#ais-custom-name','#ais-custom-base','#ais-custom-model','#ais-custom-key'].forEach(sel=>{
+      const el=root.querySelector(sel); if(!el) return;
+      el.addEventListener('input', ()=>{ state.newCustom={ id: root.querySelector('#ais-custom-id')?.value||'', name: root.querySelector('#ais-custom-name')?.value||'', baseUrl: root.querySelector('#ais-custom-base')?.value||'', model: root.querySelector('#ais-custom-model')?.value||'', apiKey: root.querySelector('#ais-custom-key')?.value||'' }; });
+    });
+
     const saveSkill = root.querySelector('#ais-skill-save');
     if (saveSkill) saveSkill.addEventListener('click', async () => {
       const body = {
@@ -515,7 +626,10 @@
     render();
     requestAnimationFrame(() => {
       root.querySelector('.ais-backdrop')?.classList.add('open');
-      root.querySelector('.ais-drawer')?.classList.add('open');
+      const drawer = root.querySelector('.ais-drawer');
+      drawer?.classList.add('open');
+      drawer?.classList.add('ais-boot');
+      markBooted();
     });
     if (options.section === 'skills') {
       state.editingSkillId = 'new';

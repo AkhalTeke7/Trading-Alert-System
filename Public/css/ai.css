@@ -1510,3 +1510,5 @@ button.ai-chip:hover {
     animation: none !important;
   }
 }
+/* pause expensive GPU work when tab hidden or on low-end/battery saver */
+.ai-bg.is-paused .ai-orb, .ai-bg.is-paused .ai-grid { animation-play-state: paused; }
