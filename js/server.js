@@ -6,6 +6,7 @@ import { extname, resolve, sep } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { pairToSymbol, getAlertInput, makeAlert, truncateToPrecision } from './alertModel.js';
 import { renderMainChartHtml } from './mainChartShot.js';
+import { getCachedAlertPng, setCachedAlertPng, renderFallbackAlertPng } from './alertPngFallback.js';
 import { fileURLToPath } from 'node:url';
 import getPrices from './fetchPrice.js';
 import { alertSender, startTelegramBot } from './telegram.mjs';
@@ -94,24 +95,33 @@ function persistDevices() {
 }
 
 // Main-page chart PNG — screenshot of the chart as it appears on main.html
-const alertImageCache = new Map();
 async function renderAlertPng(pair, target, note) {
-    const key = `main|${pair}|${target}|${note}`;
-    const cached = alertImageCache.get(key);
+    const cached = getCachedAlertPng(pair, target, note);
     if (cached) return cached;
-    const { chromium } = await import('playwright');
-    const html = renderMainChartHtml(pair, target, note);
-    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
     try {
-        const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
-        await page.setContent(html, { waitUntil: 'domcontentloaded' });
-        try { await page.waitForSelector('iframe', { timeout: 14000 }); } catch {}
-        await page.waitForTimeout(5000);
-        const png = await page.screenshot({ fullPage: false });
-        if (alertImageCache.size > 20) alertImageCache.delete(alertImageCache.keys().next().value);
-        alertImageCache.set(key, png);
-        return png;
-    } finally { await browser.close(); }
+        const { chromium } = await import('playwright');
+        const html = renderMainChartHtml(pair, target, note);
+        let browser;
+        try {
+            browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || 'chrome' });
+        } catch {
+            browser = await chromium.launch();
+        }
+        try {
+            const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
+            await page.setContent(html, { waitUntil: 'domcontentloaded' });
+            try { await page.waitForSelector('iframe', { timeout: 10000 }); } catch {}
+            await page.waitForTimeout(3500);
+            const png = await page.screenshot({ fullPage: false });
+            setCachedAlertPng(pair, target, note, png);
+            return png;
+        } finally {
+            await browser.close();
+        }
+    } catch (error) {
+        console.warn('Playwright screenshot unavailable; serving fallback alert PNG card:', error?.message || error);
+        return renderFallbackAlertPng(pair, target, note);
+    }
 }
 
 // Push: FCM HTTP v1 (service account) first, legacy server key as fallback.
