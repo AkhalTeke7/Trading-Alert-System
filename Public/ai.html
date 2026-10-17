@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Console — Price-Alert</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/ai.css">
+    <link rel="stylesheet" href="./css/ai-settings.css">
+</head>
+<body class="ai-page">
+
+    <header class="header">
+        <div class="left-header">
+            <div class="brand-icon">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <span class="brand-name">Price-Alert</span>
+            <span class="divider"></span>
+            <p class="welcome-text">AI Console · Dossier Mode</p>
+        </div>
+        <nav class="right-header">
+            <button type="button" class="paragraph" id="ai-settings-btn">Settings</button>
+            <button type="button" class="paragraph" id="ai-back-btn">← Markets</button>
+        </nav>
+    </header>
+
+    <div class="ai-main">
+
+        <aside class="ai-rail">
+            <div class="ai-rail-head">
+                <span class="tag"><span class="orkhon">𐰇</span> · Skills</span>
+                <span class="ai-rail-count" id="ai-rail-count">03</span>
+            </div>
+            <div class="ai-skill-list" id="ai-skill-list"></div>
+            <button type="button" class="ai-skill-new" data-add-skill>
+                <i class="ti ti-plus"></i> New skill
+            </button>
+            <div class="ai-rail-foot">
+                <button type="button" class="ai-provider-badge" id="ai-provider-badge">
+                    <span class="dot"></span>
+                    <span class="name">Demo channel</span>
+                    <span class="gear"><i class="ti ti-settings"></i></span>
+                </button>
+                <button type="button" class="ai-newchat" data-new-chat>
+                    <i class="ti ti-pencil"></i> New chat
+                </button>
+            </div>
+        </aside>
+
+        <section class="ai-stage">
+            <div class="ai-bg" aria-hidden="true">
+                <div class="ai-orb ai-orb-a"></div>
+                <div class="ai-orb ai-orb-b"></div>
+                <div class="ai-grid"></div>
+                <div class="ai-vignette"></div>
+            </div>
+
+            <div class="ai-thread" id="ai-thread"></div>
+            <div class="ai-hero" id="ai-hero"></div>
+
+            <button type="button" class="ai-scroll-btn" id="ai-scroll-btn" title="Jump to latest">
+                <i class="ti ti-arrow-down"></i>
+            </button>
+        </section>
+
+    </div>
+
+    <div class="ai-composer-dock">
+        <div class="ai-composer-wrap">
+            <div class="ai-composer-chips">
+                <span class="ai-chip" id="ai-skill-chip">
+                    <span class="rune">𐰴</span> Market Analyst
+                </span>
+                <button type="button" class="ai-chip" id="ai-model-chip" title="Provider settings">
+                    <i class="ti ti-cpu"></i> Demo channel
+                    <i class="ti ti-settings" style="margin-left:2px"></i>
+                </button>
+            </div>
+            <form class="ai-composer" id="ai-composer" autocomplete="off">
+                <textarea id="ai-input" rows="1" placeholder="Ask the console…  (Enter to send · Shift+Enter for a new line)"></textarea>
+                <button type="button" class="ai-send" id="ai-send" title="Send">
+                    <i class="ti ti-arrow-up"></i>
+                </button>
+            </form>
+            <div class="ai-composer-foot">
+                <span class="hints"><kbd>Enter</kbd> send · <kbd>Shift</kbd>+<kbd>Enter</kbd> newline · <kbd>Ctrl</kbd>+<kbd>K</kbd> focus</span>
+                <span id="ai-foot-model">streamed via your Cloudflare worker</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="ai-toast" id="ai-toast"></div>
+
+    <script src="./js/ai-settings.js"></script>
+    <script src="./js/ai.js"></script>
+    <script>
+        document.getElementById('ai-settings-btn').addEventListener('click', function () {
+            window.PriceAlertSettings.open();
+        });
+        document.getElementById('ai-back-btn').addEventListener('click', function () {
+            window.location = './main.html';
+        });
+    </script>
+</body>
+</html>

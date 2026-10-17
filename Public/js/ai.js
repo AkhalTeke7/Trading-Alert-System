@@ -1,0 +1,782 @@
+/* ai.js — full-screen AI console client: skills, streamed replies, threads.
+   Talks to /api/ai/* (Cloudflare worker or the local Node server). Keys never
+   touch this file — chat is proxied server-side; Settings saves keys. */
+(function () {
+  'use strict';
+
+  const LS_KEY = 'pa.ai.v1';
+  const MAX_THREAD = 80;
+  const CONTEXT_MESSAGES = 24;
+
+  const state = {
+    skills: [],
+    providers: [],
+    active: { provider: 'demo', model: '' },
+    skillId: 'market-analyst',
+    threads: {},
+    sending: false,
+  };
+
+  const SUGGESTIONS = {
+    'market-analyst': [
+      { num: '01', title: 'Gold / USD — read the current structure', hint: 'bias · levels · invalidation' },
+      { num: '02', title: 'Where is momentum shifting on NASDAQ / USD?', hint: 'divergence · session flow' },
+      { num: '03', title: 'Map the key levels on BTC / USD for the week', hint: 'weekly roadmap' },
+    ],
+    'alert-architect': [
+      { num: '01', title: 'Build a confirmation + stop ladder for Gold / USD', hint: 'entry · invalidation · TPs' },
+      { num: '02', title: 'Turn "break above resistance" into concrete alerts', hint: 'ready-to-enter list' },
+      { num: '03', title: 'Which channel should trigger overnight alerts?', hint: 'telegram · bale · app' },
+    ],
+    'journal-coach': [
+      { num: '01', title: 'Review my discipline from this week', hint: 'process over outcome' },
+      { num: '02', title: 'I cut winners early — give me one rule', hint: 'exit management' },
+      { num: '03', title: 'How should I grade a break-even trade?', hint: 'journal scoring' },
+    ],
+    _default: [
+      { num: '01', title: 'What can you do in this console?', hint: 'skill overview' },
+      { num: '02', title: 'Give me a sample output in your style', hint: 'show format' },
+      { num: '03', title: 'Help me with my current task', hint: 'freeform' },
+    ],
+  };
+
+  const $ = selector => document.querySelector(selector);
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+
+  /* ---------------- markdown-lite (safe) ---------------- */
+
+  function inlineMd(text) {
+    return esc(text)
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  }
+
+  function renderMarkdown(src) {
+    const lines = String(src ?? '').split('\n');
+    let html = '';
+    let inCode = false;
+    let codeBuf = [];
+    let listType = null;
+    const closeList = () => {
+      if (listType) {
+        html += `</${listType}>`;
+        listType = null;
+      }
+    };
+    for (const line of lines) {
+      if (inCode) {
+        if (/^```/.test(line)) {
+          html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
+          codeBuf = [];
+          inCode = false;
+        } else {
+          codeBuf.push(line);
+        }
+        continue;
+      }
+      if (/^```/.test(line)) {
+        closeList();
+        inCode = true;
+        continue;
+      }
+      if (/^\s*$/.test(line)) {
+        closeList();
+        continue;
+      }
+      const heading = line.match(/^(#{1,4})\s+(.*)/);
+      if (heading) {
+        closeList();
+        html += `<h3>${inlineMd(heading[2])}</h3>`;
+        continue;
+      }
+      const ul = line.match(/^\s*[-*]\s+(.*)/);
+      if (ul) {
+        if (listType !== 'ul') {
+          closeList();
+          html += '<ul>';
+          listType = 'ul';
+        }
+        html += `<li>${inlineMd(ul[1])}</li>`;
+        continue;
+      }
+      const ol = line.match(/^\s*\d+[.)]\s+(.*)/);
+      if (ol) {
+        if (listType !== 'ol') {
+          closeList();
+          html += '<ol>';
+          listType = 'ol';
+        }
+        html += `<li>${inlineMd(ol[1])}</li>`;
+        continue;
+      }
+      if (/^\s*---+\s*$/.test(line)) {
+        closeList();
+        html += '<hr>';
+        continue;
+      }
+      closeList();
+      html += `<p>${inlineMd(line)}</p>`;
+    }
+    if (inCode && codeBuf.length) html += `<pre><code>${esc(codeBuf.join('\n'))}</code></pre>`;
+    closeList();
+    return html;
+  }
+
+  /* ---------------- storage ---------------- */
+
+  function loadLocal() {
+    try {
+      const data = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (data && typeof data === 'object') {
+        state.threads = data.threads && typeof data.threads === 'object' ? data.threads : {};
+        if (data.skillId) state.skillId = data.skillId;
+      }
+    } catch { /* corrupted local state is non-fatal */ }
+  }
+
+  function saveLocal() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        skillId: state.skillId,
+        threads: state.threads,
+      }));
+    } catch { /* storage full — threads just won't persist */ }
+  }
+
+  function thread() {
+    if (!Array.isArray(state.threads[state.skillId])) state.threads[state.skillId] = [];
+    return state.threads[state.skillId];
+  }
+
+  /* ---------------- helpers ---------------- */
+
+  function toast(message, kind = 'ok') {
+    const host = $('#ai-toast');
+    if (!host) return;
+    const item = document.createElement('div');
+    item.className = `ai-toast-item ${kind === 'err' ? 'err' : kind === 'warn' ? 'warn' : ''}`;
+    item.innerHTML = `<span class="t-dot"></span><span>${esc(message)}</span>`;
+    host.appendChild(item);
+    setTimeout(() => {
+      item.classList.add('leaving');
+      setTimeout(() => item.remove(), 400);
+    }, 3600);
+  }
+
+  function scrollBottom(smooth = true) {
+    const threadEl = $('#ai-thread');
+    if (!threadEl) return;
+    threadEl.scrollTo({ top: threadEl.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+  }
+
+  function activeSkill() {
+    return state.skills.find(skill => skill.id === state.skillId) || state.skills[0] || {
+      id: 'market-analyst', name: 'Console', rune: '𐰀', icon: 'ti-cpu', tagline: '',
+    };
+  }
+
+  function suggestionsFor(skillId) {
+    return SUGGESTIONS[skillId] || SUGGESTIONS._default;
+  }
+
+  /* ---------------- skill rail ---------------- */
+
+  function renderRail() {
+    const list = $('#ai-skill-list');
+    if (!list) return;
+    list.innerHTML = state.skills.map((skill, index) => `
+      <button type="button" class="ai-skill ${skill.id === state.skillId ? 'active' : ''}" data-skill="${esc(skill.id)}" style="--d:${(0.08 + index * 0.07).toFixed(2)}s">
+        <span class="ai-skill-glyph">${esc(skill.rune || '𐰀')}</span>
+        <span class="ai-skill-copy">
+          <span class="ai-skill-name"><i class="ti ${esc(skill.icon || 'ti-sparkles')}"></i>${esc(skill.name)}</span>
+          <span class="ai-skill-tag">${esc(skill.tagline || '')}</span>
+        </span>
+        ${skill.builtin ? '<span class="ai-skill-builtin">core</span>' : ''}
+      </button>`).join('');
+    const count = $('#ai-rail-count');
+    if (count) count.textContent = String(state.skills.length).padStart(2, '0');
+    const skill = activeSkill();
+    const chip = $('#ai-skill-chip');
+    if (chip) chip.innerHTML = `<span class="rune">${esc(skill.rune || '𐰀')}</span> ${esc(skill.name)}`;
+  }
+
+  function renderProviderBadge() {
+    const badge = $('#ai-provider-badge');
+    const preset = state.providers.find(p => p.id === state.active.provider);
+    const name = preset ? preset.name : (state.active.provider || 'demo');
+    const model = state.active.model || preset?.defaultModel || '';
+    const live = state.active.provider !== 'demo';
+    if (badge) {
+      badge.classList.toggle('live', live);
+      badge.innerHTML = `
+        <span class="dot"></span>
+        <span class="name">${esc(name)}${model ? ' · ' + esc(model) : ''}</span>
+        <span class="gear"><i class="ti ti-settings"></i></span>`;
+    }
+    const modelChip = $('#ai-model-chip');
+    if (modelChip) {
+      modelChip.innerHTML = `<i class="ti ti-cpu"></i> ${esc(name)}${model ? ' · ' + esc(model) : ''} <i class="ti ti-settings" style="margin-left:2px"></i>`;
+    }
+    const foot = $('#ai-foot-model');
+    if (foot) {
+      foot.textContent = live
+        ? `streamed via ${esc(name)}`
+        : 'demo channel · add a key in settings';
+    }
+  }
+
+  /* ---------------- hero ---------------- */
+
+  const HERO_LINES = {
+    'market-analyst': 'Where is the *market* leaning?',
+    'alert-architect': 'What should we *alert* on?',
+    'journal-coach': 'How did the *process* go?',
+    _default: 'Ask *anything*.',
+  };
+
+  function renderHero() {
+    const hero = $('#ai-hero');
+    if (!hero) return;
+    const skill = activeSkill();
+    const raw = HERO_LINES[skill.id] || HERO_LINES._default.replace('*', `*${skill.name}*`);
+    let delayIndex = 0;
+    const headline = raw.split(' ').map(word => {
+      const emphasized = word.startsWith('*') && word.endsWith('*');
+      const clean = word.replace(/\*/g, '');
+      const node = `<span class="hero-word" style="--d:${(0.25 + delayIndex * 0.09).toFixed(2)}s">${emphasized ? `<em>${esc(clean)}</em>` : esc(clean)}</span>`;
+      delayIndex += 1;
+      return node;
+    }).join(' ');
+    hero.innerHTML = `
+      <div class="ai-hero-rune" aria-hidden="true">${esc(skill.rune || '𐰀')}</div>
+      <div class="ai-hero-top">
+        <div class="ai-hero-eyebrow"><span class="tick"></span>${esc(skill.name)} · ${esc(skill.tagline || 'dossier console')}</div>
+        <h1>${headline}</h1>
+        <p class="ai-hero-sub">Full-screen AI console — pick a skill, ask, watch the answer stream in. Keys live on your Cloudflare worker, never in the browser.</p>
+      </div>
+      <div class="ai-suggestions">
+        ${suggestionsFor(skill.id).map((item, index) => `
+          <button type="button" class="ai-sugg" data-suggest="${esc(item.title)}" style="--d:${(0.85 + index * 0.12).toFixed(2)}s">
+            <span class="num">${esc(item.num)} //</span>
+            <span class="title">${esc(item.title)}</span>
+            <span class="hint">${esc(item.hint)}</span>
+          </button>`).join('')}
+      </div>`;
+  }
+
+  /* ---------------- thread rendering ---------------- */
+
+  function messageHtml(message, index) {
+    const user = message.role === 'user';
+    const toolChips = !user && Array.isArray(message.toolCalls) && message.toolCalls.length
+      ? `<div class="ai-tools">${message.toolCalls.map(call => `
+          <div class="ai-tool-chip done">
+            <span class="t-ico"><i class="ti ti-check"></i></span>
+            <span class="t-name">${esc(call.name || 'tool')}${call.args && Object.keys(call.args).length ? ' · ' + esc(Object.values(call.args).join(' ').slice(0, 42)) : ''}</span>
+            ${call.summary ? `<span class="t-sum">${esc(call.summary)}</span>` : ''}
+          </div>`).join('')}</div>`
+      : '';
+    return `
+      <div class="msg ${user ? 'msg-user' : 'msg-assistant'}" data-msg="${esc(message.id || String(index))}">
+        <div class="msg-avatar">${user ? '<i class="ti ti-user"></i>' : esc(activeSkill().rune || '𐰀')}</div>
+        <div class="msg-body">
+          <div class="msg-meta">
+            <span class="who">${user ? 'You' : esc(message.skillName || activeSkill().name)}</span>
+            <span>${esc(message.time || '')}</span>
+            ${user ? '' : `<button type="button" class="msg-copy" data-copy="${esc(message.id || String(index))}">Copy</button>`}
+          </div>
+          ${toolChips}
+          <div class="msg-text">${user ? renderMarkdown(message.content) : renderMarkdown(message.content)}</div>
+        </div>
+      </div>`;
+  }
+
+  function renderThread() {
+    const threadEl = $('#ai-thread');
+    const hero = $('#ai-hero');
+    if (!threadEl) return;
+    const messages = thread();
+    if (!messages.length) {
+      threadEl.innerHTML = '<div class="ai-thread-inner" id="ai-thread-inner"></div>';
+      hero?.classList.remove('hidden');
+      renderHero();
+      return;
+    }
+    hero?.classList.add('hidden');
+    const stamp = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    threadEl.innerHTML = `
+      <div class="ai-thread-inner" id="ai-thread-inner">
+        <div class="ai-daystamp">${esc(stamp)}</div>
+        ${messages.map(messageHtml).join('')}
+      </div>`;
+    scrollBottom(false);
+  }
+
+  /* ---------------- streaming send ---------------- */
+
+  function appendThinking() {
+    const inner = $('#ai-thread-inner');
+    if (!inner) return null;
+    const chip = document.createElement('div');
+    chip.className = 'ai-thinking';
+    chip.id = 'ai-thinking';
+    chip.innerHTML = '<span class="dots"><i></i><i></i><i></i></span><span>Analyzing</span>';
+    inner.appendChild(chip);
+    scrollBottom();
+    return chip;
+  }
+
+  function appendErrorChip(message) {
+    const inner = $('#ai-thread-inner');
+    if (!inner) return;
+    const chip = document.createElement('div');
+    chip.className = 'ai-error-chip';
+    chip.innerHTML = `
+      <i class="ti ti-alert-triangle"></i>
+      <span>${esc(message)}</span>
+      <button type="button" data-open-settings>Settings</button>`;
+    inner.appendChild(chip);
+    scrollBottom();
+  }
+
+  function startAssistantBubble() {
+    const inner = $('#ai-thread-inner');
+    if (!inner) return null;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg msg-assistant';
+    wrapper.innerHTML = `
+      <div class="msg-avatar">${esc(activeSkill().rune || '𐰀')}</div>
+      <div class="msg-body streaming">
+        <div class="msg-meta">
+          <span class="who">${esc(activeSkill().name)}</span>
+          <span data-stream-model>${esc(state.active.model || state.active.provider || '')}</span>
+          <button type="button" class="msg-copy" data-copy-stream>Copy</button>
+        </div>
+        <div class="ai-tools" data-stream-tools></div>
+        <div class="msg-text" data-stream-text><span class="ai-caret"></span></div>
+      </div>`;
+    inner.appendChild(wrapper);
+    scrollBottom();
+    return wrapper;
+  }
+
+  function upsertToolChip(container, toolEvent) {
+    const host = container.querySelector('[data-stream-tools]');
+    if (!host || !toolEvent) return;
+    const name = toolEvent.name || 'tool';
+    let chip = host.querySelector(`[data-tool-chip="${CSS.escape(name)}"]`);
+    if (!chip) {
+      chip = document.createElement('div');
+      chip.className = 'ai-tool-chip running';
+      chip.setAttribute('data-tool-chip', name);
+      host.appendChild(chip);
+    }
+    const args = toolEvent.args && Object.keys(toolEvent.args).length
+      ? ` · ${Object.values(toolEvent.args).join(' ').slice(0, 42)}`
+      : '';
+    const status = toolEvent.status === 'done'
+      ? (toolEvent.ok === false ? 'err' : 'done')
+      : 'running';
+    chip.className = `ai-tool-chip ${status}`;
+    chip.innerHTML = `
+      <span class="t-ico"><i class="ti ${status === 'running' ? 'ti-loader-2' : status === 'err' ? 'ti-alert-triangle' : 'ti-check'}"></i></span>
+      <span class="t-name">${esc(name)}${esc(args)}</span>
+      ${toolEvent.summary ? `<span class="t-sum">${esc(toolEvent.summary)}</span>` : ''}`;
+    scrollBottom(false);
+  }
+
+  function setStreamText(container, text) {
+    if (container.dataset.done === '1') return;
+    const target = container.querySelector('[data-stream-text]');
+    if (!target) return;
+    target.innerHTML = renderMarkdown(text) + '<span class="ai-caret"></span>';
+  }
+
+  function finalizeStream(container, text, meta = {}) {
+    container.dataset.done = '1';
+    const body = container.querySelector('.msg-body');
+    const target = container.querySelector('[data-stream-text]');
+    if (target) target.innerHTML = renderMarkdown(text);
+    body?.classList.remove('streaming');
+    const modelEl = container.querySelector('[data-stream-model]');
+    if (modelEl && meta.model) modelEl.textContent = `${meta.provider || ''} · ${meta.model}`;
+    const copy = container.querySelector('[data-copy-stream]');
+    if (copy) copy.setAttribute('data-copy', 'stream-final');
+    if (copy) copy.onclick = () => {
+      navigator.clipboard?.writeText(text).then(() => {
+        copy.textContent = 'Copied';
+        copy.classList.add('done');
+        setTimeout(() => {
+          copy.textContent = 'Copy';
+          copy.classList.remove('done');
+        }, 1400);
+      });
+    };
+  }
+
+  async function parseSse(response, onEvent) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalMeta = {};
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n');
+      buffer = parts.pop() ?? '';
+      for (const raw of parts) {
+        const line = raw.trim();
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (!payload) continue;
+        let event;
+        try {
+          event = JSON.parse(payload);
+        } catch {
+          continue;
+        }
+        if (event.error) throw new Error(event.error);
+        if (event.delta) onEvent({ delta: event.delta });
+        if (event.reset) onEvent({ reset: true });
+        if (event.tool) onEvent({ tool: event.tool });
+        if (event.done) finalMeta = event;
+      }
+    }
+    return finalMeta;
+  }
+
+  async function send(text) {
+    const prompt = String(text || '').trim();
+    if (!prompt || state.sending) return;
+    const skill = activeSkill();
+    const messages = thread();
+    messages.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      role: 'user',
+      content: prompt,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
+    if (messages.length > MAX_THREAD) messages.splice(0, messages.length - MAX_THREAD);
+    saveLocal();
+    renderThread();
+    $('#ai-hero')?.classList.add('hidden');
+    state.sending = true;
+    const sendBtn = $('#ai-send');
+    sendBtn?.classList.add('busy');
+    const thinking = appendThinking();
+
+    const context = messages.slice(-CONTEXT_MESSAGES).map(message => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skillId: skill.id,
+          provider: state.active.provider || undefined,
+          model: state.active.model || undefined,
+          stream: true,
+          messages: context,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const error = new Error(data.error || `Chat failed (HTTP ${response.status})`);
+        error.status = response.status;
+        throw error;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      thinking?.remove();
+
+      let assistantText = '';
+      let meta = { provider: state.active.provider, model: state.active.model };
+      const bubble = startAssistantBubble();
+
+      if (contentType.includes('application/json')) {
+        const data = await response.json();
+        assistantText = data?.message?.content || '';
+        meta = { provider: data.provider, model: data.model };
+        setStreamText(bubble, assistantText);
+        await new Promise(resolve => setTimeout(resolve, 180));
+      } else {
+        const toolCalls = [];
+        let pending = false;
+        const paint = () => {
+          pending = false;
+          setStreamText(bubble, assistantText);
+        };
+        meta = await parseSse(response, event => {
+          if (event.reset) {
+            // the streamed text was a tool-call block — replaced by tool chips
+            assistantText = '';
+            if (!pending) {
+              pending = true;
+              requestAnimationFrame(paint);
+            }
+            return;
+          }
+          if (event.tool) {
+            if (event.tool.status === 'done' || event.tool.status === undefined) {
+              toolCalls.push({ name: event.tool.name, args: event.tool.args, summary: event.tool.summary });
+            }
+            upsertToolChip(bubble, event.tool);
+            return;
+          }
+          assistantText += event.delta;
+          if (!pending) {
+            pending = true;
+            requestAnimationFrame(paint);
+          }
+          scrollBottom(false);
+        });
+        if (!Array.isArray(meta.toolCalls) || !meta.toolCalls.length) {
+          meta.toolCalls = toolCalls;
+        }
+      }
+
+      finalizeStream(bubble, assistantText, meta);
+      messages.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + 1),
+        role: 'assistant',
+        content: assistantText,
+        skillName: skill.name,
+        toolCalls: meta.toolCalls || [],
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+      if (messages.length > MAX_THREAD) messages.splice(0, messages.length - MAX_THREAD);
+      saveLocal();
+      if (meta.provider && meta.provider !== (state.active.provider || 'demo')) {
+        // server fell back (e.g. demo) — keep the badge truthful
+        state.active.provider = meta.provider;
+        renderProviderBadge();
+      }
+    } catch (error) {
+      thinking?.remove();
+      const raw = error?.message || 'Chat failed';
+      appendErrorChip(raw);
+      toast(raw, 'err');
+    } finally {
+      state.sending = false;
+      sendBtn?.classList.remove('busy');
+      scrollBottom();
+      updateHasText();
+    }
+  }
+
+  /* ---------------- composer ---------------- */
+
+  function updateHasText() {
+    const input = $('#ai-input');
+    const form = $('#ai-composer');
+    if (!input || !form) return;
+    form.classList.toggle('has-text', Boolean(input.value.trim()));
+  }
+
+  function autoGrow() {
+    const input = $('#ai-input');
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  }
+
+  /* ---------------- events ---------------- */
+
+  function setSkill(skillId) {
+    if (skillId === state.skillId) return;
+    state.skillId = skillId;
+    saveLocal();
+    renderRail();
+    const threadEl = $('#ai-thread');
+    if (threadEl) {
+      threadEl.style.animation = 'ai-thread-out .3s ease forwards';
+      setTimeout(() => {
+        threadEl.style.animation = '';
+        renderThread();
+      }, 220);
+    } else {
+      renderThread();
+    }
+  }
+
+  function wire() {
+    document.querySelector('.ai-rail')?.addEventListener('click', event => {
+      const skillBtn = event.target.closest('[data-skill]');
+      if (skillBtn) {
+        setSkill(skillBtn.dataset.skill);
+        return;
+      }
+      if (event.target.closest('[data-add-skill]')) {
+        window.PriceAlertSettings?.open({ section: 'skills' });
+      }
+      if (event.target.closest('[data-new-chat]')) {
+        const threadEl = $('#ai-thread');
+        if (thread().length && !window.confirm('Clear this skill\'s conversation?')) return;
+        state.threads[state.skillId] = [];
+        saveLocal();
+        if (threadEl) {
+          threadEl.style.animation = 'ai-thread-out .3s ease forwards';
+          setTimeout(() => {
+            threadEl.style.animation = '';
+            renderThread();
+            $('#ai-input')?.focus();
+          }, 220);
+        }
+      }
+    });
+
+    $('#ai-provider-badge')?.addEventListener('click', () => window.PriceAlertSettings?.open());
+
+    $('#ai-hero')?.addEventListener('click', event => {
+      const suggestion = event.target.closest('[data-suggest]');
+      if (suggestion) {
+        send(suggestion.dataset.suggest);
+      }
+    });
+
+    $('#ai-thread')?.addEventListener('click', event => {
+      const copyBtn = event.target.closest('.msg-copy[data-copy]');
+      if (copyBtn && copyBtn.dataset.copy !== 'stream-final') {
+        const message = thread().find(item => item.id === copyBtn.dataset.copy);
+        const text = message?.content || copyBtn.closest('.msg-body')?.querySelector('.msg-text')?.innerText || '';
+        navigator.clipboard?.writeText(text).then(() => {
+          copyBtn.textContent = 'Copied';
+          copyBtn.classList.add('done');
+          setTimeout(() => {
+            copyBtn.textContent = 'Copy';
+            copyBtn.classList.remove('done');
+          }, 1400);
+        });
+      }
+      if (event.target.closest('[data-open-settings]')) {
+        window.PriceAlertSettings?.open();
+      }
+    });
+
+    const input = $('#ai-input');
+    input?.addEventListener('input', () => {
+      autoGrow();
+      updateHasText();
+    });
+    input?.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        const value = input.value;
+        input.value = '';
+        autoGrow();
+        updateHasText();
+        send(value);
+      }
+    });
+
+    $('#ai-composer')?.addEventListener('submit', event => {
+      event.preventDefault();
+      const value = input.value;
+      input.value = '';
+      autoGrow();
+      updateHasText();
+      send(value);
+    });
+
+    $('#ai-send')?.addEventListener('click', () => {
+      const value = input.value;
+      input.value = '';
+      autoGrow();
+      updateHasText();
+      send(value);
+    });
+
+    $('#ai-model-chip')?.addEventListener('click', () => window.PriceAlertSettings?.open());
+
+    const threadEl = $('#ai-thread');
+    threadEl?.addEventListener('scroll', () => {
+      const btn = $('#ai-scroll-btn');
+      if (!btn) return;
+      const distance = threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight;
+      btn.classList.toggle('show', distance > 240);
+    });
+    $('#ai-scroll-btn')?.addEventListener('click', () => scrollBottom());
+
+    document.addEventListener('ai-state-changed', event => {
+      const detail = event.detail || {};
+      if (Array.isArray(detail.providers)) state.providers = detail.providers;
+      if (Array.isArray(detail.skills)) {
+        state.skills = detail.skills;
+        if (!state.skills.some(skill => skill.id === state.skillId)) {
+          state.skillId = state.skills[0]?.id || 'market-analyst';
+        }
+      }
+      if (detail.active) state.active = detail.active;
+      renderRail();
+      renderProviderBadge();
+      if (!thread().length) renderHero();
+    });
+
+    document.addEventListener('keydown', event => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        input?.focus();
+      }
+    });
+
+    document.querySelector('[data-open-settings]')?.addEventListener('click', () => window.PriceAlertSettings?.open());
+  }
+
+  /* ---------------- boot ---------------- */
+
+  // Shell fallback so the page always looks complete (e.g. static preview)
+  // even when /api/ai/state is unreachable.
+  const FALLBACK_SKILLS = [
+    { id: 'market-analyst', name: 'Market Analyst', icon: 'ti-chart-candle', rune: '𐰴', tagline: 'Structure, momentum & setups', builtin: true },
+    { id: 'alert-architect', name: 'Alert Architect', icon: 'ti-bell-ringing', rune: '𐰇', tagline: 'Design precise alert levels', builtin: true },
+    { id: 'journal-coach', name: 'Journal Coach', icon: 'ti-notebook', rune: '𐱅', tagline: 'Discipline & performance review', builtin: true },
+  ];
+
+  async function boot() {
+    loadLocal();
+    wire();
+    if (!state.skills.length) state.skills = FALLBACK_SKILLS.map(skill => ({ ...skill }));
+    renderRail();
+    renderProviderBadge();
+    renderThread();
+    autoGrow();
+
+    try {
+      const response = await fetch('/api/ai/state');
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data.skills) && data.skills.length) {
+          state.skills = data.skills;
+          if (!state.skills.some(skill => skill.id === state.skillId)) {
+            state.skillId = state.skills[0].id;
+          }
+        }
+        if (Array.isArray(data.providers)) state.providers = data.providers;
+        if (data.active) state.active = data.active;
+      } else if (response.status === 401 || response.status === 503) {
+        toast('Dashboard login required to reach the AI API.', 'warn');
+      }
+    } catch {
+      toast('AI API unreachable — showing local shell.', 'warn');
+    }
+
+    renderRail();
+    renderProviderBadge();
+    renderThread();
+    // query ?settings=1 opens the drawer immediately (header Settings button)
+    if (new URLSearchParams(location.search).get('settings') === '1') {
+      window.PriceAlertSettings?.open();
+    }
+    $('#ai-input')?.focus();
+  }
+
+  document.addEventListener('DOMContentLoaded', boot);
+})();
