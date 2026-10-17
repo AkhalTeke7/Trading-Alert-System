@@ -1,3 +1,4 @@
+import { testNotification } from './notificationTest.js';
 import { createReadStream, existsSync } from 'node:fs';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -308,6 +309,7 @@ function aiMaskedProviders(settings) {
 // Tool executors bound to this server's real data (prices, alerts, journal…).
 function aiExecutors(settings) {
     return createToolExecutors({
+            testNotification: args => testNotification({ ...args, env: process.env, getDevices: async () => pushDevices }),
         getPrices,
         getAlerts: async () => storedAlerts,
         getTriggered: async () => triggeredEvents,
