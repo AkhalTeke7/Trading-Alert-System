@@ -108,10 +108,63 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- website link -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/panel_bg"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="monospace"
+                        android:text="◈ · WEBSITE"
+                        android:textColor="@color/pa_muted"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/siteModeHint"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:text="OFFLINE READY"
+                        android:textColor="@color/pa_dim"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/openWebsiteBtn"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/btn_bone"
+                    android:fontFamily="monospace"
+                    android:text="↗ Open Website"
+                    android:textColor="@color/btn_text_bone"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="monospace"
+                    android:text="Opens your Price-Alert site. Uses Server URL when set, otherwise bundled offline copy."
+                    android:textColor="@color/pa_dim"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
             <!-- section label -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 

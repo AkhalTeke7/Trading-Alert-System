@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Alert</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Vazirmatn:wght@400;500&display=swap">
+        <link rel="stylesheet" href="./../css/alert.css"><link rel="stylesheet" href="./../css/theme.css"><script src="./../js/theme.js"></script>
+    </head>
+    <body>
+        <div class="page-shell">
+            <button class="back">Back</button>
+
+            <div class="main">
+                <div class="first">
+                    <div class="form-header">
+                        <span class="badge">New Alert</span>
+                        <h2>Create Alert</h2>
+                        <p class="form-sub">Get a message when the price reaches your target.</p>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label for="alert-pair">Select Target:</label>
+                            <select id="alert-pair" class="input select-input">
+                                <option>Gold / USD</option>
+                                <option>EUR / USD</option>
+                                <option>BTC / USD</option>
+                                <option>GBP / USD</option>
+                                <option>NASDAQ / USD</option>
+                                <option>S&P 500 / USD</option>
+                            </select>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="alert-price">Target Price:</label>
+                            <input id="alert-price" class="target-price input" type="text" inputmode="decimal" autocomplete="off" dir="ltr" placeholder="1.2334">
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-head">
+                            <label for="alert-note">Custom Note:</label>
+                            <span class="note-count">0 / 500</span>
+                        </div>
+                        <textarea id="alert-note" class="custom-note input" rows="3" maxlength="500" dir="auto" placeholder="good for sell"></textarea>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="alert-channel">Select Channel:</label>
+                        <select id="alert-channel" class="input select-input channel-select">
+                            <option selected>Telegram</option>
+                            <option>Bale</option>
+                            <option value="Phone">Phone</option>
+                        </select>
+                    </div>
+
+                    <div class="form-footer">
+                        <button class="save-btn">Save</button>
+                    </div>
+                </div>
+
+                <div class="second">
+                    <div class="history-head">
+                        <p>History</p>
+                        <span class="history">0 alerts</span>
+                    </div>
+                    <div class="realBox"></div>
+                </div>
+            </div>
+        </div>
+        <script>
+            document.querySelector(".back").addEventListener("click", function () {
+                window.location = "./../main.html";
+            });
+
+
+        </script>
+        <script type="module" src="./../js/alert.js"></script>
+
+    </body>
+</html>

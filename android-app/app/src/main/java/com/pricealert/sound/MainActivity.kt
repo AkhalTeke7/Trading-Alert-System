@@ -62,6 +62,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.testBtn).setOnClickListener { sendTest() }
         findViewById<Button>(R.id.refreshBtn).setOnClickListener { refreshMarketData() }
 
+        // single website entry — keeps the app focused on Phone Link
+        findViewById<View>(R.id.openWebsiteBtn)?.setOnClickListener { openSite("markets") }
+
         askNotificationPermission()
         refreshStatus()
         registerPushToken()
@@ -280,8 +283,8 @@ class MainActivity : AppCompatActivity() {
         val on = p.getBoolean("monitoring", false)
         val push = p.getBoolean("fcm_active", false)
         val secs = p.getInt("poll_seconds", 30)
-        val pushLine = if (push) "PUSH v1.2 · ON"
-        else "PUSH v1.2 · ${(p.getString("fcm_error", "") ?: "").ifEmpty { "POLLING ONLY" }}"
+        val pushLine = if (push) "PUSH v1.3 · ON"
+        else "PUSH v1.3 · ${(p.getString("fcm_error", "") ?: "").ifEmpty { "POLLING ONLY" }}"
         statusText.text = if (on) "STATUS · MONITORING ON — EVERY ${secs}S\n$pushLine"
         else "STATUS · MONITORING OFF\n$pushLine"
         if (!::statusPill.isInitialized) return
@@ -289,6 +292,21 @@ class MainActivity : AppCompatActivity() {
             statusPill.text = "ARMED"
             statusDot.setBackgroundResource(R.drawable.dot_green)
         }
+        try {
+            val hint = findViewById<TextView>(R.id.siteModeHint)
+            val url = p.getString("server_url", "")?.trim() ?: ""
+            hint.text = if (url.isEmpty()) "OFFLINE · BUNDLED SITE" else "ONLINE · $url"
+        } catch (_: Exception) {}
+    }
+
+    private fun openSite(route: String) {
+        val i = Intent(this, SiteWebViewActivity::class.java).putExtra("route", route)
+        // analyze overview/strategy/calendar map to their html
+        if (route == "overview") {
+            i.putExtra("path", "analyze-overview.html")
+            i.putExtra("route", "overview")
+        }
+        startActivity(i)
     }
 
     private fun askNotificationPermission() {

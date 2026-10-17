@@ -607,7 +607,7 @@ button:focus-visible {
 .pa-line{position:absolute;left:0;right:0;height:0;border-top:1px dashed var(--red);display:none;pointer-events:none}
 .pa-line.visible{display:block}
 .pa-line span{position:absolute;right:8px;top:-9px;background:var(--red);color:#fff;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;padding:2px 6px;border:1px solid rgba(255,255,255,.2);white-space:nowrap}
-.pa-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--bone);background:rgba(10,10,10,.85);border:1px solid var(--line);padding:6px 10px;pointer-events:none;opacity:.9}
+.pa-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#f5f1e8;background:rgba(20,20,19,.88);border:1px solid rgba(255,255,255,.14);padding:6px 10px;pointer-events:none;opacity:.92}
 .pa-overlay:hover .pa-hint,.pa-overlay.dragging .pa-hint{opacity:1}
 .pa-bar{display:flex;flex-direction:column;gap:10px;margin-top:10px;padding:12px;border:1px solid var(--line);background:rgba(233,228,214,.03)}
 .pa-bar-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%}

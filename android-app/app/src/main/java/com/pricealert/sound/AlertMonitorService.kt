@@ -88,36 +88,51 @@ class AlertMonitorService : Service() {
         for (e in ordered) seen.add(e.id)
         p.edit().putStringSet("seen_ids", seen.toList().takeLast(100).toSet()).apply()
         val latest = ordered.maxByOrNull { it.triggeredAt } ?: return
-        val p2 = Prefs.prefs(ctx)
-        val url2 = p2.getString("server_url", "")?.trim()?.trimEnd('/') ?: ""
-        val u2 = p2.getString("basic_user", "") ?: ""
-        val pw2 = p2.getString("basic_pass", "") ?: ""
-        // Download the exact Telegram/Bale card PNG, then ring with it.
-        // Still on IO thread here; image fetch has its own timeouts.
+        // Phone path: htmlB64 is rendered on-device in AlertAlarmActivity WebView
+        // (avoids Cloudflare Browser limits). Keep PNG fetch as fallback only if no html.
         var bytes: ByteArray? = null
         var path: String? = null
-        try {
-            val imgUrl = Api.alertImageUrl(url2, latest.pair, latest.target, latest.note)
-            bytes = Api.downloadImage(imgUrl, u2, pw2)
-            if (bytes != null) {
-                val f = java.io.File(ctx.cacheDir, "alert_${latest.id}.png")
-                f.writeBytes(bytes)
-                path = f.absolutePath
-            }
-        } catch (_: Exception) {}
+        var htmlPath: String? = null
+        if (latest.htmlB64.isNotEmpty()) {
+            try {
+                val htmlBytes = android.util.Base64.decode(latest.htmlB64, android.util.Base64.DEFAULT)
+                val f = java.io.File(ctx.cacheDir, "alert_${latest.id}.html")
+                f.writeBytes(htmlBytes)
+                htmlPath = f.absolutePath
+                // also decode embedded fallback? no — WebView loads TradingView live 15m chart
+            } catch (_: Exception) {}
+        }
+        if (htmlPath == null) {
+            try {
+                val p2 = Prefs.prefs(ctx)
+                val url2 = p2.getString("server_url", "")?.trim()?.trimEnd('/') ?: ""
+                val u2 = p2.getString("basic_user", "") ?: ""
+                val pw2 = p2.getString("basic_pass", "") ?: ""
+                if (url2.isNotEmpty()) {
+                    val imgUrl = Api.alertImageUrl(url2, latest.pair, latest.target, latest.note)
+                    bytes = Api.downloadImage(imgUrl, u2, pw2)
+                    if (bytes != null) {
+                        val f = java.io.File(ctx.cacheDir, "alert_${latest.id}.png")
+                        f.writeBytes(bytes)
+                        path = f.absolutePath
+                    }
+                }
+            } catch (_: Exception) {}
+        }
         // Ring on the main thread's context: AlarmPlayer handles its own threading.
-        launchOnMain(latest, bytes, path)
+        launchOnMain(latest, bytes, path, htmlPath)
     }
 
-    private fun launchOnMain(event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null) {
-        // MediaPlayer must be touched carefully; post to main via handler.
+    private fun launchOnMain(event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null, htmlPath: String? = null) {
         android.os.Handler(mainLooper).post {
-            AlarmPlayer.ring(this, event, imageBytes, imagePath)
+            AlarmPlayer.ring(this, event, imageBytes, imagePath, htmlPath)
             val alarmIntent = Intent(this, AlertAlarmActivity::class.java).apply {
                 putExtra("pair", event.pair)
                 putExtra("target", event.target)
                 putExtra("note", event.note)
                 putExtra("imagePath", imagePath)
+                putExtra("htmlPath", htmlPath)
+                putExtra("htmlB64", event.htmlB64)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             startActivity(alarmIntent)

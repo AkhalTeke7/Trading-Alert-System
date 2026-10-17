@@ -1,0 +1,29 @@
+/* JOURNAL — LINE HIERARCHY FIX (approved from Desktop/Journal-Lines-Preview)
+   3-level hierarchy: outer frames 1.4px mid / inner panels 1px mid / dividers faint */
+.j-card{ border-width:1.4px; border-color:var(--line-mid); box-shadow:0 1px 0 rgba(0,0,0,.25); }
+.j-card:hover{ border-color:var(--line-strong); }
+.j-card::before,.j-card::after{ opacity:.75; }
+.j-stat, .j-filters, .j-stratbar, .j-sync{ border-width:1.2px; border-color:var(--line-mid); }
+.j-top{ border-bottom:1.2px solid var(--line-mid); padding-bottom:10px; margin-bottom:16px; }
+.j-shot, .j-notes, .j-panel, .j-equity, .j-hist, .j-bars, .j-week, .j-cal-cell{ border-color:var(--line-mid); }
+.j-head{ border-bottom:1px solid var(--line-faint); }
+.j-shot-head, .j-shot-actions, .j-cap{ border-color:var(--line-faint); }
+.j-table th{ border-bottom:1.8px solid var(--line-strong); color:var(--bone); }
+.j-table td{ border-bottom:1px solid var(--line-faint); }
+.j-table tr:last-child td{ border-bottom-color:transparent; }
+.j-table tbody tr:nth-child(even){ background:var(--line-hair); }
+.j-table tbody tr:hover{ background:rgba(233,228,214,.05); }
+html[data-theme="day"] .j-table tbody tr:hover{ background:rgba(20,20,19,.04); }
+html[data-theme="dawn"] .j-table tbody tr:hover{ background:rgba(232,224,199,.06); }
+.j-pill.win, .j-pill.loss, .j-pill.be, .j-pill.strat{ border-width:1.2px; }
+.j-filters select,.j-filters input,.j-field input,.j-field select,.j-field textarea,
+.j-cap-input{ border-color:var(--line-faint); }
+.j-filters select:focus,.j-filters input:focus,.j-field input:focus,.j-field select:focus,
+.j-field textarea:focus,.j-cap-input:focus-within{ border-color:var(--line-strong); box-shadow:0 0 0 2px rgba(233,228,214,.06); }
+html[data-theme="day"] .j-filters select:focus,
+html[data-theme="day"] .j-filters input:focus,
+html[data-theme="day"] .j-field input:focus,
+html[data-theme="day"] .j-field select:focus,
+html[data-theme="day"] .j-field textarea:focus,
+html[data-theme="day"] .j-cap-input:focus-within{ box-shadow:0 0 0 2px rgba(20,20,19,.06); }
+.section-label .rule{ height:1.4px; background:var(--line-mid); opacity:1; }

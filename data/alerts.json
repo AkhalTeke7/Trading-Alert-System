@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "16c25ecd-b2b8-47e8-9efc-a940d0d4fe7a",
+    "pair": "Gold / USD",
+    "target": 4165,
+    "targetInputValue": "4165",
+    "targetPrecision": 0,
+    "note": "salam",
+    "channel": "Telegram",
+    "symbol": "OANDA:XAUUSD",
+    "currentPrice": 4165.42,
+    "state": "down",
+    "source": "website",
+    "createdAt": "2026-10-17T12:44:49.561Z"
+  }
+]

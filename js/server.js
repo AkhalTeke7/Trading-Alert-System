@@ -77,7 +77,13 @@ let triggeredWriteQueue = Promise.resolve();
 let devicesWriteQueue = Promise.resolve();
 
 function persistTriggered() {
-    const contents = JSON.stringify(triggeredEvents.slice(-100), null, 2);
+    // Keep htmlB64 only for newest 10 events to avoid unbounded file growth
+    let toSave = triggeredEvents.slice(-100);
+    if (toSave.length > 10) {
+        const cutoff = toSave.length - 10;
+        toSave = toSave.map((e, i) => (i < cutoff && e.htmlB64 ? (({ htmlB64, ...rest }) => rest)(e) : e));
+    }
+    const contents = JSON.stringify(toSave, null, 2);
     triggeredWriteQueue = triggeredWriteQueue.then(async () => {
         await mkdir(resolve(projectRoot, 'data'), { recursive: true });
         await writeFile(triggeredFile, contents);
@@ -168,7 +174,13 @@ async function pushToFcmLegacy(title, body, data) {
 }
 // It is recorded for real crossings AND for manual website test buttons,
 // so the phone rings even if Telegram/Bale delivery fails.
-function recordTriggered({ alertId, pair, target, note, channel, source }) {
+// Phone events carry `htmlB64` (renderMainChartHtml base64) — the phone
+// renders the HTML locally in a WebView, so Cloudflare Browser is not used for Phone.
+function recordTriggered({ alertId, pair, target, note, channel, source, htmlB64 }) {
+    let html = htmlB64 || '';
+    if (!html && (channel === 'Phone' || channel === 'App') && pair) {
+        try { html = Buffer.from(renderMainChartHtml(pair, target, note)).toString('base64'); } catch {}
+    }
     const event = {
         id: crypto.randomUUID(),
         alertId: alertId || null,
@@ -178,6 +190,7 @@ function recordTriggered({ alertId, pair, target, note, channel, source }) {
         channel: channel || '',
         source: source || 'crossing',
         triggeredAt: new Date().toISOString(),
+        ...(html ? { htmlB64: html } : {}),
     };
     triggeredEvents.push(event);
     triggeredEvents = triggeredEvents.slice(-100);

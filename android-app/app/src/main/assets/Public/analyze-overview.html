@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview — Price-Alert</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&family=Noto+Sans+Old+Turkic&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="./css/style.css"><link rel="stylesheet" href="./css/theme.css"><link rel="stylesheet" href="./css/journal-lines-fix.css"><script src="./js/theme.js"></script>
+<style>
+.main.journal-main{display:flex;flex:1;min-height:0;overflow:hidden}
+.main.journal-main .content{flex:1;min-height:0;overflow-y:auto}
+.j-btn{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:10px 14px;border:1px solid var(--line);background:var(--bg);color:var(--bone);cursor:pointer;transition:border-color .2s,background .2s,color .2s}
+.j-btn.primary{background:var(--bone);color:var(--bg);border-color:var(--bone)}
+.j-btn:hover{border-color:var(--line-strong)} .j-btn.primary:hover{filter:brightness(1.06)}
+.j-btn.sm{padding:7px 10px;font-size:10px}
+.j-btn.ghost{background:transparent}
+.j-btn.red{background:var(--red);color:#fff;border-color:var(--red);letter-spacing:.1em}
+.j-btn.red:hover{filter:brightness(1.08)}
+.j-btn.red.active{outline:1px solid #fff;outline-offset:-2px}
+.j-analyze-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px;border:1px solid rgba(209,59,47,.28);background:rgba(209,59,47,.06)}
+.j-analyze-nav-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:6px;margin-right:4px}
+.j-analyze-nav-label i{width:6px;height:6px;background:var(--red);display:inline-block;border-radius:50%;animation:pulse 2s ease-in-out infinite}
+.j-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}
+@media(max-width:900px){ .j-kpis{grid-template-columns:repeat(3,1fr)} }
+.j-kpi{border:1px solid var(--line);background:rgba(233,228,214,.03);padding:10px}
+.j-kpi k{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);display:block;margin-bottom:4px}
+.j-kpi v{font-family:var(--font-mono);font-size:13px;color:var(--bone)}
+.j-panel{border:1px solid var(--line);background:var(--bg);padding:10px}
+.j-panel h4{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.j-equity{height:160px;border:1px solid var(--line);background:var(--bg);position:relative;overflow:hidden}
+.j-equity svg{width:100%;height:100%;display:block;shape-rendering:geometricPrecision}
+.j-donut-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.j-donut{width:120px;height:120px;flex-shrink:0}
+.j-donut-legend{display:flex;flex-direction:column;gap:6px;font-family:var(--font-mono);font-size:11.5px}
+.j-donut-legend i{width:10px;height:10px;display:inline-block;border:1px solid var(--line);vertical-align:middle;margin-right:6px}
+.j-hist{height:140px;border:1px solid var(--line);background:var(--bg);position:relative;overflow:hidden}
+.j-hist svg{width:100%;height:100%;display:block;shape-rendering:geometricPrecision}
+.j-hist svg text,.j-equity svg text{ text-rendering:geometricPrecision; -webkit-font-smoothing:antialiased; }
+.j-kpi k{font-size:10px} .j-kpi v{font-size:14px}
+.main.journal-main .content{ max-width: 1180px; margin: 0 auto; }
+.j-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){ .j-grid2{grid-template-columns:1fr} }
+.j-filter-bar{border:1px dashed var(--line);background:rgba(233,228,214,.03);padding:8px 10px;margin-bottom:12px;font-family:var(--font-mono);font-size:10px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.j-filter-bar b{color:var(--bone)}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="left-header">
+    <div class="brand-icon"><i class="fa-solid fa-bolt"></i></div>
+    <span class="brand-name">Price-Alert</span>
+    <span class="divider"></span>
+    <p class="welcome-text">Journal / Analyze — Overview</p>
+  </div>
+  <nav class="right-header">
+    <button type="button" class="paragraph" onclick="location.href='./journal.html'">Journal</button>
+    <button type="button" class="paragraph" onclick="location.href='./main.html'">Markets</button>
+  </nav>
+</header>
+<div class="main journal-main">
+  <div class="content">
+    <button class="j-btn sm" onclick="location.href='./journal.html'" style="margin-bottom:12px"><i class="ti ti-arrow-left" style="margin-right:6px"></i> Back to Journal</button>
+    <div class="section-label">
+      <span class="tag"><span class="orkhon">𐱅</span> · Analyze — Overview</span>
+      <span class="rule"></span>
+      <span class="tag" style="color:var(--dim)" id="count-tag">— trades</span>
+    </div>
+    <nav class="j-analyze-nav" aria-label="Analyze pages">
+      <span class="j-analyze-nav-label"><i></i> Deep dive</span>
+      <button type="button" class="j-btn sm red active">Overview</button>
+      <button type="button" class="j-btn sm red" onclick="location.href='./analyze-strategy.html'+location.search">Strategy Lab</button>
+      <button type="button" class="j-btn sm red" onclick="location.href='./analyze-calendar.html'+location.search">Calendar &amp; Equity</button>
+    </nav>
+    <div class="j-filter-bar" id="filter-bar"></div>
+    <div class="j-kpis">
+      <div class="j-kpi"><k>Profit factor</k><v id="an-pf">—</v></div>
+      <div class="j-kpi"><k>Avg win / Avg loss</k><v id="an-avg">—</v></div>
+      <div class="j-kpi"><k>Expectancy / trade</k><v id="an-exp">—</v></div>
+      <div class="j-kpi"><k>Best / Worst</k><v id="an-bw">—</v></div>
+      <div class="j-kpi"><k>Long / Short</k><v id="an-ls">—</v></div>
+      <div class="j-kpi"><k>Streak</k><v id="an-streak">—</v></div>
+    </div>
+    <div class="j-grid2">
+      <div class="j-panel">
+        <h4>Win / Loss mix <span id="an-donut-sub" style="font-size:9px;color:var(--dim)"></span></h4>
+        <div class="j-donut-wrap">
+          <svg id="donut" class="j-donut" viewBox="0 0 42 42"></svg>
+          <div class="j-donut-legend" id="donut-legend"></div>
+        </div>
+      </div>
+      <div class="j-panel">
+        <h4>PnL distribution <span style="font-size:9px;color:var(--dim)">per trade</span></h4>
+        <div class="j-hist" id="hist"><svg id="hist-svg" viewBox="0 0 400 120"></svg></div>
+      </div>
+      <div class="j-panel" style="grid-column:1 / -1">
+        <h4>Equity curve <span id="an-eq-note" style="font-size:9px;color:var(--dim)"></span></h4>
+        <div class="j-equity" id="equity"><svg id="eq-svg" viewBox="0 0 800 140"></svg></div>
+      </div>
+    </div>
+    <p style="margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--dim)">Local only — filtered from <code>localStorage pa.journal.v1</code>. Filters are passed from Journal via URL.</p>
+  </div>
+</div>
+<footer class="footer">
+  <div class="footer-content"><span>Market Pulse</span><span class="sep">/</span><span>Analyze</span><span class="sep">/</span><span>Overview</span></div>
+  <span class="footer-jp">𐰀 𐰴 𐰚 𐰀 𐰠 . 𐱅 𐰀 𐰚 𐰀</span>
+</footer>
+<script>
+const LS="pa.journal.v1";
+let trades=[];
+function numPnL(v){ const n=parseFloat(String(v??"").replace(/[^0-9.\-]/g,'')); return Number.isFinite(n)? n : 0; }
+function hasPnL(v){ return /-?\d/.test(String(v??"")); }
+function load(){ try{ const r=localStorage.getItem(LS); if(r) trades=JSON.parse(r);}catch{} if(!Array.isArray(trades)) trades=[]; }
+function getFilters(){
+  const p=new URLSearchParams(location.search);
+  return { pair:p.get('pair')||'', outcome:p.get('outcome')||'', strat:p.get('strat')||'', q:(p.get('q')||'').toLowerCase() };
+}
+function tradeStrats(t){ if(Array.isArray(t.strategies)) return t.strategies.filter(s=>typeof s==="string"&&s.trim()).map(s=>s.trim()); if(typeof t.strategy==="string"&&t.strategy.trim()) return t.strategy.split(",").map(s=>s.trim()).filter(Boolean); return []; }
+function filtered(){
+  const f=getFilters();
+  return trades.slice().sort((a,b)=> new Date(b.date)-new Date(a.date)).filter(t=>{
+    if(f.pair && t.pair!==f.pair) return false;
+    if(f.outcome && t.outcome!==f.outcome) return false;
+    if(f.strat && !tradeStrats(t).includes(f.strat)) return false;
+    if(f.q && !((t.notes||"")+(t.tags||"")+(t.pair||"")+(tradeStrats(t).join(" "))+(t.strategy||"")).toLowerCase().includes(f.q)) return false;
+    return true;
+  });
+}
+function drawEquity(pts){
+  const svg=document.getElementById('eq-svg'); svg.innerHTML="";
+  if(pts.length<2){ svg.innerHTML=`<text x="10" y="20" fill="var(--dim)" font-family="JetBrains Mono" font-size="10">No PnL yet — add PnL per trade</text>`; return; }
+  const W=800,H=140, pad=10, min=Math.min(...pts,0), max=Math.max(...pts,0), span=Math.max(1, max-min);
+  const x = i=> pad + (i/(pts.length-1))*(W-pad*2), y = v=> pad + (1 - (v-min)/span)*(H-pad*2);
+  const d=pts.map((v,i)=> `${i?"L":"M"} ${x(i)} ${y(v)}`).join(" ");
+  const hi = pts[pts.length-1] >= pts[0];
+  svg.innerHTML=`<path d="M ${x(0)} ${y(0)} L ${x(pts.length-1)} ${y(0)}" stroke="rgba(233,228,214,.12)" stroke-width="1" fill="none"/><path d="${d}" fill="none" stroke="${hi?"#3bc47a":"#d13b2f"}" stroke-width="1.6"/><circle cx="${x(pts.length-1)}" cy="${y(pts[pts.length-1])}" r="3" fill="${hi?"#3bc47a":"#d13b2f"}" />`;
+}
+function drawDonut(w,l,be,total){
+  const svg=document.getElementById('donut'), legend=document.getElementById('donut-legend'), sub=document.getElementById('an-donut-sub');
+  if(!total){ svg.innerHTML=`<circle cx="21" cy="21" r="15" fill="none" stroke="rgba(233,228,214,.08)" stroke-width="6"/><text x="21" y="23" text-anchor="middle" font-family="JetBrains Mono" font-size="5" fill="var(--dim)">—</text>`; legend.innerHTML=""; sub.textContent=""; return; }
+  sub.textContent=`${total} trades`;
+  const wp=w/total*100, lp=l/total*100, bp=be/total*100;
+  const wrDen=w+l, wrPct=wrDen? Math.round(w/wrDen*100) : 0;
+  let off=0;
+  let html=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(233,228,214,.08)" stroke-width="3.5"/>`;
+  if(wp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#3bc47a" stroke-width="3.5" stroke-dasharray="${wp.toFixed(2)} ${(100-wp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)"/>`; off+=wp; }
+  if(lp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#d13b2f" stroke-width="3.5" stroke-dasharray="${lp.toFixed(2)} ${(100-lp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)"/>`; off+=lp; }
+  if(bp>0){ html+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="#e9e4d6" stroke-width="3.5" stroke-dasharray="${bp.toFixed(2)} ${(100-bp).toFixed(2)}" stroke-dashoffset="${(25-off).toFixed(2)}" transform="rotate(-90 21 21)" opacity=".55"/>`; }
+  html+=`<circle cx="21" cy="21" r="10" fill="var(--bg)"/><text x="21" y="22" text-anchor="middle" font-family="JetBrains Mono" font-size="4.5" fill="var(--bone)">${wrDen? wrPct+"% WR":"— WR"}</text><text x="21" y="26.5" text-anchor="middle" font-family="JetBrains Mono" font-size="2.8" fill="var(--dim)">${wrDen? `BE excl.`:"no WIN/LOSS"}</text>`;
+  svg.innerHTML=html;
+  legend.innerHTML=`<span><i style="background:#3bc47a"></i>WIN ${w} · ${wp.toFixed(0)}% of all · ${wrDen? Math.round(w/wrDen*100):0}% WR</span><span><i style="background:#d13b2f"></i>LOSS ${l} · ${lp.toFixed(0)}%</span><span><i style="background:var(--bone);opacity:.6"></i>BE ${be} · ${bp.toFixed(0)}% · excluded from WR</span>`;
+}
+function drawHist(vals){
+  const svg=document.getElementById('hist-svg'); svg.innerHTML="";
+  if(!vals.length){ svg.innerHTML=`<text x="10" y="60" font-family="JetBrains Mono" font-size="9" fill="var(--dim)">No PnL</text>`; return; }
+  const bins=8, min=Math.min(...vals), max=Math.max(...vals), span=Math.max(1,max-min), step=span/bins;
+  const counts=new Array(bins).fill(0);
+  vals.forEach(v=>{ let idx=Math.floor((v-min)/step); if(idx>=bins) idx=bins-1; counts[idx]++; });
+  const mx=Math.max(...counts,1), W=400,H=120, pad=8, bw=(W-pad*2)/bins - 4;
+  counts.forEach((c,i)=>{
+    const h= (c/mx)*(H-28), x=pad + i*((W-pad*2)/bins)+2, y=H-18-h;
+    const midVal=min+step*(i+0.5);
+    const color= midVal>=0? "#3bc47a":"#d13b2f";
+    svg.innerHTML+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${color}" opacity=".85" stroke="rgba(233,228,214,.12)" stroke-width="1"/><text x="${x+bw/2}" y="${y-3}" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="var(--muted)">${c||""}</text><text x="${x+bw/2}" y="${H-6}" text-anchor="middle" font-family="JetBrains Mono" font-size="7.5" fill="var(--dim)">${(min+step*i).toFixed(0)}</text>`;
+  });
+  const zeroFrac=(0-min)/span;
+  if(zeroFrac>0 && zeroFrac<1){
+    const zx=pad+zeroFrac*(W-pad*2);
+    svg.innerHTML+=`<line x1="${zx}" y1="8" x2="${zx}" y2="${H-18}" stroke="var(--bone)" stroke-width="0.7" stroke-dasharray="3 3" opacity=".5"/>`;
+  }
+}
+function render(){
+  load();
+  const list=filtered();
+  const f=getFilters();
+  document.getElementById('count-tag').textContent=list.length+" trades";
+  document.getElementById('filter-bar').innerHTML = (!f.pair&&!f.outcome&&!f.strat&&!f.q) ? `<span>No filter — showing all <b>${list.length}</b> dossiers</span>` : `<span>Filtered:</span> ${f.pair?`<span>pair <b>${f.pair}</b></span>`:''} ${f.outcome?`<span>outcome <b>${f.outcome}</b></span>`:''} ${f.strat?`<span>strategy <b>${f.strat}</b></span>`:''} ${f.q?`<span>search <b>${f.q}</b></span>`:''} <span style="margin-left:auto"><a href="#" onclick="location.search='';return false" style="color:var(--bone)">Clear filters</a></span>`;
+  const wins=list.filter(t=>t.outcome==='WIN'), losses=list.filter(t=>t.outcome==='LOSS'), bes=list.filter(t=>t.outcome==='BE');
+  const valsAll=list.filter(t=>hasPnL(t.pnl)).map(t=>numPnL(t.pnl));
+  const grossProfit=valsAll.filter(v=>v>0).reduce((s,v)=>s+v,0);
+  const grossLossAbs=Math.abs(valsAll.filter(v=>v<0).reduce((s,v)=>s+v,0));
+  const pf=grossLossAbs>0? (grossProfit/grossLossAbs).toFixed(2) : grossProfit>0? "∞" : "—";
+  const pfEl=document.getElementById('an-pf'); pfEl.textContent=pf; pfEl.title=`Gross profit ${grossProfit.toFixed(2)} / gross loss ${grossLossAbs.toFixed(2)} · PnL-sign based (BE excluded)`;
+  const posVals=valsAll.filter(v=>v>0), negVals=valsAll.filter(v=>v<0);
+  const avgW=posVals.length? (posVals.reduce((s,v)=>s+v,0)/posVals.length).toFixed(2):"—";
+  const avgL=negVals.length? (negVals.reduce((s,v)=>s+v,0)/negVals.length).toFixed(2):"—";
+  const avgEl=document.getElementById('an-avg'); avgEl.textContent=avgW+" / "+avgL; avgEl.title=`${posVals.length} wins with PnL>0, ${negVals.length} losses with PnL<0 · BE/zero excluded`;
+  const net=valsAll.reduce((s,v)=>s+v,0);
+  const decided=wins.length+losses.length;
+  const avgWinPos=posVals.length? posVals.reduce((s,v)=>s+v,0)/posVals.length:0;
+  const avgLossAbs=negVals.length? Math.abs(negVals.reduce((s,v)=>s+v,0)/negVals.length):0;
+  const pWinDecided= decided? wins.length/decided : 0;
+  const expDecided= decided? pWinDecided*avgWinPos - (1-pWinDecided)*avgLossAbs : 0;
+  const expAllTrades=list.length? net/list.length:0;
+  const expWithPnL=valsAll.length? net/valsAll.length:0;
+  const expEl=document.getElementById('an-exp');
+  expEl.textContent= valsAll.length? expWithPnL.toFixed(2)+" USD" : "—";
+  expEl.title= `Per PnL trade: ${expWithPnL.toFixed(2)} (net ${net.toFixed(2)}/${valsAll.length} with PnL) · per filtered trade: ${expAllTrades.toFixed(2)} (${list.length} total) · decided pWIN ${Math.round(pWinDecided*100)}% × avgWin ${avgWinPos.toFixed(2)} − avgLoss ${avgLossAbs.toFixed(2)} = ${expDecided.toFixed(2)}`;
+  const vals=list.filter(t=>hasPnL(t.pnl)).map(t=>numPnL(t.pnl));
+  let bwTxt="—", bwTip="";
+  if(vals.length){
+    let best=Math.max(...vals), worst=Math.min(...vals);
+    const bestT=list.find(t=> hasPnL(t.pnl) && numPnL(t.pnl)===best);
+    const worstT=list.find(t=> hasPnL(t.pnl) && numPnL(t.pnl)===worst);
+    bwTxt=best.toFixed(2)+" / "+worst.toFixed(2);
+    const fmtP=t=> t? `${esc(t.pair||"?")} ${esc(t.outcome||"?")} ${esc(fmtStrat(t))} ${new Date(t.date).toLocaleDateString('en-CA')}` : "";
+    function fmtStrat(tt){ const s=typeof tradeStrats==="function"? tradeStrats(tt).join(", "): (tt.strategy||""); return s||"(no strat)"; }
+    bwTip=`Best: ${fmtP(bestT)} · Worst: ${fmtP(worstT)}`;
+  }
+  const bwEl=document.getElementById('an-bw'); bwEl.textContent=bwTxt; bwEl.title=bwTip;
+  const lsLong=list.filter(t=>t.dir==="Long").length, lsShort=list.filter(t=>t.dir==="Short").length;
+  const lsLongW=list.filter(t=>t.dir==="Long"&&t.outcome==="WIN").length, lsLongL=list.filter(t=>t.dir==="Long"&&t.outcome==="LOSS").length;
+  const lsShortW=list.filter(t=>t.dir==="Short"&&t.outcome==="WIN").length, lsShortL=list.filter(t=>t.dir==="Short"&&t.outcome==="LOSS").length;
+  const lsLongWr= lsLongW+lsLongL? Math.round(lsLongW/(lsLongW+lsLongL)*100)+"%":"—";
+  const lsShortWr= lsShortW+lsShortL? Math.round(lsShortW/(lsShortW+lsShortL)*100)+"%":"—";
+  const lsEl=document.getElementById('an-ls'); lsEl.textContent= lsLong+" / "+lsShort; lsEl.title=`Long WR ${lsLongWr} (${lsLongW}W/${lsLongL}L) · Short WR ${lsShortWr} (${lsShortW}W/${lsShortL}L) · BE excl.`;
+  let streak="—"; if(list.length){ const chronoAsc=list.slice().reverse(); const nowOutcome=list[0].outcome; let curRun=1; for(let k=1;k<list.length;k++){ if(list[k].outcome===nowOutcome) curRun++; else break; } streak=curRun+"× "+nowOutcome+" now"; let run=0, last=null, bestW=0, worstL=0; chronoAsc.forEach(t=>{ if(t.outcome===last) run++; else { run=1; last=t.outcome; } if(t.outcome==="WIN") bestW=Math.max(bestW,run); if(t.outcome==="LOSS") worstL=Math.max(worstL,run); }); streak+= (bestW||worstL? ` · best ${bestW}W / worst ${worstL}L`:""); }
+  document.getElementById('an-streak').textContent=streak;
+  drawDonut(wins.length, losses.length, bes.length, list.length);
+  drawHist(vals);
+  let cum=0; const pts=[0]; list.slice().reverse().forEach(t=>{ cum+= hasPnL(t.pnl)? numPnL(t.pnl):0; pts.push(cum); });
+  document.getElementById('an-eq-note').textContent = pts.length>1? `· net ${pts[pts.length-1].toFixed(2)} USD`:"";
+  drawEquity(pts);
+}
+render();
+</script>
+</body>
+</html>

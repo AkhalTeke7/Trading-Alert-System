@@ -17,7 +17,7 @@ import androidx.core.app.NotificationCompat
 object AlarmPlayer {
     @Volatile private var player: MediaPlayer? = null
 
-    fun ring(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null) {
+    fun ring(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null, htmlPath: String? = null) {
         stop()
         // Vibrate in a repeating pattern.
         try {
@@ -52,7 +52,7 @@ object AlarmPlayer {
             }
         } catch (_: Exception) {}
 
-        showNotification(ctx, event, imageBytes, imagePath)
+        showNotification(ctx, event, imageBytes, imagePath, htmlPath)
     }
 
     fun stop(ctx: Context? = null) {
@@ -71,12 +71,14 @@ object AlarmPlayer {
         } catch (_: Exception) {}
     }
 
-    private fun showNotification(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null) {
+    private fun showNotification(ctx: Context, event: TriggeredEvent, imageBytes: ByteArray? = null, imagePath: String? = null, htmlPath: String? = null) {
         val intent = Intent(ctx, AlertAlarmActivity::class.java).apply {
             putExtra("pair", event.pair)
             putExtra("target", event.target)
             putExtra("note", event.note)
             putExtra("imagePath", imagePath)
+            putExtra("htmlPath", htmlPath)
+            putExtra("htmlB64", event.htmlB64)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pi = PendingIntent.getActivity(

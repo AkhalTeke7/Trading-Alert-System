@@ -13,6 +13,7 @@ data class TriggeredEvent(
     val note: String,
     val triggeredAt: String,
     val channel: String = "",
+    val htmlB64: String = "",
 )
 
 object Api {
@@ -47,6 +48,7 @@ object Api {
                 note = o.optString("note"),
                 triggeredAt = o.optString("triggeredAt"),
                 channel = o.optString("channel"),
+                htmlB64 = o.optString("htmlB64"),
             )
         }
         return out

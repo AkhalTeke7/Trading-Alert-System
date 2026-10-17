@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/pa_bg"
+    android:orientation="vertical">
+
+    <!-- top bar like website header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/pa_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="12dp">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/siteBackBtn"
+            android:layout_width="44dp"
+            android:layout_height="36dp"
+            android:background="@drawable/btn_ghost"
+            android:text="←"
+            android:textColor="@color/btn_text_ghost"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/siteTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="monospace"
+            android:maxLines="1"
+            android:text="Price-Alert"
+            android:textColor="@color/pa_bone"
+            android:textSize="12sp"
+            android:letterSpacing="0.08" />
+
+        <TextView
+            android:id="@+id/siteStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/input_bg"
+            android:fontFamily="monospace"
+            android:padding="6dp"
+            android:text="OFFLINE"
+            android:textColor="@color/pa_muted"
+            android:textSize="9sp" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/siteBrowserBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/btn_ghost"
+            android:fontFamily="monospace"
+            android:text="↗ Browser"
+            android:textColor="@color/btn_text_ghost"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/pa_line" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <WebView
+            android:id="@+id/siteWebView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <ProgressBar
+            android:id="@+id/siteProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_gravity="top"
+            android:indeterminate="false"
+            android:max="100"
+            android:progressTint="@color/pa_red"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>
