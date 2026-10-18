@@ -51,6 +51,11 @@
       { num: '02', title: 'I cut winners early — give me one rule', hint: 'exit management' },
       { num: '03', title: 'How should I grade a break-even trade?', hint: 'journal scoring' },
     ],
+    'order-blocks': [
+      { num: '01', title: 'Scan XAU/USD order blocks — 15m last 2 days', hint: 'Dukascopy 00:00 UTC → now · table + SVG' },
+      { num: '02', title: 'EUR/USD order blocks on 15m — show Tier A', hint: 'premium/discount filter · BOS+FVG' },
+      { num: '03', title: 'Show legs + OB table for BTC/USD 15m', hint: 'equilibrium 50% · sweep · session' },
+    ],
     _default: [
       { num: '01', title: 'What can you do in this console?', hint: 'skill overview' },
       { num: '02', title: 'Give me a sample output in your style', hint: 'show format' },
@@ -454,11 +459,368 @@
     const j=await r.json().catch(()=>({ error:'tool failed'}));
     return j;
   }
+  // --- Browser-local browsing (USER IP, not Cloudflare) ---
+  // web_search + fetch_url try browser fetch first (your IP/v2ray). On CORS failure they fall back to /api/ai/tool (Cloudflare).
+  let _tavilyKeyCache = null;
+  let _tavilyKeyFetching = null;
+  async function getTavilyKeyBrowser(){
+    if(_tavilyKeyCache !== null) return _tavilyKeyCache;
+    if(_tavilyKeyFetching) return _tavilyKeyFetching;
+    _tavilyKeyFetching = (async()=>{
+      try{ const j=await fetchBridgeCredentials('tavily'); _tavilyKeyCache = String(j.apiKey||'').trim(); }catch{ _tavilyKeyCache=''; }
+      return _tavilyKeyCache;
+    })();
+    const v=await _tavilyKeyFetching; _tavilyKeyFetching=null; return v;
+  }
+  function stripTagsBrowser(html){
+    return String(html||'').replace(/<[^>]*>/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();
+  }
+  function parseDdgLiteBrowser(html, max){
+    const results=[]; const snippets=[...String(html).matchAll(/<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/g)].map(m=> stripTagsBrowser(m[1]));
+    const anchorRe=/<a\b([^>]*)>([\s\S]*?)<\/a>/g; let match;
+    while((match=anchorRe.exec(String(html))) && results.length < max){
+      const attrs=match[1]||''; if(!/class="[^"]*result-link/.test(attrs)) continue;
+      const href=attrs.match(/href="([^"]+)"/)?.[1]||''; let url=href;
+      const redirect=url.match(/[?&]uddg=([^&]+)/); if(redirect){ try{ url=decodeURIComponent(redirect[1]); }catch{} }
+      if(!/^https?:\/\//.test(url)) continue;
+      results.push({ title: stripTagsBrowser(match[2]), url, snippet: snippets[results.length]||'' });
+    }
+    return results;
+  }
+  async function browserWebSearchLocal(query, max_results){
+    const q=String(query||'').trim().slice(0,200); if(!q) return { error:'Empty search query' };
+    const max=Math.min(Math.max(Number(max_results)||5,1),8);
+    const tavilyKey=await getTavilyKeyBrowser();
+    if(tavilyKey){
+      try{
+        const res=await fetch('https://api.tavily.com/search', { method:'POST', headers:{'Content-Type':'application/json', Authorization: 'Bearer '+tavilyKey }, body: JSON.stringify({ query:q, max_results:max, search_depth:'basic', include_answer:false }) });
+        if(res.ok){ const data=await res.json(); return { provider:'tavily', query:q, via:'browser', results:(data?.results||[]).slice(0,max).map(item=>({ title:String(item?.title||'').slice(0,200), url:String(item?.url||''), snippet:String(item?.content||'').slice(0,300) })) }; }
+        if(res.status===401||res.status===403) _tavilyKeyCache='';
+      }catch(e){ const msg=String(e?.message||e); if(/CORS|Failed to fetch|NetworkError/i.test(msg)) {/* fall through to DDG */ } }
+    }
+    try{
+      const res=await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`, { headers:{'User-Agent':'Mozilla/5.0 (PriceAlertConsole/1.0)', Accept:'text/html'} });
+      if(!res.ok) return { error:`Web search unavailable (HTTP ${res.status})`, via:'browser' };
+      const results=parseDdgLiteBrowser(await res.text(), max);
+      return { provider:'duckduckgo', query:q, via:'browser', results };
+    }catch(e){
+      const msg=String(e?.message||e); const isCors=/CORS|Failed to fetch|NetworkError|Load failed/i.test(msg);
+      return { error: isCors ? 'Web search blocked by CORS/network in browser — will retry via server' : msg.slice(0,300), hint: isCors?'cors':'network', via:'browser' };
+    }
+  }
+  async function browserFetchUrlLocal(url, maxChars){
+    const raw=String(url||'').trim().slice(0,2000); if(!raw) return { error:'URL is required' };
+    let parsed; try{ parsed=new URL(raw); }catch{ return { error:'Invalid URL' }; }
+    if(!['http:','https:'].includes(parsed.protocol)) return { error:'Only http(s) URLs are allowed' };
+    const h=parsed.hostname.toLowerCase();
+    if(['localhost','127.0.0.1','::1','0.0.0.0'].includes(h) || h.endsWith('.local')) return { error:'Private/local URLs are not allowed' };
+    const max=Math.min(Math.max(Number(maxChars)||7000,500),30000);
+    try{
+      const res=await fetch(raw, { headers:{'User-Agent':'PriceAlertConsole/1.0', Accept:'text/html,application/json,*/*'} });
+      const ct=res.headers.get('content-type')||''; const rawBody=await res.text(); const body=rawBody.slice(0,max);
+      return { url:raw, status:res.status, ok:res.ok, contentType:ct.slice(0,120), truncated: rawBody.length>max, length: rawBody.length, body, via:'browser' };
+    }catch(e){
+      const msg=String(e?.message||e); const isCors=/CORS|Failed to fetch|NetworkError|Load failed/i.test(msg);
+      return { error: isCors ? 'Fetch blocked by CORS or network in browser (will retry via server)' : msg.slice(0,300), url:raw, hint: isCors?'cors':'network', via:'browser' };
+    }
+  }
+  function isPrivateHostBrowser(h){
+    const host=String(h||'').toLowerCase();
+    if(['localhost','127.0.0.1','::1','0.0.0.0'].includes(host)||host.endsWith('.local')) return true;
+    if(/^10\./.test(host)||/^192\.168\./.test(host)||/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true;
+    return false;
+  }
+  function cleanArticleHtmlBrowser(html, maxChars){
+    let t=String(html||''); t=t.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ');
+    t=t.replace(/<nav[\s\S]*?<\/nav>/gi,' ').replace(/<header[\s\S]*?<\/header>/gi,' '); t=t.replace(/<!--[\s\S]*?-->/g,' ');
+    const art=t.match(/<article[\s\S]*?<\/article>/i); if(art) t=art[0];
+    t=stripTagsBrowser(t); t=t.replace(/\n{3,}/g,'\n\n').trim();
+    if(t.length>maxChars) t=t.slice(0,maxChars)+'\n…[truncated]'; return t;
+  }
+  async function browserExtractArticleLocal(url, maxChars){
+    const r=await browserFetchUrlLocal(url, Math.min((Number(maxChars)||8000)+4000,40000));
+    if(r.error) return r;
+    const ct=(r.contentType||'').toLowerCase();
+    if(ct.includes('application/json')){ try{ const j=JSON.parse(r.body); return { url:r.url, status:r.status, contentType:r.contentType, length:r.length, via:'browser', text: JSON.stringify(j,null,2).slice(0, Number(maxChars)||8000)}; }catch{} }
+    const text=cleanArticleHtmlBrowser(r.body, Number(maxChars)||8000);
+    return { url:r.url, status:r.status, contentType:r.contentType, length:r.length, truncated:text.length>=(Number(maxChars)||8000), text, via:'browser' };
+  }
+  async function browserApiFetchLocal({url, method, headers, body, maxChars}){
+    const raw=String(url||'').trim().slice(0,2000); if(!raw) return {error:'URL is required', via:'browser'};
+    let parsed; try{ parsed=new URL(raw);}catch{ return {error:'Invalid URL', via:'browser'};}
+    if(!['http:','https:'].includes(parsed.protocol)) return {error:'Only http(s) URLs are allowed', via:'browser'};
+    if(isPrivateHostBrowser(parsed.hostname)) return {error:'Private/local URLs are not allowed', via:'browser'};
+    const m=String(method||'GET').toUpperCase();
+    if(!['GET','POST','PUT','DELETE','PATCH','HEAD'].includes(m)) return {error:'Method must be GET/POST/PUT/DELETE/PATCH/HEAD', via:'browser'};
+    const max=Math.min(Math.max(Number(maxChars)||7000,500),30000);
+    const safeHeaders={};
+    for(const [k,v] of Object.entries(headers||{})){
+      if(Object.keys(safeHeaders).length>=12) break;
+      const key=String(k).trim().slice(0,60); const val=String(v).trim().slice(0,600);
+      if(!key||/^(cookie|authorization|host|x-forwarded)/i.test(key)) continue;
+      safeHeaders[key]=val;
+    }
+    safeHeaders['Accept']='application/json, text/html, */*';
+    let bodyStr;
+    if(body!=null && m!=='GET' && m!=='HEAD'){
+      if(typeof body==='string') bodyStr=String(body).slice(0,15000);
+      else try{ bodyStr=JSON.stringify(body).slice(0,15000); safeHeaders['Content-Type']=safeHeaders['Content-Type']||'application/json'; }catch{ bodyStr=String(body).slice(0,15000); }
+    }
+    try{
+      const res=await fetch(raw, { method:m, headers:safeHeaders, body:bodyStr });
+      const ct=res.headers.get('content-type')||''; const rawBody=await res.text();
+      let json; if(ct.toLowerCase().includes('application/json')) try{ json=JSON.parse(rawBody);}catch{}
+      return { url:raw, method:m, status:res.status, ok:res.ok, contentType:ct.slice(0,120), truncated:rawBody.length>max, length:rawBody.length, body:rawBody.slice(0,max), json: json? JSON.stringify(json).slice(0,max): undefined, via:'browser' };
+    }catch(e){
+      const msg=String(e?.message||e); const isCors=/CORS|Failed to fetch|NetworkError|Load failed/i.test(msg);
+      return { error: isCors ? 'Fetch blocked by CORS or network in browser (will retry via server)' : msg.slice(0,300), url:raw, hint: isCors?'cors':'network', via:'browser' };
+    }
+  }
+  async function browserNewsSearchLocal(query, days, max_results){
+    const q=String(query||'').trim().slice(0,200); if(!q) return {error:'Empty search query', via:'browser'};
+    const max=Math.min(Math.max(Number(max_results)||6,1),8);
+    const d=Math.min(Math.max(Number(days)||2,1),7);
+    const tavilyKey=await getTavilyKeyBrowser();
+    if(tavilyKey){
+      try{
+        const res=await fetch('https://api.tavily.com/search', { method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+tavilyKey}, body: JSON.stringify({ query:q, max_results:max, search_depth:'advanced', topic:'news', include_answer:false, days:d })});
+        if(res.ok){ const data=await res.json(); return { provider:'tavily', topic:'news', days:d, query:q, via:'browser', results:(data?.results||[]).slice(0,max).map(item=>({ title:String(item?.title||'').slice(0,200), url:String(item?.url||''), snippet:String(item?.content||'').slice(0,400), published:String(item?.published_date||'').slice(0,40)}))}; }
+        if(res.status===401||res.status===403) _tavilyKeyCache='';
+      }catch(e){ const msg=String(e?.message||e); if(!/CORS|Failed to fetch|NetworkError/i.test(msg)) {/* keep trying */ } }
+    }
+    try{
+      const ddgQ=`${q} news last ${d} days`;
+      const res=await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(ddgQ)}`, { headers:{'User-Agent':'Mozilla/5.0 (PriceAlertConsole/1.0)', Accept:'text/html'} });
+      if(!res.ok) return { error:`Web search unavailable (HTTP ${res.status})`, via:'browser' };
+      const results=parseDdgLiteBrowser(await res.text(), max);
+      return { provider:'duckduckgo', topic:'news', days:d, query:q, via:'browser', results };
+    }catch(e){
+      const msg=String(e?.message||e); const isCors=/CORS|Failed to fetch|NetworkError|Load failed/i.test(msg);
+      return { error: isCors ? 'Web search blocked by CORS/network in browser — will retry via server' : msg.slice(0,300), hint:isCors?'cors':'network', via:'browser' };
+    }
+  }
+  async function browserFetchTgjuLocal(){
+    try{
+      const res=await fetch('https://call3.tgju.org/ajax.json');
+      if(!res.ok) return { error:`TGJU unavailable (HTTP ${res.status})`, via:'browser' };
+      const data=await res.json(); const cur=data?.current||{};
+      const pick=k=>{ const x=cur[k]; if(!x) return null; const num=v=>Number(String(v).replace(/,/g,'')); return { rial:num(x.p), toman:num(x.p)/10, high:num(x.h), low:num(x.l), time:x.t_en }; };
+      return { dollar:pick('price_dollar_rl'), gold18:pick('tgju_gold_irg18_buy'), at:new Date().toISOString(), via:'browser' };
+    }catch(e){
+      const msg=String(e?.message||e); const isCors=/CORS|Failed to fetch|NetworkError|Load failed/i.test(msg);
+      return { error: isCors ? 'TGJU blocked by CORS in browser (will retry via server)' : msg.slice(0,300), hint:isCors?'cors':'network', via:'browser' };
+    }
+  }
+  async function browserTradingviewScanLocal(symbols){
+    const list=(Array.isArray(symbols)? symbols:[]).map(s=>String(s).trim()).filter(Boolean).slice(0,8);
+    if(!list.length) return {error:'symbols required', via:'browser'};
+    try{
+      const res=await fetch('https://scanner.tradingview.com/global/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ symbols:{tickers:list}, columns:['close','change','change_abs'] })});
+      if(!res.ok) return { error:`TradingView scan failed (HTTP ${res.status})`, via:'browser' };
+      const data=await res.json(); const out={}; for(const row of data?.data||[]) out[row.s]={ price:row.d?.[0], change:row.d?.[1], changeAbs:row.d?.[2] };
+      return { symbols:list, prices:out, at:new Date().toISOString(), via:'browser' };
+    }catch(e){
+      const msg=String(e?.message||e); const isCors=/CORS|Failed to fetch|NetworkError|Load failed/i.test(msg);
+      return { error: isCors ? 'TradingView blocked by CORS in browser (will retry via server)' : msg.slice(0,300), hint:isCors?'cors':'network', via:'browser' };
+    }
+  }
+  async function browserYahooQuoteLocal(symbol){
+    const s=String(symbol||'').trim().slice(0,20); if(!s) return {error:'symbol required', via:'browser'};
+    try{
+      const res=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?interval=1m&range=1d`, { headers:{Accept:'application/json'}});
+      if(!res.ok) return { error:`Yahoo unavailable (HTTP ${res.status})`, via:'browser' };
+      const data=await res.json(); const meta=data?.chart?.result?.[0]?.meta||{};
+      return { symbol:s, price:meta.regularMarketPrice, previousClose:meta.previousClose ?? meta.chartPreviousClose, change: meta.regularMarketPrice!=null && meta.previousClose!=null ? Number((meta.regularMarketPrice - meta.previousClose).toFixed(4)) : null, marketTime: meta.regularMarketTime ? new Date(meta.regularMarketTime*1000).toISOString(): null, currency:meta.currency||null, via:'browser' };
+    }catch(e){
+      const msg=String(e?.message||e); const isCors=/CORS|Failed to fetch|NetworkError|Load failed/i.test(msg);
+      return { error: isCors ? 'Yahoo blocked by CORS in browser (will retry via server)' : msg.slice(0,300), hint:isCors?'cors':'network', via:'browser' };
+    }
+  }
+  async function browserBatchFetchLocal(urls, maxChars){
+    const list=(Array.isArray(urls)? urls:[]).map(u=>String(u).trim()).filter(Boolean).slice(0,5);
+    if(!list.length) return {error:'urls required', via:'browser'};
+    if(list.length<2) return {error:'batch_fetch needs at least 2 URLs — use fetch_url', via:'browser'};
+    const max=Math.min(Math.max(Number(maxChars)||5000,500),15000);
+    const results=await Promise.all(list.map(async url=>{
+      const r=await browserFetchUrlLocal(url, max); return { url, status:r.status??null, ok:!!r.ok, error:r.error||null, contentType:r.contentType||null, body:r.body?String(r.body).slice(0,max):null, length:r.length??null };
+    }));
+    return { count:results.length, results, via:'browser' };
+  }
+  async function browserInfoLocal(check_ip){
+    const info={ via:'browser', userAgent: navigator.userAgent, platform: navigator.platform, language: navigator.language, languages: (navigator.languages||[]).slice(0,4), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, localTime: new Date().toString(), utc: new Date().toISOString(), screen: `${screen.width}x${screen.height}`, viewport: `${innerWidth}x${innerHeight}` };
+    if(check_ip!==false){
+      try{
+        const res=await fetch('https://api.ipify.org?format=json');
+        if(res.ok){ const j=await res.json(); info.ip=j.ip||null; info.ipVia='ipify (browser IP)'; }
+      }catch{}
+      if(!info.ip){
+        try{ const res2=await fetch('https://ifconfig.me/ip', {headers:{Accept:'text/plain'}}); if(res2.ok) info.ip=(await res2.text()).trim().slice(0,45); }catch{}
+      }
+    }
+    return info;
+  }
+  // --- Dukascopy + OB engine (browser copy; same logic as js/aiCore.js) ---
+  const DUKA_ALIASES_B={ 'gold / usd':'XAU/USD','xauusd':'XAU/USD','xau/usd':'XAU/USD','gold':'XAU/USD','eur / usd':'EUR/USD','eurusd':'EUR/USD','eur/usd':'EUR/USD','gbp / usd':'GBP/USD','gbpusd':'GBP/USD','gbp/usd':'GBP/USD','btc / usd':'BTC/USD','btcusd':'BTC/USD','btc/usd':'BTC/USD','btc-usd':'BTC/USD','nasdaq / usd':'NAS100/USD','nas100/usd':'NAS100/USD','nasdaq':'NAS100/USD','ndx':'NAS100/USD','s&p 500 / usd':'USA500IDXUSD','sp500':'USA500IDXUSD','s&p500':'USA500IDXUSD','us500':'USA500IDXUSD','spx':'USA500IDXUSD','usa500idxusd':'USA500IDXUSD' };
+  const YAHOO_MAP_B={'XAU/USD':'GC=F','EUR/USD':'EURUSD=X','GBP/USD':'GBPUSD=X','BTC/USD':'BTC-USD','NAS100/USD':'^IXIC','USA500IDXUSD':'^GSPC'};
+  function normalizeDukaBrowser(s){ const raw=String(s||'').trim(); if(!raw) return 'XAU/USD'; const key=raw.toLowerCase().replace(/\s+/g,' ').trim(); if(DUKA_ALIASES_B[key]) return DUKA_ALIASES_B[key]; const nospace=key.replace(/[\s_]/g,''); if(DUKA_ALIASES_B[nospace]) return DUKA_ALIASES_B[nospace]; if(/^[A-Z0-9]+\/[A-Z0-9]+$/.test(raw.toUpperCase())) return raw.toUpperCase(); return raw.toUpperCase(); }
+  function yahooForBrowser(d){ return YAHOO_MAP_B[d]||d.replace('/','-')||'GC=F'; }
+  function defaultObWindowBrowser(){ const now=new Date(); const start=new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()-2,0,0,0,0)); return {from:start.toISOString(), to:now.toISOString()}; }
+  function clampToTwoDayWindowBrowser(fromMs, toMs){
+    var nowMs=Date.now(), TWO_D=2*24*60*60*1000, MAX_WINDOW=Math.round(2.6*24*60*60*1000);
+    var f=fromMs, t=Math.min(toMs, nowMs+5*60*1000);
+    if(!(Number.isFinite(f)&&Number.isFinite(t))||f>=t) return {fromMs:f, toMs:t, clamped:false};
+    if(nowMs - f > 7*24*60*60*1000 || t - f > MAX_WINDOW){
+      var ref=Number.isFinite(t)? new Date(t): new Date(nowMs);
+      var clampedFrom=Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate()-2,0,0,0,0);
+      if(clampedFrom < t && t - clampedFrom <= MAX_WINDOW) f=clampedFrom;
+      else { f=t - TWO_D; f=Date.UTC(new Date(f).getUTCFullYear(), new Date(f).getUTCMonth(), new Date(f).getUTCDate(),0,0,0,0); }
+      if(nowMs - t > 2*24*60*60*1000){ t=nowMs; var d2=new Date(t); f=Date.UTC(d2.getUTCFullYear(), d2.getUTCMonth(), d2.getUTCDate()-2,0,0,0,0); }
+    }
+    return {fromMs:f, toMs:t, clamped:f!==fromMs||t!==toMs};
+  }
+  function parseCandlesLooseBrowser(data){
+    if(!data) return [];
+    if(Array.isArray(data.candles)){
+      return data.candles.map(function(c){
+        if(Array.isArray(c)) return {time:new Date(Number(c[0])).toISOString(), open:Number(c[1]), high:Number(c[2]), low:Number(c[3]), close:Number(c[4]), volume:Number(c[5]||0)};
+        return {time:String(c.time||c.t||''), open:Number(c.open??c.o), high:Number(c.high??c.h), low:Number(c.low??c.l), close:Number(c.close??c.c), volume:Number(c.volume??c.v??0)};
+      });
+    }
+    if(Array.isArray(data.data)) return parseCandlesLooseBrowser({candles:data.data});
+    if(Array.isArray(data.result)) return parseCandlesLooseBrowser({candles:data.result});
+    if(Array.isArray(data)){
+      if(data.length && typeof data[0]==='object' && (data[0].time||data[0].open)){
+        return data.map(function(c){ return {time:String(c.time||c.t||c.date||''), open:Number(c.open??c.o), high:Number(c.high??c.h), low:Number(c.low??c.l), close:Number(c.close??c.c), volume:Number(c.volume??c.v??0)}; });
+      }
+      return data.map(function(c){
+        if(Array.isArray(c)) return {time:new Date(Number(c[0])).toISOString(), open:Number(c[1]), high:Number(c[2]), low:Number(c[3]), close:Number(c[4]), volume:Number(c[5]||0)};
+        return c;
+      });
+    }
+    return [];
+  }
+  function yahooAltSymbolsBrowser(duka){ const m={'XAU/USD':['GC=F','XAUUSD=X','GOLD'],'EUR/USD':['EURUSD=X'],'GBP/USD':['GBPUSD=X'],'BTC/USD':['BTC-USD','BTCUSD=X'],'NAS100/USD':['^NDX','^IXIC','NQ=F'],'USA500IDXUSD':['^GSPC','ES=F']}; const p=yahooForBrowser(duka); const alts=m[duka]||[]; return [p].concat(alts.filter(function(s){return s!==p;})); }
+  async function fetchYahooCandlesBrowser(symbol, fromMs, toMs){
+    var ySyms=yahooAltSymbolsBrowser(symbol);
+    var hosts=['https://query2.finance.yahoo.com','https://query1.finance.yahoo.com'];
+    var p1=Math.floor(fromMs/1000), p2=Math.floor(toMs/1000);
+    var lastErr='no attempts';
+    for(var yi=0;yi<ySyms.length;yi++){ for(var hi=0;hi<hosts.length;hi++){
+      // Try 15m first, then 30m/1h as fallback — Yahoo returns 422 for 15m when window exceeds its retention or segment logic
+      var intervals=['15m','30m','1h'];
+      for(var ii=0;ii<intervals.length;ii++){
+        var intv=intervals[ii];
+        var urls=[hosts[hi]+'/v8/finance/chart/'+encodeURIComponent(ySyms[yi])+'?period1='+p1+'&period2='+p2+'&interval='+intv+'&includePrePost=false', hosts[hi]+'/v8/finance/chart/'+encodeURIComponent(ySyms[yi])+'?period1='+p1+'&period2='+p2+'&interval='+intv];
+        for(var ui=0;ui<urls.length;ui++){
+          try{
+            var res=await fetch(urls[ui], {headers:{Accept:'application/json'}});
+            if(!res.ok){
+              // 422 = Yahoo rejects this interval/window — try next interval or host
+              if(res.status===422){ lastErr='Yahoo HTTP 422 '+ySyms[yi]+' '+intv; continue; }
+              lastErr='Yahoo HTTP '+res.status+' '+ySyms[yi]; continue;
+            }
+            var data=await res.json(); var result=data&&data.chart&&data.chart.result&&data.chart.result[0]; if(!result){ lastErr='Yahoo no result '+(data&&data.chart&&data.chart.error&&data.chart.error.description||'empty')+' '+ySyms[yi]; continue; }
+            var ts=result.timestamp||[]; var q=result.indicators&&result.indicators.quote&&result.indicators.quote[0]||{}; var candles=[];
+            for(var i=0;i<ts.length;i++){ var o=q.open&&q.open[i], h=q.high&&q.high[i], l=q.low&&q.low[i], c=q.close&&q.close[i], v=q.volume&&q.volume[i]; if(o==null||h==null||l==null||c==null) continue; candles.push({time:new Date(Number(ts[i])*1000).toISOString(), open:Number(o), high:Number(h), low:Number(l), close:Number(c), volume:Number(v||0)}); }
+            if(candles.length>=10){
+              // Tag coarser intervals so header can note "30m Yahoo" — still useful, prevents 0-candle abort
+              if(intv!=='15m') return {candles:candles, intervalNote:intv, via:'yahoo-fallback ('+intv+')'};
+              return {candles:candles};
+            }
+            if(candles.length>0) return {candles:candles};
+            lastErr='Yahoo 0 candles '+ySyms[yi];
+          }catch(e){ var m=String(e&&e.message||e); if(/CORS|Failed to fetch|NetworkError|Load failed/i.test(m)) return {error:'Yahoo blocked by CORS: '+m.slice(0,80), via:'browser', hint:'cors'}; lastErr=m.slice(0,80); }
+        }
+      }
+    }}
+    return {error:lastErr||'Yahoo returned 0 candles', via:'browser'};
+  }
+  async function fetchBinanceCandlesBrowser(symbol, fromMs, toMs){
+    var map={'BTC/USD':'BTCUSDT','XAU/USD':'PAXGUSDT','EUR/USD':'EURUSDT','GBP/USD':'GBPUSDT'};
+    var binSym=map[symbol]||'BTCUSDT';
+    var list = symbol==='BTC/USD' ? [binSym] : [binSym,'BTCUSDT'];
+    for(var i=0;i<list.length;i++){
+      try{
+        var url='https://api.binance.com/api/v3/klines?symbol='+list[i]+'&interval=15m&startTime='+fromMs+'&endTime='+toMs+'&limit=500';
+        var res=await fetch(url, {headers:{Accept:'application/json'}});
+        if(!res.ok) continue;
+        var data=await res.json(); if(!Array.isArray(data)||data.length<10) continue;
+        var candles=data.map(function(k){ return {time:new Date(Number(k[0])).toISOString(), open:Number(k[1]), high:Number(k[2]), low:Number(k[3]), close:Number(k[4]), volume:Number(k[5]||0)}; });
+        return {candles:candles, via:'binance-fallback', binSymbol:list[i]};
+      }catch(e){}
+    }
+    return {error:'Binance unavailable', via:'browser'};
+  }
+  async function browserFetchDukascopyLocal(symbol, from, to){
+    // Dukascopy never sends CORS headers → fetching it from browser always logs
+    // "blocked by CORS policy" in console and fails. Don't hit Dukascopy from browser;
+    // try Yahoo/Binance directly from browser (your IP/v2ray benefits) then let server
+    // do Dukascopy → Yahoo → Binance with full fallback. This removes the console noise.
+    var dukaSym=normalizeDukaBrowser(symbol);
+    var fromIso=String(from||'').trim(), toIso=String(to||'').trim();
+    if(!fromIso||!toIso){ var d=defaultObWindowBrowser(); if(!fromIso) fromIso=d.from; if(!toIso) toIso=d.to; }
+    var fromMs, toMs; try{ fromMs=new Date(fromIso).getTime(); toMs=new Date(toIso).getTime(); }catch{ return {error:'Invalid from/to ISO date', via:'browser'}; }
+    if(!Number.isFinite(fromMs)||!Number.isFinite(toMs)||fromMs>=toMs) return {error:'Invalid from/to window', via:'browser'};
+    { var cc=clampToTwoDayWindowBrowser(fromMs, toMs); if(cc.clamped){ fromMs=cc.fromMs; toMs=cc.toMs; fromIso=new Date(fromMs).toISOString(); toIso=new Date(toMs).toISOString(); } }
+    // Browser path: skip Dukascopy (CORS), try Yahoo → Binance from YOUR IP first
+    // Yahoo GC=F is truncated for 2026-10-16→18 (only Oct16, 85 candles) and has a 50-pt spike at 14:15 — prefer Binance for XAU
+    var y=await fetchYahooCandlesBrowser(dukaSym, fromMs, toMs).catch(function(){return {error:'Yahoo fallback failed', via:'browser'};});
+    var yOk=!y.error && y.candles && y.candles.length>=10;
+    var yCoverageH=yOk ? (new Date(y.candles[y.candles.length-1].time).getTime()-new Date(y.candles[0].time).getTime())/3600000 : 0;
+    var requestedH=(toMs-fromMs)/3600000;
+    var yIncomplete=yOk && (yCoverageH < requestedH*0.6 || y.candles.length < requestedH*2.2 || new Date(y.candles[y.candles.length-1].time).getTime() < toMs - 6*3600000);
+    // Try Binance in parallel for gold — if Yahoo incomplete or Binance notably larger, use Binance
+    var b=null;
+    if(dukaSym==='XAU/USD' || yIncomplete || !yOk){
+      b=await fetchBinanceCandlesBrowser(dukaSym, fromMs, toMs).catch(function(){return {error:'binance throw', via:'browser'};});
+      if(b && !b.error && b.candles && b.candles.length>=10){
+        if(yOk && !yIncomplete && b.candles.length > y.candles.length*1.4){
+          b.symbol=dukaSym; b.interval='15m'; b.from=new Date(fromMs).toISOString(); b.to=new Date(toMs).toISOString(); b.count=b.candles.length; b.via=(b.via||'binance-fallback (browser)') + ' (preferred over Yahoo truncated '+y.candles.length+'→'+b.candles.length+')';
+          return b;
+        }
+        if(yIncomplete || !yOk){
+          b.symbol=dukaSym; b.interval='15m'; b.from=new Date(fromMs).toISOString(); b.to=new Date(toMs).toISOString(); b.count=b.candles.length; b.via=b.via||'binance-fallback (browser)';
+          if(yOk) b.via += ' (yahoo incomplete: '+y.candles.length+' last '+y.candles[y.candles.length-1].time.slice(0,16)+')';
+          return b;
+        }
+      }
+    }
+    if(yOk && !yIncomplete){ y.symbol=dukaSym; y.interval='15m'; y.from=new Date(fromMs).toISOString(); y.to=new Date(toMs).toISOString(); y.via='yahoo-fallback (browser)'; y.count=y.candles.length; return y; }
+    if(y && y.hint==='cors'){
+      return {error:'Yahoo blocked by CORS in browser (will retry via server)', hint:'cors', symbol:dukaSym, via:'browser', from:new Date(fromMs).toISOString(), to:new Date(toMs).toISOString()};
+    }
+    if(b && !b.error && b.candles && b.candles.length>=10){ b.symbol=dukaSym; b.interval='15m'; b.from=new Date(fromMs).toISOString(); b.to=new Date(toMs).toISOString(); b.count=b.candles.length; b.via=b.via||'binance-fallback (browser)'; return b; }
+    // fallback: return whichever partial succeeded rather than error, else let server try full chain
+    if(yOk){ y.symbol=dukaSym; y.interval='15m'; y.from=new Date(fromMs).toISOString(); y.to=new Date(toMs).toISOString(); y.via=(y.via||'yahoo-fallback (browser)') + (yIncomplete ? ' (incomplete — binance also failed)' : ''); y.count=y.candles.length; return y; }
+    return {error:'Browser fetch missed (Yahoo: '+(y&&y.error||'no data')+'; Binance: '+(b&&b.error||'no data')+') — will retry via server', hint:'cors', symbol:dukaSym, via:'browser', from:new Date(fromMs).toISOString(), to:new Date(toMs).toISOString()};
+  }
+  // Lightweight local analyze: delegate to server when candles missing; otherwise use server result via remote.
+  // For browser-direct, we run a compact JS analyze (subset) to avoid extra round-trip when offline-like.
+  function browserAnalyzeLocal(candles, symbol, opts){
+    // Reuse server via callToolRemote if available — try local simple guard then fallback.
+    // Minimal ATR + zigzag to avoid duplicating 400 lines: call remote by default.
+    return null; // signal caller to use server
+  }
+  async function browserScanLocal(symbol, from, to, opts){
+    const fetched=await browserFetchDukascopyLocal(symbol, from, to);
+    if(fetched.error) return fetched;
+    // fetched ok — try server analyze (authoritative, same as aiCore)
+    try{
+      const remote=await callToolRemote('analyze_order_blocks', {candles: fetched.candles, symbol: fetched.symbol, swing_length: opts?.swing_length, min_leg_atr: opts?.min_leg_atr, max_legs: opts?.max_legs, atr_period: opts?.atr_period, min_displacement_atr: opts?.min_displacement_atr, strict_side: opts?.strict_side, ob_merge_distance_atr: opts?.ob_merge_distance_atr, premium_discount_buffer_atr: opts?.premium_discount_buffer_atr});
+      if(remote && !remote.error){
+        remote.fetched={symbol:fetched.symbol, interval:fetched.interval, from:fetched.from, to:fetched.to, count:fetched.count, via:fetched.via};
+        remote.candles_count=fetched.count;
+        remote.via='browser-fetch + server-analyze';
+        return remote;
+      }
+      return remote;
+    }catch(e){ return {error:String(e.message||e), via:'browser'}; }
+  }
   function parseToolCallBrowser(text){
     const fenced=String(text||'').match(/```(?:tool)?\s*\n?(\{[\s\S]*?\})\s*\n?```/);
     const candidates=[]; if(fenced) candidates.push(fenced[1]);
     for(const line of String(text||'').split('\n')){ const t=line.trim(); if(t.startsWith('{"tool"')||t.startsWith('{ "tool"')) candidates.push(t); }
-    const TOOL_NAMES_BROWSER=new Set(['test_notification','read_functions','get_prices','list_alerts','list_triggered','journal_summary','get_events','web_search','get_time']);
+    const TOOL_NAMES_BROWSER=new Set(['test_notification','read_functions','get_prices','list_alerts','list_triggered','journal_summary','get_events','web_search','fetch_url','extract_article','api_fetch','news_search','fetch_tgju','fetch_tradingview_scan','fetch_yahoo_quote','batch_fetch','browser_info','fetch_dukascopy_candles','analyze_order_blocks','scan_order_blocks','get_time']);
     for(const raw of candidates){ try{ const p=JSON.parse(raw); const name=String(p?.tool||''); if(!TOOL_NAMES_BROWSER.has(name)) continue; const args=p.args&&typeof p.args==='object'&&!Array.isArray(p.args)?p.args:{}; return {tool:name, args}; }catch{}}
     return null;
   }
@@ -517,11 +879,66 @@
       if(!call) return { text, toolCalls, skill, provider: credentials.provider, model };
       onDelta(''); // signal tool
       if(onTool) onTool({name:call.tool, args:call.args, status:'running'});
-      let result; try{ result=await callToolRemote(call.tool, call.args); }catch(e){ result={error:String(e.message||e)}; }
-      const summary=result?.error? String(result.error).slice(0,80): 'ok';
+      let result;
+      // USER-IP browsing: browsing tools run from browser first (your IP/v2ray, not Cloudflare). CORS → server fallback.
+      const BROWSER_FIRST = new Set(['web_search','fetch_url','extract_article','api_fetch','news_search','fetch_tgju','fetch_tradingview_scan','fetch_yahoo_quote','batch_fetch','browser_info','fetch_dukascopy_candles','scan_order_blocks']);
+      if(BROWSER_FIRST.has(call.tool)){
+        const tryLocal = async () => {
+          switch(call.tool){
+            case 'web_search': return browserWebSearchLocal(call.args.query, call.args.max_results||call.args.maxResults);
+            case 'fetch_url': return browserFetchUrlLocal(call.args.url, call.args.max_chars ?? call.args.maxChars);
+            case 'extract_article': return browserExtractArticleLocal(call.args.url, call.args.max_chars ?? call.args.maxChars);
+            case 'api_fetch': return browserApiFetchLocal({url: call.args.url, method: call.args.method, headers: call.args.headers, body: call.args.body, maxChars: call.args.max_chars ?? call.args.maxChars});
+            case 'news_search': return browserNewsSearchLocal(call.args.query, call.args.days, call.args.max_results||call.args.maxResults);
+            case 'fetch_tgju': return browserFetchTgjuLocal();
+            case 'fetch_tradingview_scan': return browserTradingviewScanLocal(call.args.symbols);
+            case 'fetch_yahoo_quote': return browserYahooQuoteLocal(call.args.symbol);
+            case 'batch_fetch': return browserBatchFetchLocal(call.args.urls, call.args.max_chars ?? call.args.maxChars);
+            case 'browser_info': return browserInfoLocal(call.args.check_ip);
+            case 'fetch_dukascopy_candles': return browserFetchDukascopyLocal(call.args.symbol, call.args.from, call.args.to);
+            case 'scan_order_blocks': return browserScanLocal(call.args.symbol, call.args.from, call.args.to, call.args);
+            default: return null;
+          }
+        };
+        try{
+          const local=await tryLocal();
+          if(local && !local.error) result=local;
+          else if(local && (local.hint==='cors' || local.error)){
+            const remote=await callToolRemote(call.tool, call.args).catch(e=>({error:String(e.message||e)}));
+            result = (!remote?.error) ? {...remote, via: remote.via||'server-fallback'} : (local?.hint==='cors' ? (remote?.error ? local : remote) : local);
+            // if local had no hint but errored, prefer remote if remote succeeded
+            if(local?.error && !local.hint && !remote?.error) result={...remote, via: remote.via||'server-fallback'};
+          } else result=local;
+        }catch(e){ try{ result=await callToolRemote(call.tool, call.args); }catch(x){ result={error:String(x.message||x)}; } }
+      } else if(call.tool==='analyze_order_blocks'){
+        // analyze needs candles — server does it authoritatively; browser path just proxies
+        try{ result=await callToolRemote(call.tool, call.args); }catch(e){ result={error:String(e.message||e)}; }
+      } else {
+        try{ result=await callToolRemote(call.tool, call.args); }catch(e){ result={error:String(e.message||e)}; }
+      }
+      const summary=result?.error? String(result.error).slice(0,90): ((result?.via==='browser'?'via browser · ':'') + (result?.provider? result.provider : (call.tool==='fetch_url'&& result?.status? 'HTTP '+result.status : 'ok')).slice(0,60));
       if(onTool) onTool({name:call.tool, args:call.args, status:'done', ok:!result?.error, summary});
       toolCalls.push({name:call.tool, args:call.args, summary});
-      convo=[...convo, {role:'assistant', content:text}, {role:'user', content:'TOOL RESULT ('+call.tool+'):\n'+JSON.stringify(result).slice(0,7000)+'\nUse this data to answer.'}];
+      var isSvgTool=call.tool==='scan_order_blocks'||call.tool==='analyze_order_blocks';
+      var payload=JSON.stringify(result);
+      var svgHint='';
+      if(isSvgTool && result && result.svg_data_uri) svgHint='\n\nRENDER INSTRUCTION: you MUST paste this exact line verbatim (no re-encoding, no truncation):\n![Order Blocks]('+result.svg_data_uri+')\n';
+      if(isSvgTool && payload.length>52000){
+        try{
+          var copy=Object.assign({},result);
+          if(copy.candles && Array.isArray(copy.candles) && copy.candles.length>40) copy.candles='['+copy.candles.length+' candles omitted]';
+          if(copy.historical_obs && Array.isArray(copy.historical_obs) && JSON.stringify(copy).length>52000) copy.historical_obs='['+(copy.historical_obs.length)+' invalidated OBs omitted]';
+          payload=JSON.stringify(copy);
+          if(payload.length>52000){
+            // keep svg_data_uri intact, truncate from end (historical/legs)
+            var keepUri=result.svg_data_uri||'';
+            payload=payload.slice(0,52000 - keepUri.length - 500) + '…[truncated]';
+            if(keepUri && payload.indexOf(keepUri.slice(0,30))===-1) payload+='\n[svg_data_uri preserved separately]';
+          }
+        }catch{ payload=JSON.stringify(result).slice(0,52000); }
+      } else if(payload.length>7000 && !isSvgTool) payload=payload.slice(0,7000);
+      else if(isSvgTool && payload.length>52000) payload=payload.slice(0,52000);
+      convo=[...convo, {role:'assistant', content:text}, {role:'user', content:'TOOL RESULT ('+call.tool+')'+(result?.via? ' ['+result.via+']':'')+':\n'+payload+svgHint+'\nUse this data to answer.'}];
       // loop continues for tool result
       // clear text for next round's streaming
       text='';
@@ -599,6 +1016,7 @@
     'market-analyst': 'Where is the *market* leaning?',
     'alert-architect': 'What should we *alert* on?',
     'journal-coach': 'How did the *process* go?',
+    'order-blocks': 'Which *order blocks* matter?',
     _default: 'Ask *anything*.',
   };
 
@@ -1394,22 +1812,22 @@
     { id: 'market-analyst', name: 'Market Analyst', icon: 'ti-chart-candle', rune: '𐰴', tagline: 'Structure, momentum & setups', builtin: true },
     { id: 'alert-architect', name: 'Alert Architect', icon: 'ti-bell-ringing', rune: '𐰛', tagline: 'Design precise alert levels', builtin: true },
     { id: 'journal-coach', name: 'Journal Coach', icon: 'ti-notebook', rune: '𐰸', tagline: 'Discipline & performance review', builtin: true },
+    { id: 'order-blocks', name: 'Order Blocks', icon: 'ti-layers-intersect', rune: '𐰚', tagline: 'Smart Money · 15m OB scanner', builtin: true },
   ];
 
-  // Guarantee the two new briefs appear in the LEFT RAIL even if the server
-  // is still on an old bundle (before deploy/restart). The server is source of
+  // Guarantee new skills appear in the LEFT RAIL even if the server
+  // is still on an old bundle (before deploy/restart). Server is source of
   // truth long-term; this is a forward-compat shim so you see them immediately.
   function withMandatorySkills(skills) {
     const list = Array.isArray(skills) ? [...skills] : [];
     const have = new Set(list.map(s => s.id));
     for (const must of FALLBACK_SKILLS) {
-      if ((must.id === 'daily-brief' || must.id === 'global-macro') && !have.has(must.id)) {
-        // keep order: daily, global first
+      if (!have.has(must.id)) {
         if (must.id === 'daily-brief') list.unshift(must);
-        else {
+        else if (must.id === 'global-macro') {
           const idx = list.findIndex(s => s.id === 'daily-brief');
           list.splice(idx === -1 ? 0 : idx + 1, 0, must);
-        }
+        } else list.push(must);
       }
     }
     // de-dupe just in case

@@ -255,7 +255,7 @@ export class AlertStore {
                 if (!provider) return json({ error: 'provider required' }, 400);
                 const preset = PROVIDERS.find(p => p.id === provider) || (/^custom[:_-]/i.test(provider) ? PROVIDERS.find(p => p.id === 'custom') : null);
                 if (!preset) return json({ error: 'Unknown provider' }, 404);
-                if (preset.kind === 'search' || preset.id === 'demo') return json({ error: 'Not a chat provider' }, 400);
+                if (preset.id === 'demo' || (preset.kind === 'search' && preset.id !== 'tavily')) return json({ error: 'Not a chat provider' }, 400);
                 const settings = await this.getAiSettings();
                 const saved = settings.providers[provider] || null;
                 if (!saved?.apiKey) return json({ error: 'No key saved for this provider' }, 404);

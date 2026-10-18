@@ -369,7 +369,8 @@ async function handleAiApi(request, response, url) {
             // Validate provider exists
             const preset = PROVIDERS.find(p => p.id === provider) || (/^custom[:_-]/i.test(provider) ? PROVIDERS.find(p => p.id === 'custom') : null);
             if (!preset) { sendJson(response, 404, { error: 'Unknown provider' }); return true; }
-            if (preset.kind === 'search' || preset.id === 'demo') { sendJson(response, 400, { error: 'Not a chat provider' }); return true; }
+            // Allow Tavily bridge so web_search can also run from browser (user IP), not Cloudflare
+            if (preset.id === 'demo' || (preset.kind === 'search' && preset.id !== 'tavily')) { sendJson(response, 400, { error: 'Not a chat provider' }); return true; }
             const saved = aiSettings.providers[provider] || null;
             if (!saved?.apiKey) { sendJson(response, 404, { error: 'No key saved for this provider' }); return true; }
             // Don't log key; return only for same-site browser in memory
