@@ -435,14 +435,10 @@
     renderThread(); updateHasText();
   }
 
-  // Browser-direct bridge — uses your IP / v2ray instead of Cloudflare egress (fixes shared-IP 429)
-  function getBridgeMap(){ try{ const v=JSON.parse(localStorage.getItem(LS_BRIDGE)||'{}'); return v&&typeof v==='object'?v:{};}catch{ return {}; } }
-  // Default ON for every provider except demo — fixes *.workers.dev 429 with no toggle needed.
-  function isBridgeEnabled(providerId){ const id=String(providerId||''); if(id==='demo') return false; const m=getBridgeMap(); if(!(id in m)) return true; return !!m[id]; }
-  function setBridgeEnabled(providerId, enabled){
-    const m=getBridgeMap(); const id=String(providerId||''); m[id]=!!enabled;
-    try{ localStorage.setItem(LS_BRIDGE, JSON.stringify(m)); }catch{}
-  }
+  // Browser-direct bridge — always ON except demo (fixes shared-IP 429 via your IP/v2ray)
+  function getBridgeMap(){ return {}; }
+  function isBridgeEnabled(providerId){ const id=String(providerId||''); return id !== '' && id !== 'demo'; }
+  function setBridgeEnabled(){} // compat no-op — toggle removed
   async function fetchBridgeCredentials(providerId){
     const r=await fetch('/api/ai/bridge?provider='+encodeURIComponent(providerId), { headers:{'X-AI-Bridge':'1'}});
     if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||('Bridge failed (HTTP '+r.status+')')); }
@@ -589,47 +585,12 @@
     const preset = state.providers.find(p => p.id === state.active.provider);
     const name = preset ? preset.name : (state.active.provider || 'demo');
     const model = state.active.model || preset?.defaultModel || '';
-    const live = state.active.provider !== 'demo';
-    const bridgeOn = live && isBridgeEnabled(state.active.provider);
     const modelChip = $('#ai-model-chip');
     if (modelChip) {
-      modelChip.innerHTML = `<i class="ti ti-cpu"></i> ${esc(name)}${model ? ' · ' + esc(model) : ''}${bridgeOn? ' · <span style="color:#8aff8a">browser</span>': ''} <i class="ti ti-settings" style="margin-left:2px"></i>`;
-      modelChip.title = bridgeOn ? 'Browser-direct: using your IP / v2ray' : 'Server-side: using Cloudflare IP';
+      modelChip.innerHTML = `<i class="ti ti-cpu"></i> ${esc(name)}${model ? ' · ' + esc(model) : ''} <i class="ti ti-settings" style="margin-left:2px"></i>`;
     }
-    renderBridgeToggle();
-  }
-  function renderBridgeToggle(){
-    let btn=document.getElementById('ai-bridge-toggle');
-    if(!btn){
-      const chips=document.querySelector('.ai-composer-chips');
-      if(!chips) return;
-      btn=document.createElement('button');
-      btn.id='ai-bridge-toggle';
-      btn.type='button';
-      btn.className='ai-chip ai-bridge';
-      chips.appendChild(btn);
-      btn.addEventListener('click', ()=>{
-        const pid=String(state.active.provider||'demo');
-        if(pid==='demo'){ toast('Save a key first','warn'); return; }
-        const preset=state.providers.find(p=>p.id===pid);
-        if(!preset){ toast('No provider','warn'); return; }
-        const cur=isBridgeEnabled(pid);
-        setBridgeEnabled(pid, !cur);
-        renderBridgeToggle(); renderProviderBadge();
-        toast(!cur ? 'Browser mode ON — uses your IP / v2ray (fixes deployed 429)' : 'Browser mode OFF — uses Cloudflare egress','ok');
-      });
-    }
-    const pid=String(state.active.provider||'demo');
-    const on=isBridgeEnabled(pid);
-    const preset=state.providers.find(p=>p.id===pid);
-    if(pid==='demo' || !preset){
-      btn.style.display='none';
-      return;
-    }
-    btn.style.display='';
-    btn.classList.toggle('on', on);
-    btn.title = on ? 'Browser-direct ON: now uses your IP / v2ray (fixes agnes 429 on workers.dev)' : 'Click to send this provider via your browser (your IP / v2ray) instead of Cloudflare';
-    btn.innerHTML = on ? '<i class="ti ti-world"></i> browser · ON' : '<i class="ti ti-cloud"></i> browser · OFF';
+    // remove legacy toggle if cached DOM still has it
+    document.getElementById('ai-bridge-toggle')?.remove();
   }
 
   /* ---------------- hero ---------------- */
@@ -1005,9 +966,8 @@
         if (String(error?.message)==='__ABORT_CACHED__') return;
         thinking?.remove(); cachedNotice?.remove();
         const msg=String(error?.message||'Browser request failed');
-        // CORS hint
         const isCors = /CORS|Failed to fetch|NetworkError/i.test(msg);
-        const hint = isCors ? ' — This endpoint blocks browser requests (CORS). Turn off "browser" for this provider and use server instead.' : (msg.includes('429') ? ' — Rate limited. Try Google as active or disable browser mode.' : '');
+        const hint = isCors ? ' — This endpoint blocks browser requests (CORS).' : (msg.includes('429') ? ' — Rate limited.' : '');
         appendErrorChip(msg + hint);
         toast(msg.slice(0,120), 'err');
         // fallback suggestion: offer to retry via server once
@@ -1015,7 +975,6 @@
           const retryBtn=document.createElement('button'); retryBtn.textContent='Retry via server';
           retryBtn.className='ais-btn'; retryBtn.style.marginTop='8px';
           retryBtn.onclick=async()=>{
-            setBridgeEnabled(_activePid,false); renderProviderBadge();
             retryBtn.remove();
             // re-send same prompt via server path once
             const inp=document.getElementById('ai-input'); if(inp) inp.value=prompt;

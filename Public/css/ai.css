@@ -1537,11 +1537,4 @@ button.ai-chip:hover {
 .ai-cache-btn.ghost{ background: transparent; }
 .ai-cache-btn.danger:hover{ color:var(--red); border-color: rgba(209,59,47,.45); }
 
-/* browser-direct bridge toggle (fixes shared-IP 429 on agnes via your IP/v2ray) */
-.ai-chip.ai-bridge{ cursor:pointer; user-select:none; }
-.ai-chip.ai-bridge.on{
-  color: #8aff8a;
-  border-color: rgba(138,255,138,.35);
-  background: rgba(138,255,138,.08);
-}
-.ai-chip.ai-bridge.on i{ color: #8aff8a; }
+

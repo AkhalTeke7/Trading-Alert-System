@@ -45,8 +45,8 @@ export async function sameSecret(a, b) {
 }
 
 const SESSION_COOKIE = 'pa_session';
-const SESSION_SECONDS = 12 * 60 * 60;
-const REMEMBER_SECONDS = 30 * 24 * 60 * 60;
+const SESSION_SECONDS = 365 * 24 * 60 * 60; // 1 year — one-time login (was 12 hours)
+const REMEMBER_SECONDS = 365 * 24 * 60 * 60; // 1 year — keep "Remember this device" also 1 year (was 30 days)
 const base64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 
