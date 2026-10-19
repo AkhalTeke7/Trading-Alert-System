@@ -623,13 +623,17 @@ async function serveStatic(pathname, response, request) {
         // cheap ETag: size-mtime
         const etag = `W/"${fileInfo.size.toString(36)}-${Math.floor(fileInfo.mtimeMs).toString(36)}"`;
         if (request && request.headers['if-none-match'] === etag) {
-            response.writeHead(304, { 'ETag': etag, 'Cache-Control': isHtml ? 'private, no-store' : 'private, max-age=3600' });
+            response.writeHead(304, { 'ETag': etag, 'Cache-Control': isHtml ? 'private, no-store' : 'private, no-cache' });
             response.end();
             return;
         }
         const cacheControl = isHtml
             ? 'private, no-store'
-            : 'private, max-age=3600, stale-while-revalidate=86400';
+            // no-cache (not max-age) so the browser revalidates every time: a
+            // changed file gets a new size-mtime ETag and is served immediately,
+            // unchanged files cost one cheap 304. max-age here meant an edited
+            // js/css file could stay stale for up to a day.
+            : 'private, no-cache';
         response.writeHead(200, {
             'Content-Type': contentTypes[ext] || 'application/octet-stream',
             'Content-Length': fileInfo.size,

@@ -1057,49 +1057,53 @@ function buildZigZag(candles, swingLen, minLegAtr, maxLegs, atrVal) {
         const direction = b.type === 'high' ? 'bullish' : 'bearish'; // low->high bullish
         legs.push({ start_idx: a.idx, end_idx: b.idx, start_time: candles[a.idx].time, end_time: candles[b.idx].time, direction, leg_high, leg_low, size });
     }
-    // merge small legs
+    // merge small legs: a counter-move below minLegAtr is noise. Absorb it into the previous
+    // leg together with the leg that follows it (which runs the same way as prev), so legs
+    // keep alternating — alternation is preserved instead of producing two same-side legs.
     const minSize = (minLegAtr || 4) * (atrVal || 0);
     if (minSize > 0) {
         const merged = [];
-        for (const leg of legs) {
+        for (let i = 0; i < legs.length; i++) {
+            const leg = legs[i];
             if (leg.size < minSize && merged.length) {
                 const prev = merged[merged.length - 1];
-                prev.end_idx = leg.end_idx; prev.end_time = leg.end_time;
-                prev.leg_high = Math.max(prev.leg_high, leg.leg_high);
-                prev.leg_low = Math.min(prev.leg_low, leg.leg_low);
+                const nxt = legs[i + 1];
+                if (!nxt) break; // trailing counter-move: drop it, the forming-leg check below covers the tail
+                prev.end_idx = nxt.end_idx; prev.end_time = nxt.end_time;
+                prev.leg_high = Math.max(prev.leg_high, leg.leg_high, nxt.leg_high);
+                prev.leg_low = Math.min(prev.leg_low, leg.leg_low, nxt.leg_low);
                 prev.size = prev.leg_high - prev.leg_low;
-                // direction stays as prev (merged)
+                i++; // nxt consumed by prev
             } else merged.push({ ...leg });
         }
         legs = merged;
     }
-    // keep only last maxLegs, and check forming leg at end
-    // Do NOT create a fake 0-length leg when both swings land on the same candle (14:15 bug)
-    // Filter exact idx duplicates before anything else
     legs = legs.filter(l => l.end_idx > l.start_idx || l.size > 0.01);
     if (legs.length > maxLegs) legs = legs.slice(-maxLegs);
     // forming leg: from last swing to last candle
     const lastSwing = alt[alt.length - 1];
     if (lastSwing && lastSwing.idx < candles.length - 1) {
-        // Guard: if lastSwing is isolated spike whose candle is both high&low (filtered above),
-        // its forming leg re-uses the same 50-pt candle high/low → same bug. Check actual seg size.
-        const alreadyHasEnd = legs.some(l => l.end_idx === candles.length - 1 || l.end_idx === lastSwing.idx);
-        if (!alreadyHasEnd) {
-            const seg = candles.slice(lastSwing.idx);
-            const leg_high = Math.max(...seg.map(c => c.high));
-            const leg_low = Math.min(...seg.map(c => c.low));
-            const size = leg_high - leg_low;
-            if (size >= (minLegAtr * (atrVal || 0))) {
-                const direction = lastSwing.type === 'low' ? 'bullish' : 'bearish';
+        const seg = candles.slice(lastSwing.idx);
+        const leg_high = Math.max(...seg.map(c => c.high));
+        const leg_low = Math.min(...seg.map(c => c.low));
+        const size = leg_high - leg_low;
+        if (size >= (minLegAtr * (atrVal || 0))) {
+            const direction = lastSwing.type === 'low' ? 'bullish' : 'bearish';
+            const tail = legs[legs.length - 1];
+            if (tail && tail.direction === direction) {
+                // prev leg is still extending (its small counter-move was absorbed) — grow its tail
+                tail.end_idx = candles.length - 1;
+                tail.end_time = candles[candles.length - 1].time;
+                tail.leg_high = Math.max(tail.leg_high, leg_high);
+                tail.leg_low = Math.min(tail.leg_low, leg_low);
+                tail.size = tail.leg_high - tail.leg_low;
+                tail.forming = true;
+            } else {
                 const forming = { start_idx: lastSwing.idx, end_idx: candles.length - 1, start_time: candles[lastSwing.idx].time, end_time: candles[candles.length - 1].time, direction, leg_high, leg_low, size, forming: true };
-                if (legs.length < maxLegs) legs.push(forming);
-                else if (legs.length === maxLegs) { legs.push(forming); legs = legs.slice(-maxLegs); }
+                legs.push(forming);
+                legs = legs.slice(-maxLegs);
             }
         }
-    }
-    // De-duplicate identical zones (same SH/SL on one candle → two legs, same 50.3 range)
-    if (legs.length === 2 && legs[0].leg_high === legs[1].leg_high && legs[0].leg_low === legs[1].leg_low) {
-        legs = [legs[1]]; // keep the bullish leg (more useful for discount OBs), drop the 0-length bearish ghost
     }
     return { legs, swings: alt, atr: atrVal };
 }
@@ -1112,18 +1116,11 @@ function sessionFor(ts) {
         return 'other';
     } catch { return 'other'; }
 }
-function hasFVG(candles, fromIdx) {
-    for (let i = fromIdx + 1; i < candles.length - 2; i++) {
-        const a = candles[i], c = candles[i + 2];
-        // bullish FVG: a.high < c.low
-        if (a.high < c.low) return true;
-        // bearish FVG: a.low > c.high
-        if (a.low > c.high) return true;
-    }
-    return false;
-}
-function hasFVGAfter(candles, obIdx, direction) {
-    for (let i = obIdx + 1; i < candles.length - 2; i++) {
+// An FVG must sit *between* the OB and its BOS (inclusive of the BOS candle), and it must
+// match the OB's own side — a bullish gap can never validate a bearish OB.
+function hasFVGBetween(candles, fromIdx, toIdx, direction) {
+    const start = Math.max(0, fromIdx);
+    for (let i = start; i + 2 <= toIdx && i + 2 < candles.length; i++) {
         const a = candles[i], c = candles[i + 2];
         if (direction === 'bullish' && a.high < c.low) return true;
         if (direction === 'bearish' && a.low > c.high) return true;
@@ -1137,12 +1134,13 @@ function detectSweep(candles, obIdx, type) {
     const ob = candles[obIdx];
     if (type === 'bullish') {
         const minLow = Math.min(...window.map(c => c.low));
-        // sweep below prior low then close back above
-        return ob.low < minLow;
-    } else {
-        const maxHigh = Math.max(...window.map(c => c.high));
-        return ob.high > maxHigh;
+        // wick below the prior low AND close back above it — a wick alone is a
+        // breakdown, not a sweep
+        return ob.low < minLow && ob.close > minLow;
     }
+    const maxHigh = Math.max(...window.map(c => c.high));
+    // wick above the prior high AND close back below it
+    return ob.high > maxHigh && ob.close < maxHigh;
 }
 function trendStrengthForLeg(candles, leg, atrVal) {
     const seg = candles.slice(leg.start_idx, leg.end_idx + 1);
@@ -1282,7 +1280,35 @@ function buildObSvg({ symbol, timeframe, generated_at, legs, order_blocks }) {
     svg += `</svg>`;
     return svg;
 }
-export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min_leg_atr = 4, max_legs = 2, atr_period = 14, min_displacement_atr = 1.5, strict_side = true, ob_merge_distance_atr = 0.5, premium_discount_buffer_atr = 0.2 } = {}) {
+// numeric/flag args arrive from tool calls as JSON — they can be null, numeric strings or
+// garbage. Sanitize instead of crashing ("Could not compute ATR14" was a bogus 0/NaN period).
+function numArg(v, dflt, opts = {}) {
+    if (v == null || v === '') return dflt;
+    const n = typeof v === 'number' ? v : Number(String(v).trim());
+    if (!Number.isFinite(n)) return dflt;
+    const out = opts.int ? Math.round(n) : n;
+    if (opts.min != null && out < opts.min) return dflt;
+    if (opts.max != null && out > opts.max) return dflt;
+    return out;
+}
+function boolArg(v, dflt) {
+    if (v == null || v === '') return dflt;
+    if (typeof v === 'boolean') return v;
+    const s = String(v).trim().toLowerCase();
+    if (s === 'true' || s === '1' || s === 'yes' || s === 'on') return true;
+    if (s === 'false' || s === '0' || s === 'no' || s === 'off') return false;
+    return dflt;
+}
+export function analyzeOrderBlocks(opts = {}) {
+    const { candles, symbol = '' } = opts || {};
+    const swing_length = numArg(opts.swing_length, 5, { int: true, min: 2, max: 50 });
+    const min_leg_atr = numArg(opts.min_leg_atr, 4, { min: 0, max: 100 });
+    const max_legs = numArg(opts.max_legs, 2, { int: true, min: 1, max: 10 });
+    const atr_period = numArg(opts.atr_period, 14, { int: true, min: 2, max: 200 });
+    const min_displacement_atr = numArg(opts.min_displacement_atr, 1.5, { min: 0, max: 50 });
+    const strict_side = boolArg(opts.strict_side, true);
+    const ob_merge_distance_atr = numArg(opts.ob_merge_distance_atr, 0.5, { min: 0, max: 50 });
+    const premium_discount_buffer_atr = numArg(opts.premium_discount_buffer_atr, 0.2, { min: 0, max: 50 });
     const errors = [];
     if (!Array.isArray(candles) || candles.length < 30) {
         return { symbol: String(symbol || ''), timeframe: '15m', generated_at: new Date().toISOString(), svg_chart: '', legs: [], order_blocks: [], historical_obs: [], errors: ['Not enough candles: need ≥30 15m candles (got ' + (Array.isArray(candles) ? candles.length : 0) + ')'] };
@@ -1299,6 +1325,12 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
         return { symbol: String(symbol || ''), timeframe: '15m', generated_at: new Date().toISOString(), svg_chart: '', legs: [], order_blocks: [], historical_obs: [], errors: ['Could not compute ATR14 — not enough valid candles'] };
     }
     const zz = buildZigZag(norm, swing_length, min_leg_atr, max_legs, atrVal);
+    // Confirmed swings: a BOS must break the last swing *before* the OB, not the leg's
+    // eventual end — otherwise a close above the OB candle proves nothing.
+    const sw = findSwings(norm, swing_length);
+    const lastBefore = (arr, idx) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i].idx < idx) return arr[i]; return null; };
+    const bosHighFor = (idx, legHigh) => { const s = lastBefore(sw.highs, idx); return s ? s.price : legHigh; };
+    const bosLowFor = (idx, legLow) => { const s = lastBefore(sw.lows, idx); return s ? s.price : legLow; };
     if (!zz.legs.length) {
         return { symbol: String(symbol || ''), timeframe: '15m', generated_at: new Date().toISOString(), svg_chart: '', legs: [], order_blocks: [], historical_obs: [], errors: ['No major zigzag legs found (try smaller min_leg_atr)'] };
     }
@@ -1330,10 +1362,7 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
         const eq = leg.equilibrium, buf = leg._buf;
         const neutralTop = eq + buf, neutralBottom = eq - buf;
         const isBullLeg = leg.direction === 'bullish';
-        // prior swing reference for BOS
-        const priorHigh = Math.max(...norm.slice(0, leg._start_idx).map(c => c.high).slice(-20), -Infinity);
-        const priorLow = Math.min(...norm.slice(0, leg._start_idx).map(c => c.low).slice(-20), Infinity);
-        // legHigh/Low for FVG search scope
+        // BOS reference levels come from the confirmed swings (bosHighFor/bosLowFor) above
         for (let j = 0; j < seg.length - 3; j++) {
             const idx = leg._start_idx + j;
             const c = norm[idx];
@@ -1352,20 +1381,19 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
                     if (mid >= neutralBottom && mid <= neutralTop) continue;
                     if (mid > leg.discount_zone.top) continue; // must be in discount
                 }
-                // find BOS: close above prior swing high within next N candles
+                // BOS: close above the last confirmed swing high *before* this OB
+                const bosLevel = bosHighFor(idx, leg.leg_high);
+                if (c.high >= bosLevel) continue; // OB candle already at/above the structure — nothing to break
                 let bosIdx = -1;
                 const look = Math.min(norm.length - 1, idx + 20);
                 for (let k = idx + 1; k <= look; k++) {
-                    const refHigh = Math.max(priorHigh, leg.leg_high * 0.999); // use leg high as proxy for prior swing
-                    // use swing high before leg: priorHigh; also leg start high
-                    const threshold = Number.isFinite(priorHigh) ? priorHigh : leg.leg_high;
-                    if (norm[k].close > threshold) { bosIdx = k; break; }
+                    if (norm[k].close > bosLevel) { bosIdx = k; break; }
                 }
                 if (bosIdx === -1) continue;
                 // displacement
                 const displacement = Math.abs(norm[bosIdx].close - c.close);
                 if (displacement < min_displacement_atr * atrVal) continue;
-                if (!hasFVGAfter(norm, idx, 'bullish')) continue;
+                if (!hasFVGBetween(norm, idx, bosIdx + 1, 'bullish')) continue;
                 const sweep = detectSweep(norm, idx, 'bullish');
                 // status
                 let status = 'fresh';
@@ -1412,7 +1440,7 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
                     invalidation_level: Number(zone_bottom.toFixed(5)),
                     liquidity_sweep: !!sweep, fvg_present: true,
                     leg_trend_strength: leg.trend_strength.score,
-                    score, merged_from: [], notes: `BOS@${norm[bosIdx].time.slice(11,16)}UTC disp ${(displacement/atrVal).toFixed(1)}ATR`,
+                    score, bos_time: norm[bosIdx].time, merged_from: [], notes: `BOS@${norm[bosIdx].time.slice(11,16)}UTC disp ${(displacement/atrVal).toFixed(1)}ATR`,
                 });
             }
             if (isBearishOBCandidate) {
@@ -1422,16 +1450,18 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
                     if (mid >= neutralBottom && mid <= neutralTop) continue;
                     if (mid < leg.premium_zone.bottom) continue;
                 }
+                // BOS: close below the last confirmed swing low *before* this OB
+                const bosLevel = bosLowFor(idx, leg.leg_low);
+                if (c.low <= bosLevel) continue; // OB candle already at/below the structure — nothing to break
                 let bosIdx = -1;
                 const look = Math.min(norm.length - 1, idx + 20);
-                const threshold = Number.isFinite(priorLow) ? priorLow : leg.leg_low;
                 for (let k = idx + 1; k <= look; k++) {
-                    if (norm[k].close < threshold) { bosIdx = k; break; }
+                    if (norm[k].close < bosLevel) { bosIdx = k; break; }
                 }
                 if (bosIdx === -1) continue;
                 const displacement = Math.abs(c.close - norm[bosIdx].close);
                 if (displacement < min_displacement_atr * atrVal) continue;
-                if (!hasFVGAfter(norm, idx, 'bearish')) continue;
+                if (!hasFVGBetween(norm, idx, bosIdx + 1, 'bearish')) continue;
                 const sweep = detectSweep(norm, idx, 'bearish');
                 let status = 'fresh';
                 for (let k = bosIdx + 1; k < norm.length; k++) {
@@ -1466,7 +1496,7 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
                     invalidation_level: Number(zone_top.toFixed(5)),
                     liquidity_sweep: !!sweep, fvg_present: true,
                     leg_trend_strength: leg.trend_strength.score,
-                    score, merged_from: [], notes: `BOS@${norm[bosIdx].time.slice(11,16)}UTC disp ${(displacement/atrVal).toFixed(1)}ATR`,
+                    score, bos_time: norm[bosIdx].time, merged_from: [], notes: `BOS@${norm[bosIdx].time.slice(11,16)}UTC disp ${(displacement/atrVal).toFixed(1)}ATR`,
                 });
             }
         }
@@ -1496,7 +1526,16 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
                     const core_bottom = Math.min(cur.zone.core_bottom, other.zone.core_bottom);
                     const keep = cur.score >= other.score ? cur : other;
                     const drop = cur.score >= other.score ? other : cur;
-                    cur = { ...keep, zone: { top: Number(top.toFixed(5)), bottom: Number(bottom.toFixed(5)), core_top: Number(core_top.toFixed(5)), core_bottom: Number(core_bottom.toFixed(5)) }, merged_from: [...(keep.merged_from || []), keep.id, drop.id].filter(Boolean) };
+                    const mergedZone = { top: Number(top.toFixed(5)), bottom: Number(bottom.toFixed(5)), core_top: Number(core_top.toFixed(5)), core_bottom: Number(core_bottom.toFixed(5)) };
+                    cur = {
+                        ...keep,
+                        zone: mergedZone,
+                        // a merged zone can extend past the original candle — invalidation must
+                        // track the merged edge, otherwise the level is not on the zone anymore
+                        invalidation_level: Number((keep.type === 'bullish' ? mergedZone.bottom : mergedZone.top).toFixed(5)),
+                        // dedupe: a source id may already be listed from an earlier merge step
+                        merged_from: [...new Set([...(keep.merged_from || []), keep.id, drop.id].filter(Boolean))],
+                    };
                     used.add(j);
                 }
             }
@@ -1515,6 +1554,9 @@ export function analyzeOrderBlocks({ candles, symbol = '', swing_length = 5, min
     const svg_data_uri = svg_chart ? toSvgDataUri(svg_chart) : '';
     return { symbol: String(symbol || ''), timeframe: '15m', generated_at: new Date().toISOString(), svg_chart, svg_data_uri, legs: outLegs, order_blocks: active, historical_obs, errors };
 }
+// internals exposed for the unit tests (tests/orderBlocks.node.js)
+export const _obInternals = { hasFVGBetween, detectSweep, buildZigZag, findSwings };
+
 export async function scanOrderBlocks({ symbol, from, to, fetchImpl = fetch, swing_length, min_leg_atr, max_legs, atr_period, min_displacement_atr, strict_side, ob_merge_distance_atr, premium_discount_buffer_atr } = {}) {
     const fetched = await fetchDukascopyCandles({ symbol, from, to, fetchImpl });
     if (fetched.error) return { error: fetched.error, hint: fetched.hint || 'fetch', symbol: fetched.symbol || String(symbol || ''), from: fetched.from, to: fetched.to };

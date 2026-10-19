@@ -13,22 +13,36 @@ const state = { events: [], imp: "all", country: "all" };
 
 /* ---------- helpers ---------- */
 function weekRange() {
-    // NEXT week: next Monday 00:00 -> following Monday 00:00 (browser local time)
-    // So on Sat Oct 17 you see Mon Oct 19-25 (0 released), not Mon Oct 12-18 (142/146 released)
+    // CURRENT week (browser local time): Monday 00:00 of the week containing
+    // today -> the following Monday 00:00 (exclusive end).
+    // On Mon Oct 19 you see Mon Oct 19 -> Mon Oct 26, so the header reads
+    // "Oct 19 – Oct 25, 2026". End is computed from thisMon so DST shifts
+    // (23h/25h days) can never push the range into the wrong week.
     const thisMon = new Date();
     thisMon.setHours(0, 0, 0, 0);
     thisMon.setDate(thisMon.getDate() - ((thisMon.getDay() + 6) % 7));
-    const nextMon = new Date(thisMon);
-    nextMon.setDate(nextMon.getDate() + 7);
-    const end = new Date(nextMon);
+    const end = new Date(thisMon);
     end.setDate(end.getDate() + 7);
-    return [nextMon, end];
+    return [thisMon, end];
 }
 
 function utc4(d) {
     // fixed UTC-4 clock time (no DST handling)
     const s = new Date(d.getTime() - 4 * 3600 * 1000);
     return String(s.getUTCHours()).padStart(2, "0") + ":" + String(s.getUTCMinutes()).padStart(2, "0");
+}
+
+function isWeekend(d) {
+    const dow = d.getDay();
+    return dow === 0 || dow === 6;   // Sun / Sat — no scheduled releases
+}
+
+function noneText() {
+    // sentence for a day that has no events under the active filter
+    const c = state.country === "all" ? "" : ` in ${state.country === "ERL" ? "the EU" : state.country}`;
+    if (state.imp === "1") return `no high-importance events${c}`;
+    if (state.imp === "0") return `no mid or high importance events${c}`;
+    return c ? `no events${c}` : "no events";
 }
 
 function released(ev) {
@@ -91,12 +105,26 @@ function setStatus(msg, kind) {
 }
 
 async function fetchJSON(url) {
-    const r = await fetch(url, { headers: { Accept: "application/json" } });
+    const r = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
 }
 
 async function load() {
+    // give the button visible feedback: it re-fetches, so a click can look like
+    // a no-op when the data hasn't changed
+    const btn = document.getElementById("refreshBtn");
+    btn.disabled = true;
+    btn.classList.add("busy");
+    try {
+        await fetchEvents();
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove("busy");
+    }
+}
+
+async function fetchEvents() {
     const [s, e] = weekRange();
     const url = `${API}?minImportance=0&from=${encodeURIComponent(s.toISOString())}&to=${encodeURIComponent(e.toISOString())}&countries=${encodeURIComponent(COUNTRIES)}`;
     setStatus("Loading events…", "loading");
@@ -162,17 +190,26 @@ function render() {
     if (state.imp === "1") list = list.filter(x => x.importance >= 1);
     else if (state.imp === "0") list = list.filter(x => x.importance >= 0);
     if (state.country !== "all") list = list.filter(x => x.country === state.country);
+    // weekends aren't rendered at all
+    list = list.filter(x => !isWeekend(x.date));
 
     document.getElementById("weekSub").textContent =
         `${list.length} event${list.length === 1 ? "" : "s"} · times in ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
 
     const box = document.getElementById("days");
-    if (!list.length) { box.innerHTML = ""; return; }
 
+    // one section per weekday of the week, so a day with no matching events
+    // still shows up as an explicit "none" instead of silently disappearing
+    // when a filter is on
     const groups = new Map();
+    const day = new Date(s);
+    while (day < e) {
+        if (!isWeekend(day)) groups.set(day.toDateString(), []);
+        day.setDate(day.getDate() + 1);
+    }
     list.forEach(ev => {
         const key = ev.date.toDateString();
-        if (!groups.has(key)) groups.set(key, []);
+        if (!groups.has(key)) return;   // weekend / out-of-range event
         groups.get(key).push(ev);
     });
 
@@ -181,9 +218,23 @@ function render() {
     const ordered = [...groups.entries()].sort((a, b) =>
         (b[0] === todayKey) - (a[0] === todayKey));
     box.innerHTML = ordered.map(([key, evs]) => {
-        const d = evs[0].date;
+        const d = new Date(key);
         const label = d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-        const isToday = d.toDateString() === new Date().toDateString();
+        const isToday = key === todayKey;
+        if (!evs.length) {
+            const num0 = String(++n).padStart(2, "0");
+            return `
+        <section class="card day empty${isToday ? " today" : ""}">
+            <div class="card-head">
+                <span class="tag">${num0} // ${esc(d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase())}</span>
+                <span class="kanji">𐰇</span>
+            </div>
+            <div class="card-body">
+                <h2>${esc(label)}${isToday ? ' <span class="badge">today</span>' : ""}</h2>
+                <div class="ev-none">${esc(noneText())}</div>
+            </div>
+        </section>`;
+        }
         const rows = evs.map(ev => {
             const t = ev.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
             const imp = ev.importance >= 1 ? "high" : ev.importance === 0 ? "mid" : "low";
